@@ -288,6 +288,43 @@
     <div class="panel">
       <div class="panel-header">
         <div>
+          <h2>Macro tracking</h2>
+        </div>
+      </div>
+      <form action="/settings/macros" method="POST" class="stack">
+        <p class="muted small">Enable the nutrients you want to track. Goals are optional.</p>
+        <div class="macro-settings">
+          <% const macros = [
+            { key: 'protein', label: 'Protein' },
+            { key: 'carbs', label: 'Carbohydrates' },
+            { key: 'fat', label: 'Fat' },
+            { key: 'fiber', label: 'Fiber' },
+            { key: 'sugar', label: 'Sugar' },
+          ]; %>
+          <% macros.forEach((macro) => {
+            const enabled = (user.macros_enabled || {})[macro.key];
+            const goal = (user.macro_goals || {})[macro.key];
+          %>
+            <div class="macro-row">
+              <label class="macro-toggle">
+                <input type="checkbox" name="<%= macro.key %>_enabled" <%= enabled ? 'checked' : '' %> data-macro-toggle="<%= macro.key %>">
+                <span class="macro-label"><%= macro.label %></span>
+              </label>
+              <label class="field compact macro-goal <%= !enabled ? 'disabled' : '' %>" data-macro-goal="<%= macro.key %>">
+                <span>Goal (g)</span>
+                <input type="number" name="<%= macro.key %>_goal" min="0" max="9999" placeholder="Optional"
+                       value="<%= goal || '' %>" <%= !enabled ? 'disabled' : '' %>>
+              </label>
+            </div>
+          <% }) %>
+        </div>
+        <button type="submit" class="primary">Save macro settings</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div>
           <h2>Backup &amp; restore</h2>
         </div>
       </div>
@@ -326,6 +363,24 @@
           if (label) label.classList.add('active');
         });
       }
+
+      // Macro toggle handling
+      document.querySelectorAll('[data-macro-toggle]').forEach((checkbox) => {
+        checkbox.addEventListener('change', () => {
+          const macroKey = checkbox.getAttribute('data-macro-toggle');
+          const goalField = document.querySelector(`[data-macro-goal="${macroKey}"]`);
+          if (goalField) {
+            const input = goalField.querySelector('input');
+            if (checkbox.checked) {
+              goalField.classList.remove('disabled');
+              if (input) input.disabled = false;
+            } else {
+              goalField.classList.add('disabled');
+              if (input) input.disabled = true;
+            }
+          }
+        });
+      });
 
       // Copy button for TOTP secret
       document.querySelectorAll('[data-copy]').forEach((btn) => {

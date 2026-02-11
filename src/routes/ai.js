@@ -9,6 +9,7 @@ const {
   getAIDailyLimit,
   callAIProvider
 } = require('../lib/ai');
+const { getEnabledMacros } = require('../lib/macros');
 
 const router = express.Router();
 
@@ -144,12 +145,24 @@ router.post('/api/ai/estimate', strictLimiter, requireLogin, async (req, res) =>
   }
 
   const contextHint = context ? `\n\nUser provided context: "${context}"` : '';
-  const prompt = `Analyze this food image and estimate the calories.${contextHint}
+
+  // Get user's enabled macros for estimation
+  const enabledMacros = getEnabledMacros(user);
+  const macroRequest = enabledMacros.length > 0
+    ? `\n\nAlso estimate these macros (in grams, as whole numbers): ${enabledMacros.join(', ')}.`
+    : '';
+  const macroFields = enabledMacros.length > 0
+    ? `\n- macros: object with estimated values in grams for: ${enabledMacros.join(', ')} (e.g., {"protein": 25, "carbs": 40})`
+    : '';
+
+  const prompt = `Analyze this food image and estimate the calories.${contextHint}${macroRequest}
 
 Respond in JSON format with these fields:
 - calories: estimated total calories (number, must be > 0 if food is detected). Round to nearest 50 for values >= 50.
 - food: brief description of the food items (string, max 50 chars)
-- confidence: your confidence level ("high", "medium", or "low")
+- confidence: your confidence level ("high", "medium", or "low")${macroFields}
+
+IMPORTANT: These are estimates only. Actual nutritional values may vary significantly based on portion size, preparation method, and ingredients.
 
 If you cannot identify any food in the image, set calories to 0 and food to "No food detected".
 
@@ -175,11 +188,25 @@ Only respond with the JSON object, no other text.`;
     const rawCalories = result.calories;
     const calories = rawCalories < 50 ? rawCalories : Math.round(rawCalories / 50) * 50;
 
+    // Extract macro estimates if present
+    let macros = null;
+    if (enabledMacros.length > 0 && result.macros) {
+      macros = {};
+      for (const key of enabledMacros) {
+        const value = parseInt(result.macros[key], 10);
+        macros[key] = Number.isNaN(value) ? null : value;
+      }
+    }
+
     return res.json({
       ok: true,
       calories,
       food: result.food,
       confidence: result.confidence,
+      macros,
+      disclaimer: enabledMacros.length > 0
+        ? 'Macro estimates are approximate. Actual values may vary based on portion size and preparation.'
+        : null,
     });
   } catch (err) {
     console.error('AI estimation failed:', err.message);

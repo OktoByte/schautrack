@@ -259,7 +259,8 @@ async function initSchemaWithRetry(maxRetries = 10, initialDelay = 1000) {
         ensureEmailVerificationSchema(),
         ensureAdminSettingsSchema(),
         ensureAIKeysSchema(),
-        ensureAIUsageSchema()
+        ensureAIUsageSchema(),
+        ensureMacroSchema()
       ]);
       console.log('Schema initialization successful');
       return;
@@ -287,5 +288,6 @@ module.exports = {
   ensureEmailVerificationSchema,
   ensureAdminSettingsSchema,
   ensureAIKeysSchema,
-  ensureAIUsageSchema
+  ensureAIUsageSchema,
+  ensureMacroSchema
 };

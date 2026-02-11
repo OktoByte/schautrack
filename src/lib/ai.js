@@ -213,6 +213,7 @@ function parseAIResponse(content) {
       calories,
       food: String(parsed.food || 'Unknown food').slice(0, 50),
       confidence: ['high', 'medium', 'low'].includes(parsed.confidence) ? parsed.confidence : 'medium',
+      macros: parsed.macros || null,
     };
   } catch (parseErr) {
     if (parseErr.message === 'NO_FOOD_DETECTED') {

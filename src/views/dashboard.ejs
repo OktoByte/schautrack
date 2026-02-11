@@ -50,29 +50,39 @@
         </button>
       </div>
     </div>
-    <form action="/entries" method="POST" class="stack horizontal" data-log-form>
+    <form action="/entries" method="POST" class="entry-form" data-log-form>
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <label class="field">
-        <span>Calories</span>
-        <input
-          type="text"
-          inputmode="tel"
-          pattern="[0-9+\-*/().\s]*"
-          name="amount"
-          placeholder="e.g. 250 or -200"
-          autocomplete="off"
-          id="math-input"
-          data-calorie-input
-        >
-      </label>
-      <label class="field">
-        <span>What</span>
-        <input type="text" name="entry_name" maxlength="120" placeholder="Breakfast, snack...">
-      </label>
-      <label class="field">
-        <span>Date</span>
-        <input type="date" name="entry_date" data-date-input data-weight-date value="<%= selectedDate %>">
-      </label>
+      <div class="entry-form-row">
+        <label class="field entry-field-name">
+          <span>What</span>
+          <input type="text" name="entry_name" maxlength="120" placeholder="Breakfast, snack..." data-name-input>
+        </label>
+        <label class="field entry-field-kcal">
+          <span>kcal</span>
+          <input
+            type="text"
+            inputmode="tel"
+            pattern="[0-9+\-*/().\s]*"
+            name="amount"
+            placeholder="e.g. 250"
+            autocomplete="off"
+            id="math-input"
+            data-calorie-input
+          >
+        </label>
+        <% if (enabledMacros && enabledMacros.length > 0) { %>
+          <% enabledMacros.forEach((key) => { %>
+            <label class="field entry-field-macro">
+              <span><%= macroLabels[key].label %></span>
+              <input type="text" inputmode="numeric" name="<%= key %>_g" placeholder="-" autocomplete="off" data-macro-input="<%= key %>">
+            </label>
+          <% }) %>
+        <% } %>
+        <label class="field entry-field-date">
+          <span>Date</span>
+          <input type="date" name="entry_date" data-date-input data-weight-date value="<%= selectedDate %>">
+        </label>
+      </div>
       <button type="submit" class="primary" disabled data-submit-btn>Record</button>
     </form>
   </section>
@@ -217,22 +227,32 @@
           </div>
         </div>
       </div>
-      <div class="entry-list <%= (!recentEntries || recentEntries.length === 0) ? 'hidden' : '' %>" data-entry-list>
+      <div class="entry-table-wrap <%= (!recentEntries || recentEntries.length === 0) ? 'hidden' : '' %>" data-entry-list>
+        <% if (enabledMacros && enabledMacros.length > 0) { %>
+        <div class="entry-table-header" data-entry-header>
+          <span class="entry-th entry-th-name">What</span>
+          <span class="entry-th entry-th-kcal">kcal</span>
+          <% enabledMacros.forEach((key) => { %>
+            <span class="entry-th entry-th-macro"><%= macroLabels[key].label %></span>
+          <% }) %>
+          <span class="entry-th entry-th-time">Time</span>
+          <span class="entry-th entry-th-actions"></span>
+        </div>
+        <% } %>
         <% if (recentEntries && recentEntries.length > 0) { %>
           <% recentEntries.forEach((entry) => { %>
             <div class="entry-row" data-entry-row data-entry-id="<%= entry.id %>">
-              <div>
-                <button type="button" class="edit-trigger entry-name" data-edit-name><%= entry.entry_name || 'Untitled' %></button>
-              </div>
-              <div class="entry-actions">
-                <div class="entry-amount-wrap">
-                  <button type="button" class="edit-trigger entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><%= entry.amount %> kcal</button>
-                </div>
-                <span class="entry-time muted small" data-entry-time><%= entry.timeFormatted %></span>
-                <form action="/entries/<%= entry.id %>/delete" method="POST" class="inline-form" data-delete-form>
-                  <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="<%= entry.id %>">Delete</button>
-                </form>
-              </div>
+              <button type="button" class="edit-trigger entry-cell entry-name" data-edit-name><%= entry.entry_name || 'Untitled' %></button>
+              <button type="button" class="edit-trigger entry-cell entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><%= entry.amount %></button>
+              <% if (enabledMacros && enabledMacros.length > 0) { %>
+                <% enabledMacros.forEach((key) => { %>
+                  <button type="button" class="edit-trigger entry-cell entry-macro" data-edit-macro="<%= key %>"><%= entry[key + '_g'] != null ? entry[key + '_g'] : '-' %></button>
+                <% }) %>
+              <% } %>
+              <span class="entry-cell entry-time muted small" data-entry-time><%= entry.timeFormatted %></span>
+              <form action="/entries/<%= entry.id %>/delete" method="POST" class="inline-form entry-cell entry-delete" data-delete-form>
+                <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="<%= entry.id %>">Delete</button>
+              </form>
             </div>
           <% }) %>
         <% } %>
@@ -265,7 +285,10 @@
         time: entry.timeFormatted || '',
         amount: entry.amount,
         name: entry.entry_name || null,
+        macros: entry.macros || null,
       }))) %>;
+      const enabledMacrosJs = <%- JSON.stringify(enabledMacros || []) %>;
+      const macroLabelsJs = <%- JSON.stringify(macroLabels || {}) %>;
       const weightDateInput = document.querySelector('[data-weight-date]');
       const weightSlot = document.querySelector('[data-weight-slot]');
       const weightRow = document.querySelector('[data-weight-row]');
@@ -544,8 +567,26 @@
 
       const renderEntries = (entries, canEdit) => {
         if (!entryList) return;
-        entryList.innerHTML = '';
+
+        // Build header if macros are enabled
+        let headerHtml = '';
+        if (enabledMacrosJs.length > 0) {
+          const macroHeaders = enabledMacrosJs.map(key =>
+            `<span class="entry-th entry-th-macro">${macroLabelsJs[key]?.label || key}</span>`
+          ).join('');
+          headerHtml = `
+            <div class="entry-table-header" data-entry-header>
+              <span class="entry-th entry-th-name">What</span>
+              <span class="entry-th entry-th-kcal">kcal</span>
+              ${macroHeaders}
+              <span class="entry-th entry-th-time">Time</span>
+              <span class="entry-th entry-th-actions"></span>
+            </div>
+          `;
+        }
+
         if (!entries || entries.length === 0) {
+          entryList.innerHTML = headerHtml;
           entryList.classList.add('hidden');
           if (emptyState) {
             emptyState.textContent = canEdit ? 'No entries yet.' : 'No shared entries yet.';
@@ -556,45 +597,45 @@
 
         if (emptyState) emptyState.classList.add('hidden');
         entryList.classList.remove('hidden');
-        entryList.innerHTML = entries
-          .map((entry) => {
-            const safeName = escapeHtml(entry.name || 'Untitled');
+
+        const rowsHtml = entries.map((entry) => {
+          const safeName = escapeHtml(entry.name || 'Untitled');
+          const macroCells = enabledMacrosJs.map(key => {
+            const val = entry.macros?.[key];
+            const displayVal = val != null ? val : '-';
             if (!canEdit) {
-              return `
-              <div class="entry-row view-only" data-entry-row data-entry-id="${entry.id}">
-                <div>
-                  <button type="button" class="edit-trigger entry-name is-locked" data-locked="true">${safeName}</button>
-                </div>
-                <div class="entry-actions">
-                  <div class="entry-amount-wrap">
-                    <button type="button" class="edit-trigger entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'} is-locked" data-locked="true">${entry.amount} kcal</button>
-                  </div>
-                  <span class="entry-time muted small">${entry.time || ''}</span>
-                  <form class="inline-form delete-placeholder" aria-hidden="true">
-                    <button type="button" class="ghost danger small placeholder-delete" tabindex="-1">Delete</button>
-                  </form>
-                </div>
-              </div>
-            `;
+              return `<button type="button" class="edit-trigger entry-cell entry-macro is-locked" data-locked="true">${displayVal}</button>`;
             }
+            return `<button type="button" class="edit-trigger entry-cell entry-macro" data-edit-macro="${key}">${displayVal}</button>`;
+          }).join('');
+
+          if (!canEdit) {
             return `
-            <div class="entry-row" data-entry-row data-entry-id="${entry.id}">
-              <div>
-                <button type="button" class="edit-trigger entry-name" data-edit-name>${safeName}</button>
-              </div>
-              <div class="entry-actions">
-                <div class="entry-amount-wrap">
-                  <button type="button" class="edit-trigger entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}" data-edit-amount>${entry.amount} kcal</button>
-                </div>
-                <span class="entry-time muted small" data-entry-time>${entry.time || ''}</span>
-                <form action="/entries/${entry.id}/delete" method="POST" class="inline-form" data-delete-form>
-                  <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="${entry.id}">Delete</button>
-                </form>
-              </div>
+            <div class="entry-row view-only" data-entry-row data-entry-id="${entry.id}">
+              <button type="button" class="edit-trigger entry-cell entry-name is-locked" data-locked="true">${safeName}</button>
+              <button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'} is-locked" data-locked="true">${entry.amount}</button>
+              ${macroCells}
+              <span class="entry-cell entry-time muted small">${entry.time || ''}</span>
+              <form class="inline-form entry-cell entry-delete delete-placeholder" aria-hidden="true">
+                <button type="button" class="ghost danger small placeholder-delete" tabindex="-1">Delete</button>
+              </form>
             </div>
           `;
-          })
-          .join('');
+          }
+          return `
+          <div class="entry-row" data-entry-row data-entry-id="${entry.id}">
+            <button type="button" class="edit-trigger entry-cell entry-name" data-edit-name>${safeName}</button>
+            <button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}" data-edit-amount>${entry.amount}</button>
+            ${macroCells}
+            <span class="entry-cell entry-time muted small" data-entry-time>${entry.time || ''}</span>
+            <form action="/entries/${entry.id}/delete" method="POST" class="inline-form entry-cell entry-delete" data-delete-form>
+              <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="${entry.id}">Delete</button>
+            </form>
+          </div>
+        `;
+        }).join('');
+
+        entryList.innerHTML = headerHtml + rowsHtml;
       };
 
       const formatDaysAgo = (weightDateStr, selectedDateStr) => {
@@ -1108,16 +1149,26 @@
           nameBtn.textContent = entry.name || 'Untitled';
         }
         if (amountBtn) {
-          amountBtn.textContent = `${entry.amount} kcal`;
+          amountBtn.textContent = entry.amount;
           amountBtn.classList.toggle('pos', entry.amount >= 0);
           amountBtn.classList.toggle('neg', entry.amount < 0);
         }
         if (timeEl && entry.time) {
           timeEl.textContent = entry.time;
         }
+        // Update macro cells
+        if (entry.macros) {
+          enabledMacrosJs.forEach((key) => {
+            const macroBtn = row.querySelector(`[data-edit-macro="${key}"]`);
+            if (macroBtn) {
+              const val = entry.macros[key];
+              macroBtn.textContent = val != null ? val : '-';
+            }
+          });
+        }
       };
 
-      const createInlineEditor = ({ btn, type, placeholder }) => {
+      const createInlineEditor = ({ btn, type, placeholder, macroKey }) => {
         const row = btn.closest('[data-entry-id]');
         const entryId = row?.dataset.entryId;
         if (!row || !entryId) return null;
@@ -1131,24 +1182,33 @@
           activeInlineEdit = null;
         }
 
-        const currentValue =
-          type === 'amount'
-            ? btn.textContent.replace('kcal', '').trim()
-            : btn.textContent.trim() === 'Untitled'
-            ? ''
-            : btn.textContent.trim();
+        let currentValue;
+        if (type === 'amount') {
+          currentValue = btn.textContent.replace('kcal', '').trim();
+        } else if (type === 'macro') {
+          const txt = btn.textContent.trim();
+          currentValue = txt === '-' ? '' : txt;
+        } else {
+          currentValue = btn.textContent.trim() === 'Untitled' ? '' : btn.textContent.trim();
+        }
 
         btn.classList.add('hidden');
 
         const form = document.createElement('form');
-        form.className = `inline-edit${type === 'amount' ? ' inline-edit--amount' : ''}`;
+        const isCompact = type === 'amount' || type === 'macro';
+        form.className = `inline-edit${isCompact ? ' inline-edit--compact' : ''}`;
         form.dataset.inlineEditing = 'true';
 
         const input = document.createElement('input');
-        input.type = 'text';
+        input.type = type === 'macro' ? 'number' : 'text';
         if (type === 'amount') input.inputMode = 'text';
+        if (type === 'macro') {
+          input.inputMode = 'numeric';
+          input.min = '0';
+          input.max = '9999';
+        }
         input.autocomplete = 'off';
-        input.className = `inline-edit-input${type === 'amount' ? ' inline-edit-input--amount' : ''}`;
+        input.className = `inline-edit-input${isCompact ? ' inline-edit-input--compact' : ''}`;
         input.placeholder = placeholder;
         input.value = currentValue;
 
@@ -1181,7 +1241,15 @@
           spinner.classList.remove('hidden');
           row.classList.add('is-editing');
           try {
-            const updated = await updateEntry(entryId, type === 'amount' ? { amount: value } : { name: value });
+            let payload;
+            if (type === 'amount') {
+              payload = { amount: value };
+            } else if (type === 'macro') {
+              payload = { [`${macroKey}_g`]: value || null };
+            } else {
+              payload = { name: value };
+            }
+            const updated = await updateEntry(entryId, payload);
             applyEntryUpdate(row, updated);
             tearDown();
           } catch (err) {
@@ -1238,8 +1306,20 @@
           createInlineEditor({
             btn: amountBtn,
             type: 'amount',
-            placeholder: 'e.g. 250, -120',
+            placeholder: 'e.g. 250',
           });
+          return;
+        }
+        const macroBtn = evt.target.closest('[data-edit-macro]');
+        if (macroBtn) {
+          const macroKey = macroBtn.getAttribute('data-edit-macro');
+          createInlineEditor({
+            btn: macroBtn,
+            type: 'macro',
+            macroKey,
+            placeholder: '0',
+          });
+          return;
         }
         const weightTrigger = evt.target.closest('[data-weight-value]');
         if (weightTrigger) {
@@ -1563,6 +1643,15 @@
           // Auto-fill form fields and close modal
           if (calorieInput) calorieInput.value = data.calories;
           if (nameInput && data.food) nameInput.value = data.food;
+          // Fill macro inputs if present
+          if (data.macros) {
+            Object.entries(data.macros).forEach(([key, value]) => {
+              const input = document.querySelector(`[data-macro-input="${key}"]`);
+              if (input && value != null) {
+                input.value = value;
+              }
+            });
+          }
           closeModal();
           if (calorieInput) calorieInput.dispatchEvent(new Event('input'));
         } catch (err) {

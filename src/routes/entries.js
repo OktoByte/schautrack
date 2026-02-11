@@ -5,13 +5,21 @@ const { requireLogin } = require('../middleware/auth');
 const { requireLinkAuth } = require('../middleware/links');
 const { csrfProtection } = require('../middleware/csrf');
 const { parseAmount } = require('../lib/math-parser');
-const { 
-  parseWeight, 
-  toInt, 
-  getUserTimezone, 
-  formatDateInTz, 
-  formatTimeInTz 
+const {
+  parseWeight,
+  toInt,
+  getUserTimezone,
+  formatDateInTz,
+  formatTimeInTz
 } = require('../lib/utils');
+const {
+  MACRO_KEYS,
+  MACRO_LABELS,
+  getEnabledMacros,
+  getMacroGoals,
+  parseMacroInput,
+  getMacroTotalsByDate,
+} = require('../lib/macros');
 
 const router = express.Router();
 
@@ -317,13 +325,19 @@ router.get('/dashboard', requireLogin, async (req, res) => {
   const goalDelta = user.daily_goal ? Math.abs(user.daily_goal - todayTotal) : null;
 
   const { rows: recentEntries } = await pool.query(
-    'SELECT id, entry_date, amount, entry_name, created_at FROM calorie_entries WHERE user_id = $1 AND entry_date = $2 ORDER BY created_at DESC',
+    'SELECT id, entry_date, amount, entry_name, created_at, protein_g, carbs_g, fat_g, fiber_g, sugar_g FROM calorie_entries WHERE user_id = $1 AND entry_date = $2 ORDER BY created_at DESC',
     [user.id, selectedDate]
   );
   const viewEntries = recentEntries.map((entry) => ({
     ...entry,
     timeFormatted: entry.created_at ? formatTimeInTz(entry.created_at, userTimeZone) : '',
   }));
+
+  // Get macro totals for today
+  const enabledMacros = getEnabledMacros(user);
+  const macroGoals = getMacroGoals(user);
+  const macroTotalsByDate = enabledMacros.length > 0 ? await getMacroTotalsByDate(user.id, oldest, newest) : new Map();
+  const todayMacroTotals = macroTotalsByDate.get(todayStr) || {};
 
   let acceptedLinks = [];
   try {
@@ -452,6 +466,11 @@ router.get('/dashboard', requireLogin, async (req, res) => {
     aiUsage,
     aiProviderName,
     activePage: 'dashboard',
+    // Macro tracking data
+    enabledMacros,
+    macroGoals,
+    todayMacroTotals,
+    macroLabels: MACRO_LABELS,
   });
 });
 
@@ -548,20 +567,30 @@ router.get('/entries/day', requireLogin, requireLinkAuth, async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      'SELECT id, entry_date, amount, entry_name, created_at FROM calorie_entries WHERE user_id = $1 AND entry_date = $2 ORDER BY created_at DESC',
+      'SELECT id, entry_date, amount, entry_name, created_at, protein_g, carbs_g, fat_g, fiber_g, sugar_g FROM calorie_entries WHERE user_id = $1 AND entry_date = $2 ORDER BY created_at DESC',
       [targetUserId, dateStr]
     );
+
+    // Use viewer's enabled macros to filter which macros to return
+    const viewerEnabledMacros = getEnabledMacros(req.currentUser);
 
     return res.json({
       ok: true,
       date: dateStr,
-      entries: rows.map((row) => ({
-        id: row.id,
-        date: row.entry_date.toISOString().slice(0, 10),
-        time: row.created_at ? formatTimeInTz(row.created_at, displayTz) : '',
-        amount: row.amount,
-        name: row.entry_name || null,
-      })),
+      entries: rows.map((row) => {
+        const macros = {};
+        for (const key of viewerEnabledMacros) {
+          macros[key] = row[`${key}_g`];
+        }
+        return {
+          id: row.id,
+          date: row.entry_date.toISOString().slice(0, 10),
+          time: row.created_at ? formatTimeInTz(row.created_at, displayTz) : '',
+          amount: row.amount,
+          name: row.entry_name || null,
+          macros: Object.keys(macros).length > 0 ? macros : null,
+        };
+      }),
     });
   } catch (err) {
     console.error('Failed to fetch entries for date', err);
@@ -588,13 +617,28 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
     return res.redirect('/dashboard');
   }
 
+  // Parse macro values (save any that are provided, regardless of enabled state)
+  const macroValues = {};
+  for (const key of MACRO_KEYS) {
+    const value = parseMacroInput(req.body[`${key}_g`]);
+    if (value !== null) {
+      macroValues[key] = value;
+    }
+  }
+
   try {
     await pool.query('BEGIN');
 
     if (hasCalorieEntry) {
+      // Build dynamic query for macros
+      const macroKeys = Object.keys(macroValues);
+      const macroColumns = macroKeys.length > 0 ? ', ' + macroKeys.map(k => `${k}_g`).join(', ') : '';
+      const macroPlaceholders = macroKeys.length > 0 ? ', ' + macroKeys.map((_, i) => `$${5 + i}`).join(', ') : '';
+      const macroVals = macroKeys.map(k => macroValues[k]);
+
       await pool.query(
-        'INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES ($1, $2, $3, $4)',
-        [req.currentUser.id, entryDate, amount, entryNameSafe]
+        `INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name${macroColumns}) VALUES ($1, $2, $3, $4${macroPlaceholders})`,
+        [req.currentUser.id, entryDate, amount, entryNameSafe, ...macroVals]
       );
     }
 
@@ -655,6 +699,17 @@ router.post('/entries/:id/update', requireLogin, async (req, res) => {
     idx += 1;
   }
 
+  // Handle macro updates
+  for (const key of MACRO_KEYS) {
+    const fieldName = `${key}_g`;
+    if (req.body[fieldName] !== undefined) {
+      const value = parseMacroInput(req.body[fieldName]);
+      updates.push(`${fieldName} = $${idx}`);
+      values.push(value); // null clears the value
+      idx += 1;
+    }
+  }
+
   if (updates.length === 0) {
     return wantsJson
       ? res.status(400).json({ ok: false, error: 'No updates provided' })
@@ -663,7 +718,7 @@ router.post('/entries/:id/update', requireLogin, async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `UPDATE calorie_entries SET ${updates.join(', ')} WHERE id = $${idx} AND user_id = $${idx + 1} RETURNING id, entry_date, amount, entry_name, created_at`,
+      `UPDATE calorie_entries SET ${updates.join(', ')} WHERE id = $${idx} AND user_id = $${idx + 1} RETURNING id, entry_date, amount, entry_name, created_at, protein_g, carbs_g, fat_g, fiber_g, sugar_g`,
       [...values, entryId, req.currentUser.id]
     );
 
@@ -678,6 +733,13 @@ router.post('/entries/:id/update', requireLogin, async (req, res) => {
       time: updated.created_at ? formatTimeInTz(updated.created_at, tz) : '',
       amount: updated.amount,
       name: updated.entry_name || null,
+      macros: {
+        protein: updated.protein_g,
+        carbs: updated.carbs_g,
+        fat: updated.fat_g,
+        fiber: updated.fiber_g,
+        sugar: updated.sugar_g,
+      },
     };
 
     await broadcastEntryChange(req.currentUser.id);
@@ -740,7 +802,7 @@ router.post('/goal', requireLogin, async (req, res) => {
 router.get('/settings/export', requireLogin, async (req, res) => {
   const user = req.currentUser;
   const { rows: entries } = await pool.query(
-    'SELECT entry_date, amount, entry_name, created_at FROM calorie_entries WHERE user_id = $1 ORDER BY entry_date DESC, id DESC',
+    'SELECT entry_date, amount, entry_name, created_at, protein_g, carbs_g, fat_g, fiber_g, sugar_g FROM calorie_entries WHERE user_id = $1 ORDER BY entry_date DESC, id DESC',
     [user.id]
   );
 
@@ -754,6 +816,8 @@ router.get('/settings/export', requireLogin, async (req, res) => {
     user: {
       email: user.email,
       daily_goal: user.daily_goal,
+      macros_enabled: user.macros_enabled || {},
+      macro_goals: user.macro_goals || {},
     },
     weights: weights.map((row) => ({
       date: row.entry_date.toISOString().slice(0, 10),
@@ -764,6 +828,12 @@ router.get('/settings/export', requireLogin, async (req, res) => {
       amount: row.amount,
       name: row.entry_name || null,
       created_at: row.created_at ? row.created_at.toISOString() : null,
+      // Include macro data only if present
+      ...(row.protein_g != null && { protein_g: row.protein_g }),
+      ...(row.carbs_g != null && { carbs_g: row.carbs_g }),
+      ...(row.fat_g != null && { fat_g: row.fat_g }),
+      ...(row.fiber_g != null && { fiber_g: row.fiber_g }),
+      ...(row.sugar_g != null && { sugar_g: row.sugar_g }),
     })),
   };
 
@@ -800,7 +870,13 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
     const nameRaw = entry.name || entry.entry_name || '';
     const nameSafe = nameRaw ? String(nameRaw).trim().slice(0, 120) : null;
     const createdAt = entry.created_at ? new Date(entry.created_at) : null;
-    toInsert.push({ date: dateStr, amount, name: nameSafe, created_at: createdAt });
+    // Parse macro values from import
+    const protein_g = parseMacroInput(entry.protein_g);
+    const carbs_g = parseMacroInput(entry.carbs_g);
+    const fat_g = parseMacroInput(entry.fat_g);
+    const fiber_g = parseMacroInput(entry.fiber_g);
+    const sugar_g = parseMacroInput(entry.sugar_g);
+    toInsert.push({ date: dateStr, amount, name: nameSafe, created_at: createdAt, protein_g, carbs_g, fat_g, fiber_g, sugar_g });
   });
 
   const weightToInsert = [];
@@ -822,17 +898,29 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
         req.currentUser.id,
       ]);
     }
+    // Import macro preferences if present
+    const importedMacrosEnabled = parsed.user?.macros_enabled;
+    const importedMacroGoals = parsed.user?.macro_goals;
+    if (importedMacrosEnabled || importedMacroGoals) {
+      const macrosEnabled = importedMacrosEnabled && typeof importedMacrosEnabled === 'object' ? importedMacrosEnabled : {};
+      const macroGoalsImport = importedMacroGoals && typeof importedMacroGoals === 'object' ? importedMacroGoals : {};
+      await pool.query('UPDATE users SET macros_enabled = $1, macro_goals = $2 WHERE id = $3', [
+        JSON.stringify(macrosEnabled),
+        JSON.stringify(macroGoalsImport),
+        req.currentUser.id,
+      ]);
+    }
 
     for (const entry of toInsert) {
       if (entry.created_at) {
         await pool.query(
-          'INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name, created_at) VALUES ($1, $2, $3, $4, $5)',
-          [req.currentUser.id, entry.date, entry.amount, entry.name, entry.created_at]
+          'INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name, created_at, protein_g, carbs_g, fat_g, fiber_g, sugar_g) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+          [req.currentUser.id, entry.date, entry.amount, entry.name, entry.created_at, entry.protein_g, entry.carbs_g, entry.fat_g, entry.fiber_g, entry.sugar_g]
         );
       } else {
         await pool.query(
-          'INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES ($1, $2, $3, $4)',
-          [req.currentUser.id, entry.date, entry.amount, entry.name]
+          'INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name, protein_g, carbs_g, fat_g, fiber_g, sugar_g) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+          [req.currentUser.id, entry.date, entry.amount, entry.name, entry.protein_g, entry.carbs_g, entry.fat_g, entry.fiber_g, entry.sugar_g]
         );
       }
     }

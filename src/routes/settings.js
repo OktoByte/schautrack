@@ -7,6 +7,7 @@ const { requireLogin } = require('../middleware/auth');
 const { csrfProtection } = require('../middleware/csrf');
 const { encryptApiKey } = require('../lib/ai');
 const { toInt } = require('../lib/utils');
+const { MACRO_KEYS, parseMacroInput } = require('../lib/macros');
 const { getLinkRequests, getAcceptedLinkUsers } = require('../lib/links');
 
 const router = express.Router();
@@ -113,6 +114,42 @@ router.post('/settings/preferences', requireLogin, async (req, res) => {
     }
   } catch (err) {
     console.error('Failed to update preferences', err);
+  }
+
+  res.redirect('/settings');
+});
+
+router.post('/settings/macros', requireLogin, async (req, res) => {
+  const wantsJson = (req.headers.accept || '').includes('application/json');
+
+  // Parse enabled macros and goals
+  const enabledMacros = {};
+  const macroGoals = {};
+
+  for (const key of MACRO_KEYS) {
+    enabledMacros[key] = req.body[`${key}_enabled`] === 'on' || req.body[`${key}_enabled`] === 'true';
+    if (enabledMacros[key]) {
+      const goal = parseMacroInput(req.body[`${key}_goal`]);
+      if (goal !== null) {
+        macroGoals[key] = goal;
+      }
+    }
+  }
+
+  try {
+    await pool.query(
+      'UPDATE users SET macros_enabled = $1, macro_goals = $2 WHERE id = $3',
+      [JSON.stringify(enabledMacros), JSON.stringify(macroGoals), req.currentUser.id]
+    );
+
+    if (wantsJson) {
+      return res.json({ ok: true });
+    }
+  } catch (err) {
+    console.error('Failed to save macro preferences', err);
+    if (wantsJson) {
+      return res.status(500).json({ ok: false, error: 'Failed to save preferences' });
+    }
   }
 
   res.redirect('/settings');
