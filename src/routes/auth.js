@@ -94,7 +94,16 @@ async function markTokenUsed(tokenId) {
 async function cleanExpiredTokens() {
   await pool.query('DELETE FROM password_reset_tokens WHERE expires_at < NOW() OR used = TRUE');
   await pool.query('DELETE FROM email_verification_tokens WHERE expires_at < NOW() OR used = TRUE');
+  // Delete unverified users with no remaining verification tokens
+  await pool.query(`
+    DELETE FROM users
+    WHERE email_verified = FALSE
+      AND id NOT IN (SELECT DISTINCT user_id FROM email_verification_tokens WHERE used = FALSE)
+  `);
 }
+
+// Run cleanup every 15 minutes
+setInterval(() => { cleanExpiredTokens().catch(err => console.error('Token cleanup error', err)); }, 15 * 60 * 1000);
 
 // Email verification helpers
 async function createEmailVerificationToken(userId) {
