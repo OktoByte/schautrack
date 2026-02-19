@@ -542,7 +542,8 @@ router.get('/overview', requireLogin, requireLinkAuth, async (req, res) => {
           : 'over';
     const goalDelta = dailyGoal ? Math.abs(dailyGoal - todayTotal) : null;
 
-    // Include macro totals and statuses for the viewer's own stats
+    // Only include macro data for the viewer's own card (macro tracking is personal,
+    // linked users' cards only show calorie dots/stats)
     const viewerEnabledMacros = getEnabledMacros(req.currentUser);
     let todayMacroTotals = null;
     let macroStatuses = null;
@@ -618,15 +619,15 @@ router.get('/entries/day', requireLogin, requireLinkAuth, async (req, res) => {
       [targetUserId, dateStr]
     );
 
-    // Use viewer's enabled macros to filter which macros to return
-    const viewerEnabledMacros = getEnabledMacros(req.currentUser);
+    // Use the entry owner's enabled macros (so linked users see what the owner tracks)
+    const ownerEnabledMacros = getEnabledMacros(targetUser);
 
     return res.json({
       ok: true,
       date: dateStr,
       entries: rows.map((row) => {
         const macros = {};
-        for (const key of viewerEnabledMacros) {
+        for (const key of ownerEnabledMacros) {
           macros[key] = row[`${key}_g`];
         }
         return {
@@ -777,19 +778,18 @@ router.post('/entries/:id/update', requireLogin, async (req, res) => {
     }
 
     const updated = rows[0];
+    const userEnabledMacros = getEnabledMacros(req.currentUser);
+    const macros = {};
+    for (const key of userEnabledMacros) {
+      macros[key] = updated[`${key}_g`];
+    }
     const payload = {
       id: updated.id,
       date: updated.entry_date.toISOString().slice(0, 10),
       time: updated.created_at ? formatTimeInTz(updated.created_at, tz) : '',
       amount: updated.amount,
       name: updated.entry_name || null,
-      macros: {
-        protein: updated.protein_g,
-        carbs: updated.carbs_g,
-        fat: updated.fat_g,
-        fiber: updated.fiber_g,
-        sugar: updated.sugar_g,
-      },
+      macros: Object.keys(macros).length > 0 ? macros : null,
     };
 
     await broadcastEntryChange(req.currentUser.id);
