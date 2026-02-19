@@ -327,62 +327,13 @@ a:focus-visible,
   gap: var(--space-md);
 }
 
-.stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: var(--space-md);
+/* Today panel */
+.today-panel {
+  margin-bottom: var(--space-lg);
 }
 
-.stat {
-  padding: var(--space-md);
-  border-radius: 12px;
-  border: 1px solid var(--stroke);
-  background: rgba(255, 255, 255, 0.02);
-  transition: border-color 200ms ease, background 200ms ease;
-}
-
-.stat-label {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.stat-value {
-  font-size: 20px;
-  font-weight: 700;
-  margin-top: var(--space-sm);
-}
-
-.stat-detail {
-  margin-top: var(--space-xs);
-  display: block;
-}
-
-/* Balance stat color states */
-.stat-balance.stat-success {
-  background: rgba(22, 163, 74, 0.08);
-  border-color: rgba(22, 163, 74, 0.3);
-}
-
-.stat-balance.stat-success .stat-value {
-  color: #86efac;
-}
-
-.stat-balance.stat-warning {
-  background: rgba(245, 158, 11, 0.08);
-  border-color: rgba(245, 158, 11, 0.3);
-}
-
-.stat-balance.stat-warning .stat-value {
-  color: #fcd34d;
-}
-
-.stat-balance.stat-danger {
-  background: rgba(239, 68, 68, 0.08);
-  border-color: rgba(239, 68, 68, 0.3);
-}
-
-.stat-balance.stat-danger .stat-value {
-  color: #fca5a5;
+.today-panel .panel-header {
+  margin-bottom: var(--space-sm);
 }
 
 .small {
@@ -533,31 +484,19 @@ a:focus-visible,
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
   border-radius: 8px;
-  transition: background 0.15s ease;
+  border: 1px solid var(--stroke);
+  background: rgba(255, 255, 255, 0.015);
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .entry-row:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .entry-name {
   font-weight: 600;
   font-size: 15px;
-}
-
-.entry-actions {
-  display: grid;
-  grid-template-columns: 100px 52px 70px;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.entry-amount-wrap {
-  display: flex;
-  align-items: center;
-  width: 100px;
-  justify-content: flex-start;
-  position: relative;
 }
 
 .edit-trigger {
@@ -1409,10 +1348,6 @@ a:focus-visible,
     width: min(1100px, 94vw);
   }
 
-  .stats {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  }
-
   .grid.two {
     grid-template-columns: 1fr;
   }
@@ -1589,21 +1524,17 @@ a:focus-visible,
     margin-bottom: var(--space-sm);
   }
 
-  .stats {
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-sm);
+  .macro-summary {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: var(--space-xs);
   }
 
-  .stat {
-    padding: var(--space-sm);
+  .macro-stat {
+    padding: var(--space-sm) var(--space-md);
   }
 
-  .stat-value {
-    font-size: 18px;
-  }
-
-  .stat-label {
-    font-size: 12px;
+  .macro-stat-value {
+    font-size: 17px;
   }
 
   button,
@@ -2307,18 +2238,148 @@ a:focus-visible,
    Macro Tracking Styles
    ============================== */
 
+/* Dashboard: Macro summary grid */
+.macro-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-sm);
+}
+
+.macro-stat {
+  padding: var(--space-md);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.macro-stat--kcal {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.macro-stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-xs);
+}
+
+/* Color-code labels to match their bar */
+.macro-stat--kcal .macro-stat-label { color: var(--accent); }
+.macro-stat[data-macro-chip="protein"] .macro-stat-label { color: #22d3ee; }
+.macro-stat[data-macro-chip="carbs"] .macro-stat-label { color: #a78bfa; }
+.macro-stat[data-macro-chip="fat"] .macro-stat-label { color: #fb923c; }
+.macro-stat[data-macro-chip="fiber"] .macro-stat-label { color: #4ade80; }
+.macro-stat[data-macro-chip="sugar"] .macro-stat-label { color: #f472b6; }
+
+.macro-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.macro-stat--kcal .macro-stat-value {
+  font-size: 20px;
+}
+
+.macro-stat-goal {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.65em;
+}
+
+.macro-stat-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  margin-top: var(--space-sm);
+  overflow: hidden;
+}
+
+.macro-stat-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* Macro fill colors */
+.macro-stat--kcal .macro-stat-fill { background: var(--accent); }
+.macro-stat[data-macro-chip="protein"] .macro-stat-fill { background: #22d3ee; }
+.macro-stat[data-macro-chip="carbs"] .macro-stat-fill { background: #a78bfa; }
+.macro-stat[data-macro-chip="fat"] .macro-stat-fill { background: #fb923c; }
+.macro-stat[data-macro-chip="fiber"] .macro-stat-fill { background: #4ade80; }
+.macro-stat[data-macro-chip="sugar"] .macro-stat-fill { background: #f472b6; }
+
+.macro-stat-detail {
+  margin-top: var(--space-sm);
+  font-size: 13px;
+}
+
+/* Calorie stat color states */
+.macro-stat--success {
+  background: rgba(22, 163, 74, 0.1);
+  border-color: rgba(22, 163, 74, 0.35);
+}
+
+.macro-stat--success .macro-stat-value {
+  color: #86efac;
+}
+
+.macro-stat--success .macro-stat-fill {
+  background: linear-gradient(90deg, #16a34a, #22c55e);
+}
+
+.macro-stat--warning {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.macro-stat--warning .macro-stat-value {
+  color: #fcd34d;
+}
+
+.macro-stat--warning .macro-stat-fill {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.macro-stat--danger {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.macro-stat--danger .macro-stat-value {
+  color: #fca5a5;
+}
+
+.macro-stat--danger .macro-stat-fill {
+  background: linear-gradient(90deg, #ef4444, #f97316);
+}
+
 /* Settings page: Macro configuration */
 .macro-settings {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: 2px;
 }
 
 .macro-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-lg);
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.macro-row--off {
+  opacity: 0.5;
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.03);
 }
 
 .macro-toggle {
@@ -2326,30 +2387,97 @@ a:focus-visible,
   align-items: center;
   gap: var(--space-sm);
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .macro-toggle input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--accent);
+  appearance: none;
+  -webkit-appearance: none;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  position: relative;
   cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+}
+
+.macro-toggle input[type="checkbox"]::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.macro-toggle input[type="checkbox"]:checked {
+  background: var(--accent);
+}
+
+.macro-toggle input[type="checkbox"]:checked::after {
+  transform: translateX(16px);
+  background: #fff;
 }
 
 .macro-label {
   font-weight: 500;
+  font-size: 0.95rem;
 }
 
-.macro-goal {
+.macro-row-fields {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
   transition: opacity 0.2s ease;
 }
 
-.macro-goal.disabled {
-  opacity: 0.4;
+.macro-row-fields.disabled {
   pointer-events: none;
 }
 
-.macro-goal input {
-  width: 100%;
+.macro-row-fields input,
+.macro-row-fields select {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0b1021;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.macro-row-fields select option {
+  background: #0b1021;
+  color: var(--text);
+}
+
+.macro-row-fields input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.macro-row-fields input[type="number"]::-webkit-inner-spin-button,
+.macro-row-fields input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.macro-row-fields input {
+  width: 90px;
+}
+
+.macro-row-fields select {
+  width: 80px;
+}
+
+.macro-row-fields input:focus,
+.macro-row-fields select:focus {
+  outline: 2px solid var(--accent);
+  border-color: var(--accent);
 }
 
 /* Dashboard: Entry form */
@@ -2371,7 +2499,7 @@ a:focus-visible,
 }
 
 .entry-field-kcal {
-  width: 65px;
+  width: 100px;
 }
 
 .entry-field-macro {
@@ -2432,12 +2560,12 @@ a:focus-visible,
 }
 
 .entry-th-kcal {
-  width: 60px;
+  width: 80px;
   text-align: right;
 }
 
 .entry-th-macro {
-  width: 45px;
+  width: 56px;
   text-align: right;
 }
 
@@ -2464,14 +2592,15 @@ a:focus-visible,
 }
 
 .entry-cell.entry-amount {
-  width: 60px;
+  width: 80px;
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
 
 .entry-cell.entry-macro {
-  width: 45px;
+  width: 56px;
+  min-height: 44px;
   text-align: right;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
@@ -2485,6 +2614,16 @@ a:focus-visible,
 .entry-cell.entry-delete {
   width: 60px;
   text-align: right;
+}
+
+/* No-macros fallback: simpler row layout */
+.entry-table-wrap.no-macros .entry-row {
+  gap: var(--space-sm);
+}
+
+.entry-table-wrap.no-macros .entry-cell.entry-amount {
+  width: auto;
+  min-width: 70px;
 }
 
 /* Inline edit compact variant for table cells */
@@ -2528,8 +2667,17 @@ a:focus-visible,
 /* Mobile responsive */
 @media (max-width: 768px) {
   .macro-row {
-    grid-template-columns: 1fr;
-    gap: var(--space-sm);
+    flex-wrap: wrap;
+  }
+
+  .macro-row-fields {
+    width: 100%;
+  }
+
+  .macro-row-fields input,
+  .macro-row-fields select {
+    flex: 1;
+    min-width: 0;
   }
 
   /* Entry form mobile */
@@ -2556,25 +2704,42 @@ a:focus-visible,
     min-width: 100px;
   }
 
-  /* Entry table mobile - horizontal scroll */
-  .entry-table-wrap {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+  /* Entry table mobile - stacked rows, no horizontal scroll */
+  .entry-table-header {
+    display: none;
   }
 
-  .entry-table-header,
   .entry-row {
-    min-width: max-content;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
   }
 
-  .entry-th-macro,
-  .entry-cell.entry-macro {
-    width: 40px;
+  .entry-cell.entry-name {
+    flex: 1 1 auto;
+    min-width: 60px;
   }
 
-  .entry-th-kcal,
   .entry-cell.entry-amount {
-    width: 50px;
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .entry-cell.entry-macro {
+    width: auto;
+    flex: 0 0 auto;
+    font-size: 0.8rem;
+    min-height: 36px;
+  }
+
+  .entry-cell.entry-time {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .entry-cell.entry-delete {
+    width: auto;
+    flex: 0 0 auto;
   }
 }
 

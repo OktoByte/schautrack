@@ -17,6 +17,8 @@ const {
   MACRO_LABELS,
   getEnabledMacros,
   getMacroGoals,
+  getMacroModes,
+  computeMacroStatus,
   parseMacroInput,
   getMacroTotalsByDate,
 } = require('../lib/macros');
@@ -314,6 +316,14 @@ router.get('/dashboard', requireLogin, async (req, res) => {
   const dailyStats = buildDailyStats(dayOptions, totalsByDate, user.daily_goal);
 
   const todayTotal = totalsByDate.get(todayStr) || 0;
+  const macroModes = getMacroModes(user);
+
+  // Calories are enabled unless explicitly disabled (backward compat: missing key = enabled)
+  const caloriesEnabled = (user.macros_enabled || {}).calories !== false;
+
+  // Compute calorie status using the unified function
+  const calorieStatus = caloriesEnabled ? computeMacroStatus(todayTotal, user.daily_goal, macroModes.calories) : { statusClass: '', statusText: '' };
+  // Keep backward-compat goalStatus/goalDelta for dot rendering
   const goalThreshold = user.daily_goal ? Math.round(user.daily_goal * 1.1) : null;
   const goalStatus = !user.daily_goal
     ? 'unset'
@@ -338,6 +348,14 @@ router.get('/dashboard', requireLogin, async (req, res) => {
   const macroGoals = getMacroGoals(user);
   const macroTotalsByDate = enabledMacros.length > 0 ? await getMacroTotalsByDate(user.id, oldest, newest) : new Map();
   const todayMacroTotals = macroTotalsByDate.get(todayStr) || {};
+
+  // Compute per-macro statuses
+  const macroStatuses = {};
+  for (const key of enabledMacros) {
+    const total = todayMacroTotals[key] || 0;
+    const goal = macroGoals[key] != null ? macroGoals[key] : null;
+    macroStatuses[key] = computeMacroStatus(total, goal, macroModes[key]);
+  }
 
   let acceptedLinks = [];
   try {
@@ -467,10 +485,14 @@ router.get('/dashboard', requireLogin, async (req, res) => {
     aiProviderName,
     activePage: 'dashboard',
     // Macro tracking data
+    caloriesEnabled,
     enabledMacros,
     macroGoals,
     todayMacroTotals,
     macroLabels: MACRO_LABELS,
+    macroModes,
+    macroStatuses,
+    calorieStatus,
   });
 });
 
@@ -520,6 +542,28 @@ router.get('/overview', requireLogin, requireLinkAuth, async (req, res) => {
           : 'over';
     const goalDelta = dailyGoal ? Math.abs(dailyGoal - todayTotal) : null;
 
+    // Include macro totals and statuses for the viewer's own stats
+    const viewerEnabledMacros = getEnabledMacros(req.currentUser);
+    let todayMacroTotals = null;
+    let macroStatuses = null;
+    let calorieStatusObj = null;
+    if (targetUserId === req.currentUser.id) {
+      const viewerModes = getMacroModes(req.currentUser);
+      const viewerCalEnabled = (req.currentUser.macros_enabled || {}).calories !== false;
+      calorieStatusObj = viewerCalEnabled ? computeMacroStatus(todayTotal, dailyGoal, viewerModes.calories) : null;
+      if (viewerEnabledMacros.length > 0) {
+        const macroTotalsByDate = await getMacroTotalsByDate(targetUserId, oldest, newest);
+        todayMacroTotals = macroTotalsByDate.get(todayStrTz) || {};
+        const viewerGoals = getMacroGoals(req.currentUser);
+        macroStatuses = {};
+        for (const key of viewerEnabledMacros) {
+          const total = todayMacroTotals[key] || 0;
+          const goal = viewerGoals[key] != null ? viewerGoals[key] : null;
+          macroStatuses[key] = computeMacroStatus(total, goal, viewerModes[key]);
+        }
+      }
+    }
+
     return res.json({
       ok: true,
       userId: targetUserId,
@@ -531,6 +575,9 @@ router.get('/overview', requireLogin, requireLinkAuth, async (req, res) => {
       dailyStats,
       dayOptions,
       range: { start: oldest, end: newest },
+      todayMacroTotals,
+      macroStatuses,
+      calorieStatus: calorieStatusObj,
     });
   } catch (err) {
     console.error('Failed to build overview', err);

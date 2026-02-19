@@ -87,10 +87,20 @@ CREATE TABLE IF NOT EXISTS admin_settings (
 );
 
 -- Additional user columns (added via migration in server.js)
--- These are documented here for reference but applied by ensureUserPrefsSchema() and ensureAIKeysSchema()
+-- These are documented here for reference but applied by ensureUserPrefsSchema(), ensureAIKeysSchema(), and ensureMacroSchema()
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone TEXT;
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS weight_unit TEXT DEFAULT 'kg';
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone_manual BOOLEAN DEFAULT FALSE;
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS openai_api_key TEXT;
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS claude_api_key TEXT;
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_ai_provider TEXT DEFAULT 'openai';
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS macros_enabled JSONB DEFAULT '{}';
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS macro_goals JSONB DEFAULT '{}';
+--   macro_goals JSONB shape: { "protein": 150, "protein_mode": "target", "carbs": 200, "carbs_mode": "limit", "calories_mode": "limit" }
+--   Goal values are integers (grams). Mode values are "limit" (stay under) or "target" (try to reach).
+--   Missing _mode keys fall back to defaults in src/lib/macros.js MACRO_GOAL_MODES.
+-- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS protein_g INTEGER;
+-- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS carbs_g INTEGER;
+-- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS fat_g INTEGER;
+-- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS fiber_g INTEGER;
+-- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS sugar_g INTEGER;

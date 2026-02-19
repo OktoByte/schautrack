@@ -1,0 +1,245 @@
+const { describe, test, expect } = require('@jest/globals');
+
+// Mock the pool before requiring macros module
+jest.mock('../src/db/pool', () => ({ pool: { query: jest.fn() } }));
+
+const {
+  MACRO_KEYS,
+  MACRO_LABELS,
+  MACRO_GOAL_MODES,
+  getEnabledMacros,
+  getMacroGoals,
+  getMacroModes,
+  computeMacroStatus,
+  parseMacroInput,
+} = require('../src/lib/macros');
+
+describe('MACRO_KEYS', () => {
+  test('contains the expected macro nutrients', () => {
+    expect(MACRO_KEYS).toEqual(['protein', 'carbs', 'fat', 'fiber', 'sugar']);
+  });
+});
+
+describe('MACRO_LABELS', () => {
+  test('has labels for all macro keys', () => {
+    for (const key of MACRO_KEYS) {
+      expect(MACRO_LABELS[key]).toBeDefined();
+      expect(MACRO_LABELS[key].short).toBeDefined();
+      expect(MACRO_LABELS[key].label).toBeDefined();
+    }
+  });
+});
+
+describe('getEnabledMacros', () => {
+  test('returns empty array for null/undefined user', () => {
+    expect(getEnabledMacros(null)).toEqual([]);
+    expect(getEnabledMacros(undefined)).toEqual([]);
+  });
+
+  test('returns empty array when no macros enabled', () => {
+    expect(getEnabledMacros({})).toEqual([]);
+    expect(getEnabledMacros({ macros_enabled: {} })).toEqual([]);
+  });
+
+  test('returns only enabled macros', () => {
+    const user = { macros_enabled: { protein: true, carbs: false, fat: true } };
+    expect(getEnabledMacros(user)).toEqual(['protein', 'fat']);
+  });
+
+  test('returns all macros when all enabled', () => {
+    const user = { macros_enabled: { protein: true, carbs: true, fat: true, fiber: true, sugar: true } };
+    expect(getEnabledMacros(user)).toEqual(['protein', 'carbs', 'fat', 'fiber', 'sugar']);
+  });
+
+  test('preserves MACRO_KEYS order', () => {
+    const user = { macros_enabled: { sugar: true, protein: true, fat: true } };
+    expect(getEnabledMacros(user)).toEqual(['protein', 'fat', 'sugar']);
+  });
+
+  test('ignores non-boolean truthy values', () => {
+    const user = { macros_enabled: { protein: 'yes', carbs: 1, fat: true } };
+    expect(getEnabledMacros(user)).toEqual(['fat']);
+  });
+});
+
+describe('getMacroGoals', () => {
+  test('returns empty object for null/undefined user', () => {
+    expect(getMacroGoals(null)).toEqual({});
+    expect(getMacroGoals(undefined)).toEqual({});
+  });
+
+  test('returns empty object when no macros enabled', () => {
+    const user = { macros_enabled: {}, macro_goals: { protein: 150 } };
+    expect(getMacroGoals(user)).toEqual({});
+  });
+
+  test('returns goals only for enabled macros', () => {
+    const user = {
+      macros_enabled: { protein: true, carbs: true, fat: false },
+      macro_goals: { protein: 150, carbs: 200, fat: 70 },
+    };
+    expect(getMacroGoals(user)).toEqual({ protein: 150, carbs: 200 });
+  });
+
+  test('omits enabled macros without goals', () => {
+    const user = {
+      macros_enabled: { protein: true, carbs: true },
+      macro_goals: { protein: 150 },
+    };
+    expect(getMacroGoals(user)).toEqual({ protein: 150 });
+  });
+
+  test('includes zero goals', () => {
+    const user = {
+      macros_enabled: { protein: true },
+      macro_goals: { protein: 0 },
+    };
+    expect(getMacroGoals(user)).toEqual({ protein: 0 });
+  });
+});
+
+describe('parseMacroInput', () => {
+  test('returns null for empty/undefined/null values', () => {
+    expect(parseMacroInput(undefined)).toBeNull();
+    expect(parseMacroInput(null)).toBeNull();
+    expect(parseMacroInput('')).toBeNull();
+  });
+
+  test('parses valid integer strings', () => {
+    expect(parseMacroInput('0')).toBe(0);
+    expect(parseMacroInput('25')).toBe(25);
+    expect(parseMacroInput('150')).toBe(150);
+  });
+
+  test('parses numeric values', () => {
+    expect(parseMacroInput(42)).toBe(42);
+    expect(parseMacroInput(0)).toBe(0);
+  });
+
+  test('truncates decimal values', () => {
+    expect(parseMacroInput('25.7')).toBe(25);
+    expect(parseMacroInput('25.2')).toBe(25);
+  });
+
+  test('returns null for negative values', () => {
+    expect(parseMacroInput('-1')).toBeNull();
+    expect(parseMacroInput('-50')).toBeNull();
+  });
+
+  test('returns null for non-numeric strings', () => {
+    expect(parseMacroInput('abc')).toBeNull();
+    expect(parseMacroInput('twelve')).toBeNull();
+  });
+});
+
+describe('MACRO_GOAL_MODES', () => {
+  test('has defaults for all macros and calories', () => {
+    expect(MACRO_GOAL_MODES.calories).toBe('limit');
+    expect(MACRO_GOAL_MODES.protein).toBe('target');
+    expect(MACRO_GOAL_MODES.carbs).toBe('limit');
+    expect(MACRO_GOAL_MODES.fat).toBe('limit');
+    expect(MACRO_GOAL_MODES.fiber).toBe('target');
+    expect(MACRO_GOAL_MODES.sugar).toBe('limit');
+  });
+});
+
+describe('getMacroModes', () => {
+  test('returns defaults for null/undefined user', () => {
+    const modes = getMacroModes(null);
+    expect(modes.calories).toBe('limit');
+    expect(modes.protein).toBe('target');
+    expect(modes.fiber).toBe('target');
+    expect(modes.carbs).toBe('limit');
+  });
+
+  test('returns stored modes when present', () => {
+    const user = { macro_goals: { protein_mode: 'limit', calories_mode: 'target' } };
+    const modes = getMacroModes(user);
+    expect(modes.protein).toBe('limit');
+    expect(modes.calories).toBe('target');
+    expect(modes.carbs).toBe('limit'); // default
+  });
+
+  test('falls back to defaults for missing mode keys', () => {
+    const user = { macro_goals: { protein: 150 } };
+    const modes = getMacroModes(user);
+    expect(modes.protein).toBe('target');
+    expect(modes.calories).toBe('limit');
+  });
+});
+
+describe('computeMacroStatus', () => {
+  describe('no goal', () => {
+    test('returns empty class for null goal', () => {
+      expect(computeMacroStatus(50, null, 'limit')).toEqual({ statusClass: '', statusText: 'No goal set' });
+    });
+
+    test('returns empty class for zero goal', () => {
+      expect(computeMacroStatus(50, 0, 'target')).toEqual({ statusClass: '', statusText: 'No goal set' });
+    });
+  });
+
+  describe('limit mode', () => {
+    test('returns success when under goal', () => {
+      const result = computeMacroStatus(1500, 2000, 'limit');
+      expect(result.statusClass).toBe('macro-stat--success');
+      expect(result.statusText).toBe('500 remaining');
+    });
+
+    test('returns success at exactly the goal', () => {
+      const result = computeMacroStatus(2000, 2000, 'limit');
+      expect(result.statusClass).toBe('macro-stat--success');
+      expect(result.statusText).toBe('0 remaining');
+    });
+
+    test('returns warning when slightly over', () => {
+      const result = computeMacroStatus(2100, 2000, 'limit');
+      expect(result.statusClass).toBe('macro-stat--warning');
+      expect(result.statusText).toBe('100 over');
+    });
+
+    test('returns warning at exactly 110%', () => {
+      const result = computeMacroStatus(2200, 2000, 'limit');
+      expect(result.statusClass).toBe('macro-stat--warning');
+      expect(result.statusText).toBe('200 over');
+    });
+
+    test('returns danger when over 110%', () => {
+      const result = computeMacroStatus(2201, 2000, 'limit');
+      expect(result.statusClass).toBe('macro-stat--danger');
+      expect(result.statusText).toBe('201 over');
+    });
+
+    test('returns success when total is 0', () => {
+      const result = computeMacroStatus(0, 100, 'limit');
+      expect(result.statusClass).toBe('macro-stat--success');
+      expect(result.statusText).toBe('100 remaining');
+    });
+  });
+
+  describe('target mode', () => {
+    test('returns empty class when under target', () => {
+      const result = computeMacroStatus(80, 150, 'target');
+      expect(result.statusClass).toBe('');
+      expect(result.statusText).toBe('70 remaining');
+    });
+
+    test('returns success when target met exactly', () => {
+      const result = computeMacroStatus(150, 150, 'target');
+      expect(result.statusClass).toBe('macro-stat--success');
+      expect(result.statusText).toBe('Goal met');
+    });
+
+    test('returns success when over target', () => {
+      const result = computeMacroStatus(180, 150, 'target');
+      expect(result.statusClass).toBe('macro-stat--success');
+      expect(result.statusText).toBe('30 over target');
+    });
+
+    test('returns empty class when total is 0', () => {
+      const result = computeMacroStatus(0, 100, 'target');
+      expect(result.statusClass).toBe('');
+      expect(result.statusText).toBe('100 remaining');
+    });
+  });
+});

@@ -27,6 +27,50 @@ const getMacroGoals = (user) => {
   return result;
 };
 
+// Default goal modes: "limit" = stay under, "target" = try to reach
+const MACRO_GOAL_MODES = {
+  calories: 'limit',
+  protein: 'target',
+  carbs: 'limit',
+  fat: 'limit',
+  fiber: 'target',
+  sugar: 'limit',
+};
+
+const getMacroModes = (user) => {
+  const goals = user?.macro_goals || {};
+  const result = {};
+  for (const key of [...MACRO_KEYS, 'calories']) {
+    result[key] = goals[`${key}_mode`] || MACRO_GOAL_MODES[key] || 'limit';
+  }
+  return result;
+};
+
+const computeMacroStatus = (total, goal, mode) => {
+  if (goal == null || goal === 0) {
+    return { statusClass: '', statusText: 'No goal set' };
+  }
+
+  if (mode === 'target') {
+    if (total >= goal) {
+      const over = total - goal;
+      return { statusClass: 'macro-stat--success', statusText: over > 0 ? `${over} over target` : 'Goal met' };
+    }
+    return { statusClass: '', statusText: `${goal - total} remaining` };
+  }
+
+  // Limit mode
+  if (total <= goal) {
+    return { statusClass: 'macro-stat--success', statusText: `${goal - total} remaining` };
+  }
+  const over = total - goal;
+  // Danger when over by more than 10% of goal
+  if (over * 10 > goal) {
+    return { statusClass: 'macro-stat--danger', statusText: `${over} over` };
+  }
+  return { statusClass: 'macro-stat--warning', statusText: `${over} over` };
+};
+
 const parseMacroInput = (value) => {
   if (value === undefined || value === null || value === '') return null;
   const num = parseInt(value, 10);
@@ -65,8 +109,11 @@ async function getMacroTotalsByDate(userId, oldestDate, newestDate) {
 module.exports = {
   MACRO_KEYS,
   MACRO_LABELS,
+  MACRO_GOAL_MODES,
   getEnabledMacros,
   getMacroGoals,
+  getMacroModes,
+  computeMacroStatus,
   parseMacroInput,
   getMacroTotalsByDate,
 };

@@ -1,37 +1,55 @@
 <%- include('partials/header', { title: 'Dashboard' }) %>
-  <section class="grid two">
-    <div class="panel">
-      <div class="panel-header">
-        <div>
-          <h2>Calorie balance</h2>
-        </div>
+  <%
+    const kcalPct = user.daily_goal ? Math.min(Math.round((todayTotal / user.daily_goal) * 100), 100) : null;
+  %>
+  <section class="panel today-panel">
+    <div class="panel-header">
+      <div>
+        <h2>Today</h2>
       </div>
-      <div class="stats">
-        <div class="stat">
-          <div class="stat-label">Daily goal</div>
-          <div class="stat-value" data-stat-goal><%= user.daily_goal ? `${user.daily_goal} kcal` : 'Not set' %></div>
+    </div>
+    <div class="macro-summary" data-macro-summary>
+      <% if (caloriesEnabled) { %>
+      <div class="macro-stat macro-stat--kcal <%= calorieStatus.statusClass %>" data-macro-chip="kcal" data-stat-balance>
+        <div class="macro-stat-label">Calories</div>
+        <div class="macro-stat-value">
+          <span data-stat-logged><%= todayTotal %></span><% if (user.daily_goal) { %><span class="macro-stat-goal" data-stat-goal> / <%= user.daily_goal %></span><% } %>
         </div>
-        <div class="stat stat-balance <%= !user.daily_goal ? '' : goalStatus === 'under' ? 'stat-success' : goalStatus === 'over_threshold' ? 'stat-danger' : 'stat-warning' %>" data-stat-balance>
-          <div class="stat-label">Balance</div>
-          <div class="stat-value" data-stat-logged><%= todayTotal %> kcal</div>
-          <div class="stat-detail muted small" data-stat-status-detail>
-            <% if (!user.daily_goal) { %>
-              Set a goal to track
-            <% } else if (goalStatus === 'under') { %>
-              <%= goalDelta %> kcal remaining
-            <% } else { %>
-              <%= goalDelta %> kcal over
+        <% if (user.daily_goal) { %>
+        <div class="macro-stat-bar"><div class="macro-stat-fill" data-stat-fill style="width: <%= kcalPct %>%"></div></div>
+        <% } %>
+        <div class="macro-stat-detail muted small" data-stat-status-detail><%= calorieStatus.statusText %></div>
+      </div>
+      <% } %>
+      <% if (enabledMacros && enabledMacros.length > 0) { %>
+        <% enabledMacros.forEach((key) => {
+          const total = todayMacroTotals[key] || 0;
+          const goal = macroGoals[key];
+          const pct = goal ? Math.min(Math.round((total / goal) * 100), 100) : null;
+          const status = macroStatuses[key] || { statusClass: '', statusText: '' };
+        %>
+          <div class="macro-stat <%= status.statusClass %>" data-macro-chip="<%= key %>">
+            <div class="macro-stat-label"><%= macroLabels[key].label %></div>
+            <div class="macro-stat-value">
+              <span data-macro-total="<%= key %>"><%= total %></span><% if (goal != null) { %><span class="macro-stat-goal" data-macro-goal="<%= key %>"> / <%= goal %>g</span><% } %>
+            </div>
+            <% if (goal) { %>
+            <div class="macro-stat-bar"><div class="macro-stat-fill" data-macro-fill="<%= key %>" style="width: <%= pct %>%"></div></div>
             <% } %>
+            <div class="macro-stat-detail muted small" data-macro-status="<%= key %>"><%= status.statusText %></div>
           </div>
-        </div>
-      </div>
+        <% }) %>
+      <% } %>
+      <% if (!caloriesEnabled && (!enabledMacros || enabledMacros.length === 0)) { %>
+        <p class="muted small">No nutrients tracked. <a href="/settings">Enable tracking in settings.</a></p>
+      <% } %>
     </div>
   </section>
 
   <section class="panel">
     <div class="panel-header">
       <div>
-        <h2>Munch log</h2>
+        <h2>Track</h2>
       </div>
       <div class="ai-photo-wrap">
         <% if (hasAiEnabled && aiUsage) { %>
@@ -53,10 +71,6 @@
     <form action="/entries" method="POST" class="entry-form" data-log-form>
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <div class="entry-form-row">
-        <label class="field entry-field-name">
-          <span>What</span>
-          <input type="text" name="entry_name" maxlength="120" placeholder="Breakfast, snack..." data-name-input>
-        </label>
         <label class="field entry-field-kcal">
           <span>kcal</span>
           <input
@@ -70,10 +84,14 @@
             data-calorie-input
           >
         </label>
+        <label class="field entry-field-name">
+          <span>What</span>
+          <input type="text" name="entry_name" maxlength="120" placeholder="Breakfast, snack..." data-name-input>
+        </label>
         <% if (enabledMacros && enabledMacros.length > 0) { %>
           <% enabledMacros.forEach((key) => { %>
-            <label class="field entry-field-macro">
-              <span><%= macroLabels[key].label %></span>
+            <label class="field entry-field-macro" title="<%= macroLabels[key].label %>">
+              <span><%= macroLabels[key].short %></span>
               <input type="text" inputmode="numeric" name="<%= key %>_g" placeholder="-" autocomplete="off" data-macro-input="<%= key %>">
             </label>
           <% }) %>
@@ -207,27 +225,21 @@
     <div class="log-list">
       <div class="weight-slot" data-weight-slot>
         <div class="entry-row weight-row <%= weightEntry ? '' : 'is-empty' %>" data-weight-row>
-          <div>
-            <button type="button" class="edit-trigger entry-name is-locked" data-locked="true"><%= isLastWeight ? 'Last weight' : 'Weight' %></button>
-          </div>
-          <div class="entry-actions">
-            <div class="entry-amount-wrap">
-              <button type="button" class="edit-trigger entry-amount weight <%= displayWeight ? '' : 'muted' %>" data-weight-value><%= weightDisplayText %></button>
-            </div>
-            <span class="entry-time muted small" data-weight-time><%= weightEntry ? weightTime : (lastWeightDaysAgo || '') %></span>
-            <% if (weightEntry && weightEntry.id) { %>
-              <form action="/weight/<%= weightEntry.id %>/delete" method="POST" class="inline-form" data-weight-delete-form>
-                <button type="submit" class="ghost danger small" data-delete-weight data-weight-id="<%= weightEntry.id %>">Delete</button>
-              </form>
-            <% } else { %>
-              <form class="inline-form delete-placeholder" aria-hidden="true">
-                <button type="button" class="ghost danger small placeholder-delete" tabindex="-1">Delete</button>
-              </form>
-            <% } %>
-          </div>
+          <button type="button" class="edit-trigger entry-cell entry-name is-locked" data-locked="true"><%= isLastWeight ? 'Last weight' : 'Weight' %></button>
+          <button type="button" class="edit-trigger entry-cell entry-amount weight <%= displayWeight ? '' : 'muted' %>" data-weight-value><%= weightDisplayText %></button>
+          <span class="entry-cell entry-time muted small" data-weight-time><%= weightEntry ? weightTime : (lastWeightDaysAgo || '') %></span>
+          <% if (weightEntry && weightEntry.id) { %>
+            <form action="/weight/<%= weightEntry.id %>/delete" method="POST" class="inline-form entry-cell entry-delete" data-weight-delete-form>
+              <button type="submit" class="ghost danger small" data-delete-weight data-weight-id="<%= weightEntry.id %>">Delete</button>
+            </form>
+          <% } else { %>
+            <form class="inline-form entry-cell entry-delete delete-placeholder" aria-hidden="true">
+              <button type="button" class="ghost danger small placeholder-delete" tabindex="-1">Delete</button>
+            </form>
+          <% } %>
         </div>
       </div>
-      <div class="entry-table-wrap <%= (!recentEntries || recentEntries.length === 0) ? 'hidden' : '' %>" data-entry-list>
+      <div class="entry-table-wrap <%= (!recentEntries || recentEntries.length === 0) ? 'hidden' : '' %> <%= (!enabledMacros || enabledMacros.length === 0) ? 'no-macros' : '' %>" data-entry-list>
         <% if (enabledMacros && enabledMacros.length > 0) { %>
         <div class="entry-table-header" data-entry-header>
           <span class="entry-th entry-th-name">What</span>
@@ -243,7 +255,7 @@
           <% recentEntries.forEach((entry) => { %>
             <div class="entry-row" data-entry-row data-entry-id="<%= entry.id %>">
               <button type="button" class="edit-trigger entry-cell entry-name" data-edit-name><%= entry.entry_name || 'Untitled' %></button>
-              <button type="button" class="edit-trigger entry-cell entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><%= entry.amount %></button>
+              <button type="button" class="edit-trigger entry-cell entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><%= entry.amount %> kcal</button>
               <% if (enabledMacros && enabledMacros.length > 0) { %>
                 <% enabledMacros.forEach((key) => { %>
                   <button type="button" class="edit-trigger entry-cell entry-macro" data-edit-macro="<%= key %>"><%= entry[key + '_g'] != null ? entry[key + '_g'] : '-' %></button>
@@ -378,32 +390,52 @@
 
       const updateTopStats = (data) => {
         if (!data) return;
-        if (statGoal) {
-          statGoal.textContent = data.dailyGoal ? `${data.dailyGoal} kcal` : 'Not set';
-        }
+        // Update calorie stat
         if (statLogged) {
-          statLogged.textContent = `${data.todayTotal || 0} kcal`;
+          statLogged.textContent = data.todayTotal || 0;
+        }
+        if (statGoal && data.dailyGoal) {
+          statGoal.textContent = ` / ${data.dailyGoal}`;
         }
         if (statBalance) {
-          statBalance.classList.remove('stat-success', 'stat-warning', 'stat-danger');
-          if (data.dailyGoal) {
-            if (data.goalStatus === 'under') {
-              statBalance.classList.add('stat-success');
-            } else if (data.goalStatus === 'over_threshold') {
-              statBalance.classList.add('stat-danger');
-            } else {
-              statBalance.classList.add('stat-warning');
-            }
+          statBalance.classList.remove('macro-stat--success', 'macro-stat--warning', 'macro-stat--danger');
+          if (data.calorieStatus && data.calorieStatus.statusClass) {
+            statBalance.classList.add(data.calorieStatus.statusClass);
+          }
+          const kcalFill = statBalance.querySelector('[data-stat-fill]');
+          if (kcalFill && data.dailyGoal) {
+            const pct = Math.min(Math.round((data.todayTotal / data.dailyGoal) * 100), 100);
+            kcalFill.style.width = `${pct}%`;
           }
         }
         if (statStatusDetail) {
-          if (!data.dailyGoal) {
-            statStatusDetail.textContent = 'Set a goal to track';
-          } else if (data.goalStatus === 'under') {
-            statStatusDetail.textContent = `${Math.abs(data.goalDelta || 0)} kcal remaining`;
-          } else {
-            statStatusDetail.textContent = `${Math.abs(data.goalDelta || 0)} kcal over`;
-          }
+          statStatusDetail.textContent = data.calorieStatus ? data.calorieStatus.statusText : '';
+        }
+        // Update macro stats
+        if (data.todayMacroTotals) {
+          const macroGoalsMap = <%- JSON.stringify(macroGoals || {}) %>;
+          enabledMacrosJs.forEach((key) => {
+            const chip = document.querySelector(`[data-macro-chip="${key}"]`);
+            if (!chip) return;
+            const totalEl = chip.querySelector(`[data-macro-total="${key}"]`);
+            if (totalEl) totalEl.textContent = data.todayMacroTotals[key] || 0;
+            const goal = macroGoalsMap[key];
+            if (goal) {
+              const pct = Math.min(Math.round(((data.todayMacroTotals[key] || 0) / goal) * 100), 100);
+              const fill = chip.querySelector(`[data-macro-fill="${key}"]`);
+              if (fill) fill.style.width = `${pct}%`;
+            }
+            // Apply status classes from overview response
+            chip.classList.remove('macro-stat--success', 'macro-stat--warning', 'macro-stat--danger');
+            const macroStatus = data.macroStatuses && data.macroStatuses[key];
+            if (macroStatus && macroStatus.statusClass) {
+              chip.classList.add(macroStatus.statusClass);
+            }
+            const statusEl = chip.querySelector(`[data-macro-status="${key}"]`);
+            if (statusEl && macroStatus) {
+              statusEl.textContent = macroStatus.statusText;
+            }
+          });
         }
       };
 
@@ -568,6 +600,9 @@
       const renderEntries = (entries, canEdit) => {
         if (!entryList) return;
 
+        // Toggle no-macros class
+        entryList.classList.toggle('no-macros', enabledMacrosJs.length === 0);
+
         // Build header if macros are enabled
         let headerHtml = '';
         if (enabledMacrosJs.length > 0) {
@@ -613,7 +648,7 @@
             return `
             <div class="entry-row view-only" data-entry-row data-entry-id="${entry.id}">
               <button type="button" class="edit-trigger entry-cell entry-name is-locked" data-locked="true">${safeName}</button>
-              <button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'} is-locked" data-locked="true">${entry.amount}</button>
+              <button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'} is-locked" data-locked="true">${entry.amount} kcal</button>
               ${macroCells}
               <span class="entry-cell entry-time muted small">${entry.time || ''}</span>
               <form class="inline-form entry-cell entry-delete delete-placeholder" aria-hidden="true">
@@ -625,7 +660,7 @@
           return `
           <div class="entry-row" data-entry-row data-entry-id="${entry.id}">
             <button type="button" class="edit-trigger entry-cell entry-name" data-edit-name>${safeName}</button>
-            <button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}" data-edit-amount>${entry.amount}</button>
+            <button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}" data-edit-amount>${entry.amount} kcal</button>
             ${macroCells}
             <span class="entry-cell entry-time muted small" data-entry-time>${entry.time || ''}</span>
             <form action="/entries/${entry.id}/delete" method="POST" class="inline-form entry-cell entry-delete" data-delete-form>
@@ -697,10 +732,10 @@
               const form = document.createElement('form');
               form.action = `/weight/${entry.id}/delete`;
               form.method = 'POST';
-              form.className = 'inline-form';
+              form.className = 'inline-form entry-cell entry-delete';
               form.dataset.weightDeleteForm = 'true';
               form.innerHTML = `<button type="submit" class="ghost danger small" data-delete-weight data-weight-id="${entry.id}">Delete</button>`;
-              weightRow.querySelector('.entry-actions').appendChild(form);
+              weightRow.appendChild(form);
             } else {
               existingDeleteForm.action = `/weight/${entry.id}/delete`;
               const btn = existingDeleteForm.querySelector('[data-delete-weight]');
@@ -711,10 +746,10 @@
             if (existingDeleteForm) existingDeleteForm.remove();
             if (!existingPlaceholder) {
               const placeholder = document.createElement('form');
-              placeholder.className = 'inline-form delete-placeholder';
+              placeholder.className = 'inline-form entry-cell entry-delete delete-placeholder';
               placeholder.setAttribute('aria-hidden', 'true');
               placeholder.innerHTML = `<button type="button" class="ghost danger small placeholder-delete" tabindex="-1">Delete</button>`;
-              weightRow.querySelector('.entry-actions').appendChild(placeholder);
+              weightRow.appendChild(placeholder);
             }
           }
         }
@@ -1149,7 +1184,7 @@
           nameBtn.textContent = entry.name || 'Untitled';
         }
         if (amountBtn) {
-          amountBtn.textContent = entry.amount;
+          amountBtn.textContent = `${entry.amount} kcal`;
           amountBtn.classList.toggle('pos', entry.amount >= 0);
           amountBtn.classList.toggle('neg', entry.amount < 0);
         }

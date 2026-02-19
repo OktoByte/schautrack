@@ -291,8 +291,8 @@ router.post('/register', authLimiter, csrfProtection, async (req, res) => {
       // If SMTP is configured, require email verification
       if (isSmtpConfigured()) {
         const { rows } = await pool.query(
-          'INSERT INTO users (email, password_hash, timezone, email_verified) VALUES ($1, $2, $3, FALSE) RETURNING id',
-          [pending.email, pending.passwordHash, pending.timezone]
+          'INSERT INTO users (email, password_hash, timezone, email_verified, macros_enabled) VALUES ($1, $2, $3, FALSE, $4) RETURNING id',
+          [pending.email, pending.passwordHash, pending.timezone, JSON.stringify({ calories: true })]
         );
         const userId = rows[0].id;
         const code = await createEmailVerificationToken(userId);
@@ -306,8 +306,8 @@ router.post('/register', authLimiter, csrfProtection, async (req, res) => {
       } else {
         // No SMTP, auto-verify and log in
         const { rows } = await pool.query(
-          'INSERT INTO users (email, password_hash, timezone, email_verified) VALUES ($1, $2, $3, TRUE) RETURNING id',
-          [pending.email, pending.passwordHash, pending.timezone]
+          'INSERT INTO users (email, password_hash, timezone, email_verified, macros_enabled) VALUES ($1, $2, $3, TRUE, $4) RETURNING id',
+          [pending.email, pending.passwordHash, pending.timezone, JSON.stringify({ calories: true })]
         );
         delete req.session.pendingRegistration;
         req.session.userId = rows[0].id;

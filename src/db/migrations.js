@@ -241,6 +241,27 @@ async function ensureAIUsageSchema() {
   });
 }
 
+async function ensureMacroSchema() {
+  await withTransaction(async (client) => {
+    // Add macro preference columns to users
+    await client.query(`
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS macros_enabled JSONB DEFAULT '{}',
+        ADD COLUMN IF NOT EXISTS macro_goals JSONB DEFAULT '{}';
+    `);
+
+    // Add macro nutrient columns to calorie_entries
+    await client.query(`
+      ALTER TABLE calorie_entries
+        ADD COLUMN IF NOT EXISTS protein_g INTEGER,
+        ADD COLUMN IF NOT EXISTS carbs_g INTEGER,
+        ADD COLUMN IF NOT EXISTS fat_g INTEGER,
+        ADD COLUMN IF NOT EXISTS fiber_g INTEGER,
+        ADD COLUMN IF NOT EXISTS sugar_g INTEGER;
+    `);
+  });
+}
+
 // Retry schema initialization with exponential backoff
 async function initSchemaWithRetry(maxRetries = 10, initialDelay = 1000) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {

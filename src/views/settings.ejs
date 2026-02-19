@@ -3,18 +3,91 @@
     <div class="panel">
       <div class="panel-header">
         <div>
-          <h2>Daily goal</h2>
+          <h2>Nutrition goals</h2>
         </div>
       </div>
-      <form action="/goal" method="POST" class="stack">
-        <label class="field">
-          <span>Goal in kcal</span>
-          <input type="number" name="goal" min="0" placeholder="e.g. 2200" value="<%= user.daily_goal || '' %>">
-        </label>
-        <button type="submit" class="primary">Save goal</button>
+      <form action="/settings/macros" method="POST" class="stack">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <p class="muted small">Enable the nutrients you want to track. Goals are optional. Choose whether each is a limit (stay under) or target (try to reach).</p>
+        <div class="macro-settings">
+          <% const goals = user.macro_goals || {};
+             const defaultModes = { calories: 'limit', protein: 'target', carbs: 'limit', fat: 'limit', fiber: 'target', sugar: 'limit' };
+             const allNutrients = [
+               { key: 'calories', label: 'Calories', unit: 'kcal', max: 99999, fieldName: 'calorie_goal',
+                 enabled: (user.macros_enabled || {}).calories !== false,
+                 goal: user.daily_goal,
+                 mode: goals.calories_mode || defaultModes.calories },
+               { key: 'protein', label: 'Protein', unit: 'g', max: 9999 },
+               { key: 'carbs', label: 'Carbs', unit: 'g', max: 9999 },
+               { key: 'fat', label: 'Fat', unit: 'g', max: 9999 },
+               { key: 'fiber', label: 'Fiber', unit: 'g', max: 9999 },
+               { key: 'sugar', label: 'Sugar', unit: 'g', max: 9999 },
+             ];
+          %>
+          <% allNutrients.forEach((n) => {
+            const enabled = n.enabled !== undefined ? n.enabled : (user.macros_enabled || {})[n.key] === true;
+            const goal = n.goal !== undefined ? n.goal : goals[n.key];
+            const mode = n.mode || goals[`${n.key}_mode`] || defaultModes[n.key] || 'limit';
+            const fieldName = n.fieldName || `${n.key}_goal`;
+          %>
+            <div class="macro-row <%= enabled ? '' : 'macro-row--off' %>">
+              <label class="macro-toggle">
+                <input type="checkbox" name="<%= n.key %>_enabled" <%= enabled ? 'checked' : '' %> data-macro-toggle="<%= n.key %>">
+                <span class="macro-label"><%= n.label %></span>
+              </label>
+              <div class="macro-row-fields <%= !enabled ? 'disabled' : '' %>" data-macro-goal="<%= n.key %>" data-macro-mode="<%= n.key %>">
+                <input type="number" name="<%= fieldName %>" min="0" max="<%= n.max %>"
+                       placeholder="Goal (<%= n.unit %>)" value="<%= goal || '' %>" <%= !enabled ? 'disabled' : '' %>>
+                <select name="<%= n.key %>_mode" <%= !enabled ? 'disabled' : '' %>>
+                  <option value="limit" <%= mode === 'limit' ? 'selected' : '' %>>Limit</option>
+                  <option value="target" <%= mode === 'target' ? 'selected' : '' %>>Target</option>
+                </select>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+        <button type="submit" class="primary">Save nutrition goals</button>
       </form>
     </div>
 
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>Preferences</h2>
+        </div>
+      </div>
+      <form action="/settings/preferences" method="POST" class="stack compact">
+        <div class="field">
+          <span>Timezone</span>
+          <select name="timezone" class="timezone-select">
+            <% timezones.forEach((tz) => { %>
+              <option value="<%= tz %>" <%= (user.timezone || 'UTC') === tz ? 'selected' : '' %>><%= tz %></option>
+            <% }) %>
+          </select>
+          <p class="muted small">Affects how timestamps display across the app.</p>
+        </div>
+        <div class="field">
+          <span>Preferred weight unit</span>
+          <div class="pill-group" data-weight-unit>
+            <label class="pill <%= (user.weight_unit || 'lb') === 'lb' ? 'active' : '' %>">
+              <input type="radio" name="weight_unit" value="lb" <%= (user.weight_unit || 'lb') === 'lb' ? 'checked' : '' %>> Pounds (lb)
+            </label>
+            <label class="pill <%= user.weight_unit === 'kg' ? 'active' : '' %>">
+              <input type="radio" name="weight_unit" value="kg" <%= user.weight_unit === 'kg' ? 'checked' : '' %>> Kilograms (kg)
+            </label>
+          </div>
+          <p class="muted small">Affects how weights display across the app.</p>
+        </div>
+        <button type="submit" class="primary">Save</button>
+      </form>
+      <div class="data-card stack danger-card spaced-top">
+        <p class="muted">Need to delete your account? You can request deletion without logging in.</p>
+        <a class="ghost danger full" href="/delete">Open deletion request page</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid two">
     <div class="panel">
       <div class="panel-header">
         <div>
@@ -252,79 +325,6 @@
     <div class="panel">
       <div class="panel-header">
         <div>
-          <h2>Preferences</h2>
-        </div>
-      </div>
-      <form action="/settings/preferences" method="POST" class="stack compact">
-        <div class="field">
-          <span>Timezone</span>
-          <select name="timezone" class="timezone-select">
-            <% timezones.forEach((tz) => { %>
-              <option value="<%= tz %>" <%= (user.timezone || 'UTC') === tz ? 'selected' : '' %>><%= tz %></option>
-            <% }) %>
-          </select>
-          <p class="muted small">Affects how timestamps display across the app.</p>
-        </div>
-        <div class="field">
-          <span>Preferred weight unit</span>
-          <div class="pill-group" data-weight-unit>
-            <label class="pill <%= (user.weight_unit || 'lb') === 'lb' ? 'active' : '' %>">
-              <input type="radio" name="weight_unit" value="lb" <%= (user.weight_unit || 'lb') === 'lb' ? 'checked' : '' %>> Pounds (lb)
-            </label>
-            <label class="pill <%= user.weight_unit === 'kg' ? 'active' : '' %>">
-              <input type="radio" name="weight_unit" value="kg" <%= user.weight_unit === 'kg' ? 'checked' : '' %>> Kilograms (kg)
-            </label>
-          </div>
-          <p class="muted small">Affects how weights display across the app.</p>
-        </div>
-        <button type="submit" class="primary">Save</button>
-      </form>
-      <div class="data-card stack danger-card spaced-top">
-        <p class="muted">Need to delete your account? You can request deletion without logging in.</p>
-        <a class="ghost danger full" href="/delete">Open deletion request page</a>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-header">
-        <div>
-          <h2>Macro tracking</h2>
-        </div>
-      </div>
-      <form action="/settings/macros" method="POST" class="stack">
-        <p class="muted small">Enable the nutrients you want to track. Goals are optional.</p>
-        <div class="macro-settings">
-          <% const macros = [
-            { key: 'protein', label: 'Protein' },
-            { key: 'carbs', label: 'Carbohydrates' },
-            { key: 'fat', label: 'Fat' },
-            { key: 'fiber', label: 'Fiber' },
-            { key: 'sugar', label: 'Sugar' },
-          ]; %>
-          <% macros.forEach((macro) => {
-            const enabled = (user.macros_enabled || {})[macro.key];
-            const goal = (user.macro_goals || {})[macro.key];
-          %>
-            <div class="macro-row">
-              <label class="macro-toggle">
-                <input type="checkbox" name="<%= macro.key %>_enabled" <%= enabled ? 'checked' : '' %> data-macro-toggle="<%= macro.key %>">
-                <span class="macro-label"><%= macro.label %></span>
-              </label>
-              <label class="field compact macro-goal <%= !enabled ? 'disabled' : '' %>" data-macro-goal="<%= macro.key %>">
-                <span>Goal (g)</span>
-                <input type="number" name="<%= macro.key %>_goal" min="0" max="9999" placeholder="Optional"
-                       value="<%= goal || '' %>" <%= !enabled ? 'disabled' : '' %>>
-              </label>
-            </div>
-          <% }) %>
-        </div>
-        <button type="submit" class="primary">Save macro settings</button>
-      </form>
-    </div>
-
-    <div class="panel">
-      <div class="panel-header">
-        <div>
           <h2>Backup &amp; restore</h2>
         </div>
       </div>
@@ -368,16 +368,17 @@
       document.querySelectorAll('[data-macro-toggle]').forEach((checkbox) => {
         checkbox.addEventListener('change', () => {
           const macroKey = checkbox.getAttribute('data-macro-toggle');
-          const goalField = document.querySelector(`[data-macro-goal="${macroKey}"]`);
-          if (goalField) {
-            const input = goalField.querySelector('input');
-            if (checkbox.checked) {
-              goalField.classList.remove('disabled');
-              if (input) input.disabled = false;
-            } else {
-              goalField.classList.add('disabled');
-              if (input) input.disabled = true;
-            }
+          const row = checkbox.closest('.macro-row');
+          const fieldsWrap = row && row.querySelector('.macro-row-fields');
+          if (!fieldsWrap) return;
+          if (checkbox.checked) {
+            row.classList.remove('macro-row--off');
+            fieldsWrap.classList.remove('disabled');
+            fieldsWrap.querySelectorAll('input, select').forEach(el => el.disabled = false);
+          } else {
+            row.classList.add('macro-row--off');
+            fieldsWrap.classList.add('disabled');
+            fieldsWrap.querySelectorAll('input, select').forEach(el => el.disabled = true);
           }
         });
       });

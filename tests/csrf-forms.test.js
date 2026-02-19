@@ -10,6 +10,7 @@ const CSRF_PROTECTED_ACTIONS = [
   '/reset-password',
   '/entries',
   '/settings/password',
+  '/settings/macros',
 ];
 
 const viewsDir = path.join(__dirname, '..', 'src', 'views');
