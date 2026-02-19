@@ -71,27 +71,29 @@
     <form action="/entries" method="POST" class="entry-form" data-log-form>
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <div class="entry-form-row">
-        <label class="field entry-field-kcal">
-          <span>kcal</span>
+        <label class="field entry-field-name">
+          <span>What</span>
+          <input type="text" name="entry_name" maxlength="120" placeholder="Breakfast, snack..." data-name-input>
+        </label>
+        <% if (caloriesEnabled) { %>
+        <label class="field entry-field-nutrient" data-nutrient-field="kcal">
+          <span>Calories</span>
           <input
             type="text"
             inputmode="tel"
             pattern="[0-9+\-*/().\s]*"
             name="amount"
-            placeholder="e.g. 250"
+            placeholder="-"
             autocomplete="off"
             id="math-input"
             data-calorie-input
           >
         </label>
-        <label class="field entry-field-name">
-          <span>What</span>
-          <input type="text" name="entry_name" maxlength="120" placeholder="Breakfast, snack..." data-name-input>
-        </label>
+        <% } %>
         <% if (enabledMacros && enabledMacros.length > 0) { %>
           <% enabledMacros.forEach((key) => { %>
-            <label class="field entry-field-macro" title="<%= macroLabels[key].label %>">
-              <span><%= macroLabels[key].short %></span>
+            <label class="field entry-field-nutrient" data-nutrient-field="<%= key %>">
+              <span><%= macroLabels[key].label %></span>
               <input type="text" inputmode="numeric" name="<%= key %>_g" placeholder="-" autocomplete="off" data-macro-input="<%= key %>">
             </label>
           <% }) %>

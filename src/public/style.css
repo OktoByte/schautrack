@@ -2489,42 +2489,40 @@ a:focus-visible,
 
 .entry-form-row {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-sm);
   align-items: flex-end;
 }
 
 .entry-field-name {
-  flex: 1;
+  flex: 2;
   min-width: 100px;
 }
 
-.entry-field-kcal {
-  width: 100px;
+.entry-field-nutrient {
+  flex: 1;
+  min-width: 0;
 }
 
-.entry-field-macro {
-  width: 48px;
-}
-
-.entry-field-macro span {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.entry-field-macro input,
-.entry-field-kcal input {
+.entry-field-nutrient input {
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
-.entry-field-macro input::placeholder,
-.entry-field-kcal input::placeholder {
+.entry-field-nutrient input::placeholder {
   opacity: 0.3;
 }
 
+.entry-field-nutrient[data-nutrient-field="kcal"] span { color: var(--accent); }
+.entry-field-nutrient[data-nutrient-field="protein"] span { color: #22d3ee; }
+.entry-field-nutrient[data-nutrient-field="carbs"] span { color: #a78bfa; }
+.entry-field-nutrient[data-nutrient-field="fat"] span { color: #fb923c; }
+.entry-field-nutrient[data-nutrient-field="fiber"] span { color: #4ade80; }
+.entry-field-nutrient[data-nutrient-field="sugar"] span { color: #f472b6; }
+
 .entry-field-date {
-  width: 130px;
+  flex: 1.5;
+  min-width: 0;
 }
 
 .entry-form button[type="submit"] {
@@ -2681,27 +2679,18 @@ a:focus-visible,
   }
 
   /* Entry form mobile */
-  .entry-form-row {
-    flex-wrap: wrap;
-  }
-
   .entry-field-name {
     flex: 1 0 100%;
-    order: 1;
+    order: -1;
   }
 
-  .entry-field-kcal {
-    order: 2;
-  }
-
-  .entry-field-macro {
-    order: 3;
+  .entry-field-nutrient {
+    width: auto;
+    flex: 1 0 28%;
   }
 
   .entry-field-date {
-    order: 4;
-    flex: 1;
-    min-width: 100px;
+    flex: 1 0 100%;
   }
 
   /* Entry table mobile - stacked rows, no horizontal scroll */
