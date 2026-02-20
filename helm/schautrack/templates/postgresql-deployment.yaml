@@ -14,6 +14,10 @@ spec:
       {{- include "schautrack.postgresql.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      {{- with .Values.postgresql.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       labels:
         {{- include "schautrack.postgresql.selectorLabels" . | nindent 8 }}
     spec:
