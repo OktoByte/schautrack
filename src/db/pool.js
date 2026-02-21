@@ -14,6 +14,12 @@ const pool = new Pool({
   connectionTimeoutMillis: 10000, // 10 seconds
 });
 
+// Handle pool-level errors to prevent unhandled 'error' crashes
+pool.on('error', (err) => {
+  console.error('Unexpected PG pool error (connection lost?):', err.message);
+  // Don't exit — the pool will automatically reconnect on next query
+});
+
 // Admin settings cache with per-key TTL
 const settingsCache = new Map(); // Map<key, { result, timestamp }>
 const SETTINGS_CACHE_TTL = 60000; // 1 minute
