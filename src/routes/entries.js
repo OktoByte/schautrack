@@ -20,6 +20,7 @@ const {
   getMacroModes,
   computeMacroStatus,
   parseMacroInput,
+  isAutoCalcCalories,
   getMacroTotalsByDate,
 } = require('../lib/macros');
 
@@ -320,6 +321,7 @@ router.get('/dashboard', requireLogin, async (req, res) => {
 
   // Calories are enabled unless explicitly disabled (backward compat: missing key = enabled)
   const caloriesEnabled = (user.macros_enabled || {}).calories !== false;
+  const autoCalcCalories = isAutoCalcCalories(user);
 
   // Compute calorie status using the unified function
   const calorieStatus = caloriesEnabled ? computeMacroStatus(todayTotal, user.daily_goal, macroModes.calories) : { statusClass: '', statusText: '' };
@@ -486,6 +488,7 @@ router.get('/dashboard', requireLogin, async (req, res) => {
     activePage: 'dashboard',
     // Macro tracking data
     caloriesEnabled,
+    autoCalcCalories,
     enabledMacros,
     macroGoals,
     todayMacroTotals,

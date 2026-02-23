@@ -77,7 +77,7 @@
         </label>
         <% if (caloriesEnabled) { %>
         <label class="field entry-field-nutrient" data-nutrient-field="kcal">
-          <span>Calories</span>
+          <span>Calories<% if (autoCalcCalories) { %> <small class="auto-calc-badge">auto</small><% } %></span>
           <input
             type="text"
             inputmode="tel"
@@ -309,6 +309,7 @@
       })) %>;
       const enabledMacrosJs = <%- JSON.stringify(enabledMacros || []) %>;
       const caloriesEnabledJs = <%- JSON.stringify(caloriesEnabled !== false) %>;
+      const autoCalcCaloriesJs = <%- JSON.stringify(autoCalcCalories || false) %>;
       const macroLabelsJs = <%- JSON.stringify(macroLabels || {}) %>;
       const weightDateInput = document.querySelector('[data-weight-date]');
       const weightSlot = document.querySelector('[data-weight-slot]');
@@ -1489,6 +1490,38 @@
       macroInputs.forEach(inp => inp.addEventListener('input', updateSubmitState));
       updateSubmitState();
 
+      // Auto-calculate calories from macros (P×4 + C×4 + F×9)
+      if (autoCalcCaloriesJs && calorieInput) {
+        let userOverride = false;
+
+        const autoFillCalories = () => {
+          if (userOverride) return;
+          const p = parseInt(document.querySelector('[data-macro-input="protein"]')?.value, 10) || 0;
+          const c = parseInt(document.querySelector('[data-macro-input="carbs"]')?.value, 10) || 0;
+          const f = parseInt(document.querySelector('[data-macro-input="fat"]')?.value, 10) || 0;
+          if (p === 0 && c === 0 && f === 0) return;
+          calorieInput.value = (p * 4) + (c * 4) + (f * 9);
+          calorieInput.dispatchEvent(new Event('input'));
+        };
+
+        ['protein', 'carbs', 'fat'].forEach(key => {
+          const inp = document.querySelector('[data-macro-input="' + key + '"]');
+          if (inp) {
+            inp.addEventListener('input', () => {
+              userOverride = false;
+              autoFillCalories();
+            });
+          }
+        });
+
+        calorieInput.addEventListener('input', (e) => {
+          if (e.isTrusted) userOverride = true;
+        });
+
+        const logForm = document.querySelector('[data-log-form]');
+        if (logForm) logForm.addEventListener('reset', () => { userOverride = false; });
+      }
+
       renderEntries(initialEntries, true);
       setActiveDay(currentUserId, currentDate, currentLabel, true, todayStr);
       startEntryEvents();
@@ -1703,9 +1736,8 @@
           // Decrement usage badge after successful request
           decrementUsage();
           // Auto-fill form fields and close modal
-          if (calorieInput) calorieInput.value = data.calories;
           if (nameInput && data.food) nameInput.value = data.food;
-          // Fill macro inputs if present
+          // Fill macro inputs first (needed for auto-calc)
           if (data.macros) {
             Object.entries(data.macros).forEach(([key, value]) => {
               const input = document.querySelector(`[data-macro-input="${key}"]`);
@@ -1713,6 +1745,16 @@
                 input.value = value;
               }
             });
+          }
+          // Compute calories from macros when auto-calc is on, otherwise use AI estimate
+          if (autoCalcCaloriesJs && data.macros && calorieInput) {
+            const p = parseInt(data.macros.protein, 10) || 0;
+            const c = parseInt(data.macros.carbs, 10) || 0;
+            const f = parseInt(data.macros.fat, 10) || 0;
+            const computed = (p * 4) + (c * 4) + (f * 9);
+            calorieInput.value = computed > 0 ? computed : data.calories;
+          } else if (calorieInput) {
+            calorieInput.value = data.calories;
           }
           closeModal();
           if (calorieInput) calorieInput.dispatchEvent(new Event('input'));

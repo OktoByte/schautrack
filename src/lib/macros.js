@@ -77,6 +77,21 @@ const parseMacroInput = (value) => {
   return Number.isNaN(num) || num < 0 ? null : num;
 };
 
+const isAutoCalcCalories = (user) => {
+  const enabled = user?.macros_enabled || {};
+  return enabled.protein === true
+    && enabled.carbs === true
+    && enabled.fat === true;
+};
+
+const computeCaloriesFromMacros = (protein, carbs, fat) => {
+  const p = parseInt(protein, 10) || 0;
+  const c = parseInt(carbs, 10) || 0;
+  const f = parseInt(fat, 10) || 0;
+  if (p === 0 && c === 0 && f === 0) return null;
+  return (p * 4) + (c * 4) + (f * 9);
+};
+
 async function getMacroTotalsByDate(userId, oldestDate, newestDate) {
   const { rows } = await pool.query(
     `SELECT entry_date,
@@ -115,5 +130,7 @@ module.exports = {
   getMacroModes,
   computeMacroStatus,
   parseMacroInput,
+  isAutoCalcCalories,
+  computeCaloriesFromMacros,
   getMacroTotalsByDate,
 };

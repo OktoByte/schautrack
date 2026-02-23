@@ -12,6 +12,8 @@ const {
   getMacroModes,
   computeMacroStatus,
   parseMacroInput,
+  isAutoCalcCalories,
+  computeCaloriesFromMacros,
   getMacroTotalsByDate,
 } = require('../src/lib/macros');
 
@@ -244,6 +246,71 @@ describe('computeMacroStatus', () => {
       expect(result.statusClass).toBe('');
       expect(result.statusText).toBe('100 remaining');
     });
+  });
+});
+
+describe('isAutoCalcCalories', () => {
+  test('returns false for null/undefined user', () => {
+    expect(isAutoCalcCalories(null)).toBe(false);
+    expect(isAutoCalcCalories(undefined)).toBe(false);
+  });
+
+  test('returns false when not all three macros enabled', () => {
+    expect(isAutoCalcCalories({ macros_enabled: { protein: true, carbs: true, fat: false } })).toBe(false);
+    expect(isAutoCalcCalories({ macros_enabled: { protein: true, carbs: false, fat: true } })).toBe(false);
+    expect(isAutoCalcCalories({ macros_enabled: { protein: false, carbs: true, fat: true } })).toBe(false);
+  });
+
+  test('returns true when protein, carbs, and fat are all enabled', () => {
+    const user = { macros_enabled: { protein: true, carbs: true, fat: true } };
+    expect(isAutoCalcCalories(user)).toBe(true);
+  });
+
+  test('returns true with extra macros enabled', () => {
+    const user = { macros_enabled: { protein: true, carbs: true, fat: true, fiber: true, sugar: true } };
+    expect(isAutoCalcCalories(user)).toBe(true);
+  });
+
+  test('returns false when macros_enabled is empty', () => {
+    expect(isAutoCalcCalories({ macros_enabled: {} })).toBe(false);
+  });
+});
+
+describe('computeCaloriesFromMacros', () => {
+  test('returns null when all zero', () => {
+    expect(computeCaloriesFromMacros(0, 0, 0)).toBeNull();
+  });
+
+  test('computes P*4 + C*4 + F*9', () => {
+    expect(computeCaloriesFromMacros(30, 50, 20)).toBe(30 * 4 + 50 * 4 + 20 * 9); // 500
+  });
+
+  test('handles protein only', () => {
+    expect(computeCaloriesFromMacros(25, 0, 0)).toBe(100);
+  });
+
+  test('handles carbs only', () => {
+    expect(computeCaloriesFromMacros(0, 50, 0)).toBe(200);
+  });
+
+  test('handles fat only', () => {
+    expect(computeCaloriesFromMacros(0, 0, 10)).toBe(90);
+  });
+
+  test('handles string inputs', () => {
+    expect(computeCaloriesFromMacros('25', '40', '10')).toBe(25 * 4 + 40 * 4 + 10 * 9); // 350
+  });
+
+  test('treats NaN as 0', () => {
+    expect(computeCaloriesFromMacros('abc', 50, 20)).toBe(0 * 4 + 50 * 4 + 20 * 9); // 380
+  });
+
+  test('returns null for all NaN inputs', () => {
+    expect(computeCaloriesFromMacros('abc', 'def', 'ghi')).toBeNull();
+  });
+
+  test('handles undefined/null as 0', () => {
+    expect(computeCaloriesFromMacros(undefined, 50, null)).toBe(200);
   });
 });
 

@@ -2480,6 +2480,16 @@ a:focus-visible,
   border-color: var(--accent);
 }
 
+.auto-calc-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  opacity: 0.8;
+  vertical-align: middle;
+}
+
 /* Dashboard: Entry form */
 .entry-form {
   display: flex;
