@@ -49,7 +49,7 @@
   <section class="panel">
     <div class="panel-header">
       <div>
-        <h2>Track</h2>
+        <h2>Entry</h2>
       </div>
       <div class="ai-photo-wrap">
         <% if (hasAiEnabled && aiUsage) { %>
@@ -104,7 +104,7 @@
           <input type="date" name="entry_date" data-date-input data-weight-date value="<%= selectedDate %>">
         </label>
       </div>
-      <button type="submit" class="primary" disabled data-submit-btn>Record</button>
+      <button type="submit" class="primary" disabled data-submit-btn>Track</button>
     </form>
   </section>
 
@@ -905,8 +905,8 @@
       const teardownWeightEditor = () => {
         if (activeWeightEdit) {
           const { form, trigger } = activeWeightEdit;
-          form.remove();
           if (trigger) trigger.classList.remove('hidden');
+          form.remove();
           activeWeightEdit = null;
         }
       };
@@ -943,28 +943,33 @@
         const btnTarget = triggerEl || weightValueBtn;
         if (!btnTarget) return;
         if (!currentCanEdit) return;
+
+        const btnW = btnTarget.offsetWidth + 'px';
+        btnTarget.classList.add('hidden');
+
         const form = document.createElement('form');
-        form.className = 'inline-edit inline-edit--amount';
+        form.className = 'inline-edit inline-edit--compact inline-edit--weight';
         form.dataset.inlineEditing = 'true';
+        form.style.width = btnW;
+        form.style.minWidth = btnW;
+        form.style.maxWidth = btnW;
+        form.style.flex = '0 0 ' + btnW;
 
         const input = document.createElement('input');
         input.type = 'tel';
         input.inputMode = 'tel';
         input.autocomplete = 'off';
-        input.className = 'inline-edit-input inline-edit-input--amount';
+        input.className = 'inline-edit-input inline-edit-input--compact';
         input.placeholder = weightUnit === 'kg' ? 'e.g. 72.4' : 'e.g. 180';
         const currentWeight = weightCache.get(`${selfUserId}:${currentDate}`)?.weight;
         input.value = currentWeight ? (weightUnit === 'kg' ? currentWeight : kgToLb(currentWeight)) : '';
 
-        const spinner = document.createElement('span');
-        spinner.className = 'inline-edit-spinner hidden';
-
-        form.append(input, spinner);
+        form.append(input);
         btnTarget.insertAdjacentElement('afterend', form);
 
         const finish = () => {
-          form.remove();
           btnTarget.classList.remove('hidden');
+          form.remove();
           row.classList.remove('is-editing');
           activeInlineEdit = null;
           activeWeightEdit = null;
@@ -979,7 +984,6 @@
             return;
           }
           saving = true;
-          spinner.classList.remove('hidden');
           form.classList.add('is-saving');
           row.classList.add('is-editing');
           try {
@@ -993,7 +997,6 @@
           } catch (err) {
             console.error('Weight save failed', err);
             saving = false;
-            spinner.classList.add('hidden');
             form.classList.remove('is-saving');
             row.classList.remove('is-editing');
           }
@@ -1015,7 +1018,6 @@
 
         input.addEventListener('blur', handleSave);
 
-        btnTarget.classList.add('hidden');
         activeInlineEdit = { form, btn: btnTarget };
         activeWeightEdit = { form, trigger: btnTarget };
         input.focus();
@@ -1169,6 +1171,7 @@
           });
           if (res.ok) {
             loadEntries(currentUserId, currentDate, currentCanEdit);
+            refreshCardForUser(String(selfUserId));
           }
         } catch (err) {
           console.error('Delete failed', err);
@@ -1194,6 +1197,7 @@
           if (res.ok) {
             weightCache.delete(`${selfUserId}:${currentDate}`);
             loadWeightForDate(currentUserId, currentDate, currentLabel, currentCanEdit);
+            refreshCardForUser(String(selfUserId));
           }
         } catch (err) {
           console.error('Weight delete failed', err);
@@ -1276,19 +1280,21 @@
           currentValue = btn.textContent.trim() === 'Untitled' ? '' : btn.textContent.trim();
         }
 
-        const isCompact = type === 'amount' || type === 'macro';
-        const btnW = isCompact ? btn.offsetWidth + 'px' : null;
+        const isPill = type === 'amount' || type === 'macro';
+        const btnW = btn.offsetWidth + 'px';
+        const btnH = btn.offsetHeight + 'px';
 
         btn.classList.add('hidden');
 
         const form = document.createElement('form');
-        form.className = `inline-edit${isCompact ? ' inline-edit--compact inline-edit--' + type : ''}`;
+        form.className = `inline-edit inline-edit--compact inline-edit--${type}`;
         form.dataset.inlineEditing = 'true';
-        if (btnW) {
+        if (isPill || type === 'name') {
           form.style.width = btnW;
           form.style.minWidth = btnW;
           form.style.maxWidth = btnW;
           form.style.flex = '0 0 ' + btnW;
+          form.style.height = btnH;
         }
 
         const input = document.createElement('input');
@@ -1304,7 +1310,7 @@
           input.step = '1';
         }
         input.autocomplete = 'off';
-        input.className = `inline-edit-input${isCompact ? ' inline-edit-input--compact' : ''}`;
+        input.className = 'inline-edit-input inline-edit-input--compact';
         input.placeholder = placeholder;
         input.value = currentValue;
 

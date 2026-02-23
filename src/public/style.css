@@ -547,10 +547,6 @@ a:focus-visible,
   margin-top: var(--space-xs);
 }
 
-/* Name editor replaces flex:1 name button — keep delete pinned right */
-.entry-row > .inline-edit:not(.inline-edit--compact) {
-  flex: 1;
-}
 
 .inline-edit.is-saving {
   opacity: 0.7;
@@ -703,7 +699,7 @@ a:focus-visible,
 
 
 @media (max-width: 640px) {
-  .inline-edit {
+  .inline-edit:not(.inline-edit--compact) {
     flex-direction: column;
     align-items: stretch;
   }
@@ -715,7 +711,7 @@ a:focus-visible,
     flex-direction: row-reverse;
   }
 
-  .inline-edit-input {
+  .inline-edit-input:not(.inline-edit-input--compact) {
     width: 100%;
     min-width: 0;
   }
@@ -1479,7 +1475,7 @@ a:focus-visible,
     padding-bottom: var(--space-lg);
   }
 
-  .inline-edit {
+  .inline-edit:not(.inline-edit--compact) {
     flex-direction: column;
     align-items: stretch;
   }
@@ -1491,7 +1487,7 @@ a:focus-visible,
     flex-direction: row-reverse;
   }
 
-  .inline-edit-input {
+  .inline-edit-input:not(.inline-edit-input--compact) {
     width: 100%;
     min-width: 0;
   }
@@ -2548,7 +2544,7 @@ a:focus-visible,
 }
 
 .entry-form button[type="submit"] {
-  align-self: flex-start;
+  align-self: flex-end;
 }
 
 /* Entry table layout */
@@ -2841,10 +2837,18 @@ a:focus-visible,
   font-weight: 700;
 }
 
-.entry-row > .inline-edit:not(.inline-edit--compact) {
+.log-list .inline-edit--compact.inline-edit--name {
   order: 1;
-  flex: 1 1 auto;
-  margin-top: 0;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  border-color: var(--accent);
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.log-list .inline-edit--name .inline-edit-input--compact {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 7px 8px;
 }
 
 /* Compact inline edit — pill-shaped form replaces button */
@@ -2868,6 +2872,11 @@ a:focus-visible,
   background: rgba(255, 255, 255, 0.08);
 }
 
+.log-list .inline-edit--compact.inline-edit--weight {
+  order: 5;
+  background: rgba(14, 165, 233, 0.15);
+}
+
 .log-list .inline-edit-input--compact {
   width: 100%;
   min-width: 0;
@@ -2876,7 +2885,7 @@ a:focus-visible,
   font-variant-numeric: tabular-nums;
   text-align: left;
   border: none;
-  border-radius: 999px;
+  border-radius: inherit;
   background: transparent;
   color: var(--text);
   outline: none;
