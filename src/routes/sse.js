@@ -113,21 +113,6 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000); // Run every 5 minutes
 
-async function broadcastEntryChange(sourceUserId) {
-  const uid = toInt(sourceUserId);
-  if (uid === null) return;
-  const targets = new Set([uid]);
-  try {
-    const { getAcceptedLinkUsers } = require('../lib/links');
-    const links = await getAcceptedLinkUsers(uid);
-    links.forEach((link) => targets.add(link.userId));
-  } catch (err) {
-    console.error('Failed to load linked users for broadcast', err);
-  }
-  const payload = { sourceUserId: uid, at: Date.now() };
-  targets.forEach((targetId) => sendUserEvent(targetId, 'entry-change', payload));
-}
-
 module.exports = {
   router,
   sendUserEvent,

@@ -19,8 +19,6 @@ const {
   getWeightEntry,
   getLastWeightEntry,
 } = require('../lib/weight');
-const { getAcceptedLinkUsers } = require('../lib/links');
-const { broadcastEntryChange } = require('./sse');
 const {
   MACRO_KEYS,
   MACRO_LABELS,
@@ -149,9 +147,6 @@ function buildDailyStats(dayOptions, totalsByDate, dailyGoal) {
     return { date: dateStr, total, status, overThreshold };
   });
 }
-
-// Weight helpers imported from ../lib/weight.js
-const { upsertWeightEntry, getWeightEntry, getLastWeightEntry } = require('../lib/weight');
 
 // Check AI availability
 const { getEffectiveSetting } = require('../db/pool');
