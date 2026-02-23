@@ -26,7 +26,11 @@ function validateCsrfToken(req) {
 // The token is only generated (and session saved) when a template actually reads <%= csrfToken %>
 // This prevents bots/crawlers from creating thousands of empty sessions
 const addCsrfToken = (req, res, next) => {
-  if (!req.session) return next();
+  if (!req.session) {
+    // No session available — define csrfToken as empty string so templates don't crash
+    res.locals.csrfToken = '';
+    return next();
+  }
   let cached;
   Object.defineProperty(res.locals, 'csrfToken', {
     get() {
