@@ -547,6 +547,11 @@ a:focus-visible,
   margin-top: var(--space-xs);
 }
 
+/* Name editor replaces flex:1 name button — keep delete pinned right */
+.entry-row > .inline-edit:not(.inline-edit--compact) {
+  flex: 1;
+}
+
 .inline-edit.is-saving {
   opacity: 0.7;
 }
@@ -2624,6 +2629,16 @@ a:focus-visible,
   text-align: right;
 }
 
+/* Data cells wrapper — invisible on desktop, flex row on mobile */
+.entry-data {
+  display: contents;
+}
+
+/* Macro short labels — hidden on desktop, shown on mobile */
+.entry-macro-label {
+  display: none;
+}
+
 /* No-macros fallback: simpler row layout */
 .entry-table-wrap.no-macros .entry-row {
   gap: var(--space-sm);
@@ -2703,42 +2718,54 @@ a:focus-visible,
     flex: 1 0 100%;
   }
 
-  /* Entry table mobile - stacked rows, no horizontal scroll */
+  /* Entry table mobile - two-line card layout */
   .entry-table-header {
     display: none;
   }
 
   .entry-row {
     flex-wrap: wrap;
-    gap: var(--space-xs);
+    gap: 2px var(--space-sm);
     padding: var(--space-sm) var(--space-md);
   }
 
   .entry-cell.entry-name {
-    flex: 1 1 auto;
-    min-width: 60px;
-  }
-
-  .entry-cell.entry-amount {
-    width: auto;
-    flex: 0 0 auto;
-  }
-
-  .entry-cell.entry-macro {
-    width: auto;
-    flex: 0 0 auto;
-    font-size: 0.8rem;
-    min-height: 36px;
-  }
-
-  .entry-cell.entry-time {
-    width: auto;
-    flex: 0 0 auto;
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .entry-cell.entry-delete {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  /* Data cells become a flex row on the second line */
+  .entry-data {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex: 1 0 100%;
+    order: 1;
+  }
+
+  .entry-data .entry-cell {
     width: auto;
     flex: 0 0 auto;
+    min-height: 0;
+  }
+
+  .entry-cell.entry-macro {
+    font-size: 0.8rem;
+  }
+
+  /* Show macro short labels on mobile */
+  .entry-macro-label {
+    display: inline;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-right: 2px;
   }
 }
 
