@@ -46,26 +46,28 @@ const DEFAULT_RANGE_DAYS = 14;
 
 // Helper functions for dashboard data
 function buildDayOptions(daysToShow) {
+  // Use UTC to avoid timezone shifting when calculating date range
   const today = new Date();
-  const startDate = new Date(today);
-  startDate.setDate(today.getDate() - (daysToShow - 1));
-  return buildDayOptionsBetween(startDate, today);
+  const todayStr = today.toISOString().slice(0, 10);
+  
+  // Calculate start date using UTC to avoid DST/timezone issues
+  const startDate = new Date(todayStr + 'T00:00:00Z');
+  startDate.setUTCDate(startDate.getUTCDate() - (daysToShow - 1));
+  const startDateStr = startDate.toISOString().slice(0, 10);
+  
+  return buildDayOptionsBetween(startDateStr, todayStr);
 }
 
 function buildDayOptionsBetween(startDateStr, endDateStr) {
   const dayOptions = [];
-  // Work with date strings directly to avoid timezone issues
-  // Parse as local date by appending time component
-  const cursor = new Date(endDateStr + 'T12:00:00');
-  const minDate = new Date(startDateStr + 'T12:00:00');
+  // Use UTC explicitly to avoid any timezone shifting
+  const cursor = new Date(endDateStr + 'T00:00:00Z');
+  const minDate = new Date(startDateStr + 'T00:00:00Z');
+  
   for (let i = 0; i < MAX_HISTORY_DAYS; i += 1) {
     if (cursor < minDate) break;
-    // Format as YYYY-MM-DD without timezone conversion
-    const year = cursor.getFullYear();
-    const month = String(cursor.getMonth() + 1).padStart(2, '0');
-    const day = String(cursor.getDate()).padStart(2, '0');
-    dayOptions.push(`${year}-${month}-${day}`);
-    cursor.setDate(cursor.getDate() - 1);
+    dayOptions.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
   }
   return dayOptions;
 }
@@ -294,8 +296,10 @@ router.get('/dashboard', requireLogin, async (req, res) => {
   let aiProviderName = null;
 
   const userProvider = user.ai_provider;
-  const globalKey = await getEffectiveSetting('ai_key', process.env.AI_KEY);
-  const globalProvider = await getEffectiveSetting('ai_provider', process.env.AI_PROVIDER);
+  const [globalKey, globalProvider] = await Promise.all([
+    getEffectiveSetting('ai_key', process.env.AI_KEY),
+    getEffectiveSetting('ai_provider', process.env.AI_PROVIDER),
+  ]);
 
   if (user.ai_key) {
     hasAiEnabled = true;
