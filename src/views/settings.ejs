@@ -57,6 +57,7 @@
         </div>
       </div>
       <form action="/settings/preferences" method="POST" class="stack compact">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <div class="field">
           <span>Timezone</span>
           <select name="timezone" class="timezone-select">
@@ -99,6 +100,7 @@
         <% if (user.totp_enabled) { %>
           <div class="alert success">2FA is enabled.</div>
           <form action="/2fa/disable" method="POST" class="stack compact">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <label class="field">
               <span>Current 2FA code</span>
               <input type="text" name="token" inputmode="numeric" pattern="[0-9]*" required placeholder="123456">
@@ -131,17 +133,21 @@
               <% } %>
             </div>
             <form action="/2fa/enable" method="POST" class="stack compact">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <label class="field">
                 <span>6-digit code</span>
                 <input type="text" name="token" inputmode="numeric" pattern="[0-9]*" required placeholder="123456">
               </label>
               <button type="submit" class="primary">Activate 2FA</button>
-              <a href="/2fa/cancel" class="ghost danger">Cancel</a>
+              <button type="submit" class="ghost danger" formaction="/2fa/cancel">Cancel</button>
             </form>
           </div>
         <% } else { %>
           <p class="muted small">Add extra security with an authenticator app.</p>
-          <a class="primary" href="/2fa/setup">Start setup</a>
+          <form action="/2fa/setup" method="POST" class="inline-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="primary">Start setup</button>
+          </form>
         <% } %>
       </div>
     </div>
@@ -186,6 +192,7 @@
         <div class="alert <%= emailFeedback.type === 'error' ? 'danger' : 'success' %>"><%= emailFeedback.message %></div>
       <% } %>
       <form action="/settings/email/request" method="POST" class="stack">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <label class="field">
           <span>New email address</span>
           <input type="email" name="new_email" required autocomplete="email" placeholder="newemail@example.com">

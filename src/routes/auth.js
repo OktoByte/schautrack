@@ -107,7 +107,7 @@ async function cleanExpiredTokens() {
 }
 
 // Run cleanup every 15 minutes
-setInterval(() => { cleanExpiredTokens().catch(err => console.error('Token cleanup error', err)); }, 15 * 60 * 1000);
+setInterval(() => { cleanExpiredTokens().catch(err => console.error('Token cleanup error', err)); }, 15 * 60 * 1000).unref();
 
 // Email verification helpers
 async function createEmailVerificationToken(userId) {
@@ -455,7 +455,7 @@ router.post('/login', authLimiter, csrfProtection, async (req, res) => {
   }
 });
 
-router.post('/logout', requireLogin, (req, res) => {
+router.post('/logout', requireLogin, csrfProtection, (req, res) => {
   req.session.destroy(() => res.redirect('/login'));
 });
 
@@ -701,7 +701,7 @@ router.get('/verify-email', (req, res) => {
   res.render('verify-email', { error: null, success: null, email, codeVerified, supportEmail, verifyAttempts: req.session.verifyAttempts || 0, captchaSvg: null });
 });
 
-router.post('/verify-email', async (req, res) => {
+router.post('/verify-email', csrfProtection, async (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
   }
@@ -786,7 +786,7 @@ router.post('/verify-email', async (req, res) => {
   }
 });
 
-router.post('/verify-email/resend', async (req, res) => {
+router.post('/verify-email/resend', csrfProtection, async (req, res) => {
   if (req.currentUser) {
     return res.redirect('/dashboard');
   }
@@ -906,7 +906,7 @@ router.post('/verify-email/resend', async (req, res) => {
 });
 
 // Account deletion
-router.post('/delete', requireLogin, async (req, res) => {
+router.post('/delete', requireLogin, csrfProtection, async (req, res) => {
   const { password, token } = req.body;
   const { toInt } = require('../lib/utils');
   const userId = toInt(req.currentUser?.id);
@@ -977,7 +977,7 @@ router.post('/delete', requireLogin, async (req, res) => {
 });
 
 // Email change routes
-router.post('/settings/email/request', strictLimiter, requireLogin, async (req, res) => {
+router.post('/settings/email/request', strictLimiter, requireLogin, csrfProtection, async (req, res) => {
   const newEmail = (req.body.new_email || '').trim().toLowerCase();
   const password = req.body.password || '';
   const totpCode = req.body.totp_code || '';
@@ -1079,7 +1079,7 @@ router.get('/settings/email/verify', requireLogin, (req, res) => {
   });
 });
 
-router.post('/settings/email/verify', requireLogin, async (req, res) => {
+router.post('/settings/email/verify', requireLogin, csrfProtection, async (req, res) => {
   const pendingEmail = req.session.pendingEmailChange;
   const PENDING_EMAIL_EXPIRY = 30 * 60 * 1000; // 30 minutes
   if (!pendingEmail ||
@@ -1131,7 +1131,7 @@ router.post('/settings/email/verify', requireLogin, async (req, res) => {
   }
 });
 
-router.post('/settings/email/cancel', requireLogin, (req, res) => {
+router.post('/settings/email/cancel', requireLogin, csrfProtection, (req, res) => {
   delete req.session.pendingEmailChange;
   delete req.session.pendingEmailChangeCreatedAt;
   delete req.session.emailChangeAttempts;

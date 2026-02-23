@@ -14,6 +14,7 @@
     <% if (currentUser) { %>
       <p class="muted">You are signed in as <strong><%= currentUser.email %></strong>. Re-authenticate to confirm deletion.</p>
       <form action="/delete" method="POST" class="stack data-card">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <label class="field">
           <span>Password</span>
           <input type="password" name="password" required placeholder="Your password">

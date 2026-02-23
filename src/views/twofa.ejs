@@ -12,6 +12,7 @@
       <div class="alert success">2FA is enabled for <%= user.email %>.</div>
       <p class="muted">Use your authenticator app to generate codes. To disable, confirm with a current code.</p>
       <form action="/2fa/disable" method="POST" class="stack compact">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <label class="field">
           <span>Current 2FA code</span>
           <input type="text" name="token" inputmode="numeric" pattern="[0-9]*" required placeholder="123456">
@@ -30,6 +31,7 @@
           <% } %>
         </div>
         <form action="/2fa/enable" method="POST" class="stack compact">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <label class="field">
             <span>6-digit code</span>
             <input type="text" name="token" inputmode="numeric" pattern="[0-9]*" required placeholder="123456">
@@ -39,7 +41,10 @@
       </div>
     <% } else { %>
       <div class="alert">Add an authenticator app (like 1Password, Authy, Google Authenticator) for stronger protection.</div>
-      <a class="primary" href="/2fa/setup">Start setup</a>
+      <form action="/2fa/setup" method="POST" class="inline-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="primary">Start setup</button>
+      </form>
     <% } %>
   </section>
 <%- include('partials/footer') %>

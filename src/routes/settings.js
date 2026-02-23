@@ -170,7 +170,7 @@ router.post('/settings/macros', requireLogin, csrfProtection, async (req, res) =
   res.redirect('/settings');
 });
 
-router.post('/settings/ai', requireLogin, async (req, res) => {
+router.post('/settings/ai', requireLogin, csrfProtection, async (req, res) => {
   const { ai_key, ai_endpoint, clear_settings } = req.body;
 
   if (clear_settings === 'true') {
@@ -279,7 +279,7 @@ router.post('/settings/password', requireLogin, csrfProtection, async (req, res)
 // 2FA routes
 router.get('/2fa', requireLogin, (req, res) => res.redirect('/settings'));
 
-router.get('/2fa/setup', requireLogin, async (req, res) => {
+router.post('/2fa/setup', requireLogin, csrfProtection, async (req, res) => {
   const user = req.currentUser;
   const secret = speakeasy.generateSecret({
     name: `Schautrack (${user.email})`,
@@ -291,14 +291,14 @@ router.get('/2fa/setup', requireLogin, async (req, res) => {
   res.redirect('/settings');
 });
 
-router.get('/2fa/cancel', requireLogin, (req, res) => {
+router.post('/2fa/cancel', requireLogin, csrfProtection, (req, res) => {
   delete req.session.tempSecret;
   delete req.session.tempUrl;
   delete req.session.tempSecretCreatedAt;
   res.redirect('/settings');
 });
 
-router.post('/2fa/enable', requireLogin, async (req, res) => {
+router.post('/2fa/enable', requireLogin, csrfProtection, async (req, res) => {
   const { token } = req.body;
   const secret = req.session.tempSecret;
 
@@ -332,7 +332,7 @@ router.post('/2fa/enable', requireLogin, async (req, res) => {
   res.redirect('/settings');
 });
 
-router.post('/2fa/disable', requireLogin, async (req, res) => {
+router.post('/2fa/disable', requireLogin, csrfProtection, async (req, res) => {
   const { token } = req.body;
   const user = req.currentUser;
 

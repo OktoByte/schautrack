@@ -6,11 +6,24 @@ const path = require('path');
 const CSRF_PROTECTED_ACTIONS = [
   '/register',
   '/login',
+  '/logout',
   '/forgot-password',
   '/reset-password',
+  '/verify-email',
+  '/verify-email/resend',
+  '/delete',
   '/entries',
+  '/settings/preferences',
   '/settings/password',
+  '/settings/ai',
   '/settings/macros',
+  '/settings/email/request',
+  '/settings/email/verify',
+  '/settings/email/cancel',
+  '/2fa/setup',
+  '/2fa/cancel',
+  '/2fa/enable',
+  '/2fa/disable',
 ];
 
 const viewsDir = path.join(__dirname, '..', 'src', 'views');
