@@ -41,6 +41,25 @@ const upload = multer({
 // Constants
 const MAX_HISTORY_DAYS = 180;
 const DEFAULT_RANGE_DAYS = 14;
+const MAX_ENTRY_CALORIES = 9999;
+const MAX_ENTRY_MACRO = 999;
+
+const parseEntryAmount = (rawValue) => parseAmount(rawValue, { maxAbs: MAX_ENTRY_CALORIES });
+
+const parseEntryMacroValue = (rawValue) => {
+  if (rawValue === undefined) {
+    return { provided: false, ok: true, value: null };
+  }
+  const normalized = String(rawValue ?? '').trim();
+  if (normalized === '') {
+    return { provided: true, ok: true, value: null };
+  }
+  const parsed = parseMacroInput(normalized);
+  if (parsed === null || parsed > MAX_ENTRY_MACRO) {
+    return { provided: true, ok: false, value: null };
+  }
+  return { provided: true, ok: true, value: parsed };
+};
 
 // Helper functions for dashboard data
 function buildDayOptions(daysToShow) {
@@ -521,7 +540,8 @@ router.get('/entries/day', requireLogin, requireLinkAuth, async (req, res) => {
 router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
   const wantsJson = (req.headers.accept || '').includes('application/json');
   const userTz = getUserTimezone(req, res);
-  const { value: amount, ok: amountOk } = parseAmount(req.body.amount);
+  const rawAmountInput = String(req.body.amount ?? '').trim();
+  const { value: amount, ok: amountOk } = parseEntryAmount(req.body.amount);
   const { ok: weightOk, value: weightVal } = parseWeight(req.body.weight);
   const entryDate = req.body.entry_date || formatDateInTz(new Date(), userTz);
   const entryName = (req.body.entry_name || '').trim();
@@ -532,13 +552,31 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
 
   // Parse macro values (save any that are provided, regardless of enabled state)
   const macroValues = {};
+  let invalidMacroInput = false;
   for (const key of MACRO_KEYS) {
-    const value = parseMacroInput(req.body[`${key}_g`]);
-    if (value !== null) {
-      macroValues[key] = value;
+    const parsed = parseEntryMacroValue(req.body[`${key}_g`]);
+    if (!parsed.ok) {
+      invalidMacroInput = true;
+      continue;
+    }
+    if (parsed.value !== null) {
+      macroValues[key] = parsed.value;
     }
   }
+  if (invalidMacroInput) {
+    if (wantsJson) {
+      return res.status(400).json({ ok: false, error: `Macro values must be between 0 and ${MAX_ENTRY_MACRO}` });
+    }
+    return res.redirect('/dashboard');
+  }
   const hasMacroEntry = Object.keys(macroValues).length > 0;
+
+  if (rawAmountInput && !amountOk) {
+    if (wantsJson) {
+      return res.status(400).json({ ok: false, error: `Calories must be between -${MAX_ENTRY_CALORIES} and ${MAX_ENTRY_CALORIES}` });
+    }
+    return res.redirect('/dashboard');
+  }
 
   if (!hasCalorieEntry && !hasMacroEntry && !hasWeight) {
     if (wantsJson) {
@@ -611,10 +649,10 @@ router.post('/entries/:id/update', requireLogin, csrfProtection, async (req, res
   }
 
   if (req.body.amount !== undefined) {
-    const { value: amount, ok } = parseAmount(req.body.amount);
+    const { value: amount, ok } = parseEntryAmount(req.body.amount);
     if (!ok || amount === 0) {
       return wantsJson
-        ? res.status(400).json({ ok: false, error: 'Invalid amount' })
+        ? res.status(400).json({ ok: false, error: `Calories must be between -${MAX_ENTRY_CALORIES} and ${MAX_ENTRY_CALORIES}` })
         : res.redirect('/dashboard');
     }
     updates.push(`amount = $${idx}`);
@@ -626,9 +664,14 @@ router.post('/entries/:id/update', requireLogin, csrfProtection, async (req, res
   for (const key of MACRO_KEYS) {
     const fieldName = `${key}_g`;
     if (req.body[fieldName] !== undefined) {
-      const value = parseMacroInput(req.body[fieldName]);
+      const parsed = parseEntryMacroValue(req.body[fieldName]);
+      if (!parsed.ok) {
+        return wantsJson
+          ? res.status(400).json({ ok: false, error: `Macro values must be between 0 and ${MAX_ENTRY_MACRO}` })
+          : res.redirect('/dashboard');
+      }
       updates.push(`${fieldName} = $${idx}`);
-      values.push(value); // null clears the value
+      values.push(parsed.value); // null clears the value
       idx += 1;
     }
   }
@@ -800,17 +843,22 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
   entries.forEach((entry) => {
     const dateStr = (entry.date || entry.entry_date || '').toString();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return;
-    const { value: amount, ok } = parseAmount(entry.amount);
+    const { value: amount, ok } = parseEntryAmount(entry.amount);
     if (!ok || amount === 0) return;
     const nameRaw = entry.name || entry.entry_name || '';
     const nameSafe = nameRaw ? String(nameRaw).trim().slice(0, 120) : null;
     const createdAt = entry.created_at ? new Date(entry.created_at) : null;
     // Parse macro values from import
-    const protein_g = parseMacroInput(entry.protein_g);
-    const carbs_g = parseMacroInput(entry.carbs_g);
-    const fat_g = parseMacroInput(entry.fat_g);
-    const fiber_g = parseMacroInput(entry.fiber_g);
-    const sugar_g = parseMacroInput(entry.sugar_g);
+    const proteinParsed = parseEntryMacroValue(entry.protein_g);
+    const carbsParsed = parseEntryMacroValue(entry.carbs_g);
+    const fatParsed = parseEntryMacroValue(entry.fat_g);
+    const fiberParsed = parseEntryMacroValue(entry.fiber_g);
+    const sugarParsed = parseEntryMacroValue(entry.sugar_g);
+    const protein_g = proteinParsed.ok ? proteinParsed.value : null;
+    const carbs_g = carbsParsed.ok ? carbsParsed.value : null;
+    const fat_g = fatParsed.ok ? fatParsed.value : null;
+    const fiber_g = fiberParsed.ok ? fiberParsed.value : null;
+    const sugar_g = sugarParsed.ok ? sugarParsed.value : null;
     toInsert.push({ date: dateStr, amount, name: nameSafe, created_at: createdAt, protein_g, carbs_g, fat_g, fiber_g, sugar_g });
   });
 

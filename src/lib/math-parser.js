@@ -1,4 +1,5 @@
-function parseAmount(input) {
+function parseAmount(input, options = {}) {
+  const maxAbs = Number.isFinite(options.maxAbs) ? Math.floor(Math.abs(options.maxAbs)) : null;
   if (input === undefined || input === null) {
     return { ok: false, value: 0 };
   }
@@ -20,7 +21,11 @@ function parseAmount(input) {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
       return { ok: false, value: 0 };
     }
-    return { ok: true, value: Math.round(value) };
+    const rounded = Math.round(value);
+    if (maxAbs !== null && Math.abs(rounded) > maxAbs) {
+      return { ok: false, value: 0 };
+    }
+    return { ok: true, value: rounded };
   } catch (err) {
     return { ok: false, value: 0 };
   }

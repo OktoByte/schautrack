@@ -82,6 +82,7 @@
             type="text"
             inputmode="tel"
             pattern="[0-9+\-*/().\s]*"
+            maxlength="24"
             name="amount"
             placeholder="-"
             autocomplete="off"
@@ -94,7 +95,7 @@
           <% enabledMacros.forEach((key) => { %>
             <label class="field entry-field-nutrient" data-nutrient-field="<%= key %>">
               <span><%= macroLabels[key].label %></span>
-              <input type="text" inputmode="numeric" name="<%= key %>_g" placeholder="-" autocomplete="off" data-macro-input="<%= key %>">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" name="<%= key %>_g" placeholder="-" autocomplete="off" data-macro-input="<%= key %>">
             </label>
           <% }) %>
         <% } %>
@@ -166,7 +167,7 @@
               </h3>
             </div>
             <div class="chip <%= view.dailyGoal ? '' : 'muted' %>">
-              <%= view.dailyGoal ? `${view.dailyGoal} kcal goal` : 'Goal not set' %>
+              <%= view.dailyGoal ? `${view.dailyGoal} calorie goal` : 'Goal not set' %>
             </div>
           </div>
           <div class="dot-row">
@@ -223,15 +224,48 @@
       const weightDisplayText = displayWeight ? formatWeightValue(displayWeight.weight) : 'No weight logged';
       const isLastWeight = !weightEntry && lastWeightIsValid;
       const lastWeightDaysAgo = isLastWeight ? formatDaysAgo(lastWeightEntry.date, selectedDate) : null;
+      const timelineMetricCount = (caloriesEnabled ? 1 : 0) + ((enabledMacros && enabledMacros.length) ? enabledMacros.length : 0) + 1;
+      const weightMetricSpacerCount = Math.max(0, timelineMetricCount - 2);
     %>
-    <div class="log-list">
+    <div class="log-list" style="--timeline-metrics: <%= timelineMetricCount %>;">
+      <div class="entry-table-wrap <%= (!recentEntries || recentEntries.length === 0) ? 'hidden' : '' %> <%= (!enabledMacros || enabledMacros.length === 0) ? 'no-macros' : '' %>" data-entry-list>
+        <% const macroHeaderShort = { protein: 'Pro', carbs: 'Carb', fat: 'Fat', fiber: 'Fib', sugar: 'Sug' }; %>
+        <% if ((enabledMacros && enabledMacros.length > 0) || caloriesEnabled) { %>
+        <div class="entry-table-header" data-entry-header>
+          <span class="entry-th entry-th-name">What</span>
+          <% if (caloriesEnabled) { %><span class="entry-th entry-th-kcal" data-macro-key="kcal" data-short="Cal"><span class="entry-th-full">Calories</span><span class="entry-th-abbr">Cal</span></span><% } %>
+          <% if (enabledMacros) { enabledMacros.forEach((key) => { %>
+            <span class="entry-th entry-th-macro" data-macro-key="<%= key %>" data-short="<%= macroHeaderShort[key] || macroLabels[key].short %>"><span class="entry-th-full"><%= macroLabels[key].label %></span><span class="entry-th-abbr"><%= macroHeaderShort[key] || macroLabels[key].short %></span></span>
+          <% }) } %>
+          <span class="entry-th entry-th-time">Time</span>
+          <span class="entry-th entry-th-actions"></span>
+        </div>
+        <% } %>
+        <% if (recentEntries && recentEntries.length > 0) { %>
+          <% recentEntries.forEach((entry) => { %>
+            <div class="entry-row" data-entry-row data-entry-id="<%= entry.id %>">
+              <button type="button" class="edit-trigger entry-cell entry-name" data-edit-name><%= entry.entry_name || 'Untitled' %></button>
+              <% if (caloriesEnabled) { %><button type="button" class="edit-trigger entry-cell entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><span class="entry-macro-label">Calories </span><%= entry.amount %></button><% } %>
+              <% if (enabledMacros && enabledMacros.length > 0) { %>
+                <% enabledMacros.forEach((key) => { %>
+                  <button type="button" class="edit-trigger entry-cell entry-macro" data-edit-macro="<%= key %>" data-macro-key="<%= key %>"><span class="entry-macro-label"><%= macroLabels[key].label %> </span><span class="entry-macro-value"><%= entry[key + '_g'] != null ? entry[key + '_g'] : '-' %></span></button>
+                <% }) %>
+              <% } %>
+              <span class="entry-cell entry-time muted small" data-entry-time><%= entry.timeFormatted %></span>
+              <form action="/entries/<%= entry.id %>/delete" method="POST" class="inline-form entry-cell entry-delete" data-delete-form>
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="<%= entry.id %>">Delete</button>
+              </form>
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+      <div class="muted <%= (!recentEntries || recentEntries.length === 0) ? '' : 'hidden' %>" data-entry-empty>No entries yet.</div>
       <div class="weight-slot" data-weight-slot>
         <div class="entry-row weight-row <%= weightEntry ? '' : 'is-empty' %>" data-weight-row>
           <button type="button" class="edit-trigger entry-cell entry-name is-locked" data-locked="true"><%= isLastWeight ? 'Last weight' : 'Weight' %></button>
-          <div class="entry-data">
-            <button type="button" class="edit-trigger entry-cell entry-amount weight <%= displayWeight ? '' : 'muted' %>" data-weight-value><%= weightDisplayText %></button>
-            <span class="entry-cell entry-time muted small" data-weight-time><%= weightEntry ? weightTime : (lastWeightDaysAgo || '') %></span>
-          </div>
+          <button type="button" class="edit-trigger entry-cell entry-amount weight <%= displayWeight ? '' : 'muted' %>" data-weight-value><%= weightDisplayText %></button>
+          <span class="entry-cell entry-time muted small" data-weight-time><%= weightEntry ? weightTime : (lastWeightDaysAgo || '') %></span>
           <% if (weightEntry && weightEntry.id) { %>
             <form action="/weight/<%= weightEntry.id %>/delete" method="POST" class="inline-form entry-cell entry-delete" data-weight-delete-form>
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -244,40 +278,6 @@
           <% } %>
         </div>
       </div>
-      <div class="entry-table-wrap <%= (!recentEntries || recentEntries.length === 0) ? 'hidden' : '' %> <%= (!enabledMacros || enabledMacros.length === 0) ? 'no-macros' : '' %>" data-entry-list>
-        <% if ((enabledMacros && enabledMacros.length > 0) || caloriesEnabled) { %>
-        <div class="entry-table-header" data-entry-header>
-          <span class="entry-th entry-th-name">What</span>
-          <% if (caloriesEnabled) { %><span class="entry-th entry-th-kcal">kcal</span><% } %>
-          <% if (enabledMacros) { enabledMacros.forEach((key) => { %>
-            <span class="entry-th entry-th-macro"><%= macroLabels[key].label %></span>
-          <% }) } %>
-          <span class="entry-th entry-th-time">Time</span>
-          <span class="entry-th entry-th-actions"></span>
-        </div>
-        <% } %>
-        <% if (recentEntries && recentEntries.length > 0) { %>
-          <% recentEntries.forEach((entry) => { %>
-            <div class="entry-row" data-entry-row data-entry-id="<%= entry.id %>">
-              <button type="button" class="edit-trigger entry-cell entry-name" data-edit-name><%= entry.entry_name || 'Untitled' %></button>
-              <div class="entry-data">
-                <% if (caloriesEnabled) { %><button type="button" class="edit-trigger entry-cell entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><%= entry.amount %> kcal</button><% } %>
-                <% if (enabledMacros && enabledMacros.length > 0) { %>
-                  <% enabledMacros.forEach((key) => { %>
-                    <button type="button" class="edit-trigger entry-cell entry-macro" data-edit-macro="<%= key %>"><span class="entry-macro-label"><%= macroLabels[key].short %></span><span class="entry-macro-value"><%= entry[key + '_g'] != null ? entry[key + '_g'] : '-' %></span></button>
-                  <% }) %>
-                <% } %>
-                <span class="entry-cell entry-time muted small" data-entry-time><%= entry.timeFormatted %></span>
-              </div>
-              <form action="/entries/<%= entry.id %>/delete" method="POST" class="inline-form entry-cell entry-delete" data-delete-form>
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="<%= entry.id %>">Delete</button>
-              </form>
-            </div>
-          <% }) %>
-        <% } %>
-      </div>
-      <div class="muted <%= (!recentEntries || recentEntries.length === 0) ? '' : 'hidden' %>" data-entry-empty>No entries yet.</div>
     </div>
   </section>
 
@@ -318,6 +318,10 @@
       const caloriesEnabledJs = <%- JSON.stringify(caloriesEnabled !== false) %>;
       const autoCalcCaloriesJs = <%- JSON.stringify(autoCalcCalories || false) %>;
       const macroLabelsJs = <%- JSON.stringify(macroLabels || {}) %>;
+      const macroHeaderShortJs = { protein: 'Pro', carbs: 'Carb', fat: 'Fat', fiber: 'Fib', sugar: 'Sug' };
+      const timelineMetricCountJs = (caloriesEnabledJs ? 1 : 0) + enabledMacrosJs.length + 1;
+      const MAX_ENTRY_CALORIES = 9999;
+      const MAX_ENTRY_MACRO = 999;
       const weightDateInput = document.querySelector('[data-weight-date]');
       const weightSlot = document.querySelector('[data-weight-slot]');
       const weightRow = document.querySelector('[data-weight-row]');
@@ -466,7 +470,7 @@
         if (!card || !data) return;
         const chip = card.querySelector('.chip');
         if (chip) {
-          chip.textContent = data.dailyGoal ? `${data.dailyGoal} kcal goal` : 'Goal not set';
+          chip.textContent = data.dailyGoal ? `${data.dailyGoal} calorie goal` : 'Goal not set';
           chip.classList.toggle('muted', !data.dailyGoal);
         }
       };
@@ -537,8 +541,8 @@
 
         if (activeInlineEdit) {
           const { form, btn: openBtn } = activeInlineEdit;
-          form.remove();
           openBtn.classList.remove('hidden');
+          form.remove();
           activeInlineEdit = null;
         }
         teardownShareLabelEditor();
@@ -622,6 +626,7 @@
 
       const renderEntries = (entries, canEdit) => {
         if (!entryList) return;
+        entryList.style.setProperty('--timeline-metrics', String(timelineMetricCountJs));
 
         // Toggle no-macros class
         entryList.classList.toggle('no-macros', enabledMacrosJs.length === 0);
@@ -629,10 +634,13 @@
         // Build header if macros or calories are enabled
         let headerHtml = '';
         if (enabledMacrosJs.length > 0 || caloriesEnabledJs) {
-          const kcalHeader = caloriesEnabledJs ? '<span class="entry-th entry-th-kcal">kcal</span>' : '';
-          const macroHeaders = enabledMacrosJs.map(key =>
-            `<span class="entry-th entry-th-macro">${macroLabelsJs[key]?.label || key}</span>`
-          ).join('');
+          const macroFullJs = { protein: 'Protein', carbs: 'Carbs', fat: 'Fat', fiber: 'Fiber', sugar: 'Sugar' };
+          const kcalHeader = caloriesEnabledJs ? '<span class="entry-th entry-th-kcal" data-macro-key="kcal" data-short="Cal"><span class="entry-th-full">Calories</span><span class="entry-th-abbr">Cal</span></span>' : '';
+          const macroHeaders = enabledMacrosJs.map(key => {
+            const short = macroHeaderShortJs[key] || macroLabelsJs[key]?.short || key;
+            const full = macroFullJs[key] || macroLabelsJs[key]?.label || key;
+            return `<span class="entry-th entry-th-macro" data-macro-key="${key}" data-short="${short}"><span class="entry-th-full">${full}</span><span class="entry-th-abbr">${short}</span></span>`;
+          }).join('');
           headerHtml = `
             <div class="entry-table-header" data-entry-header>
               <span class="entry-th entry-th-name">What</span>
@@ -662,29 +670,27 @@
           const macroCells = enabledMacrosJs.map(key => {
             const val = entry.macros?.[key];
             const displayVal = val != null ? val : '-';
-            const label = macroLabelsJs[key]?.short || key;
+            const full = macroFullJs[key] || macroLabelsJs[key]?.label || key;
             if (!canEdit) {
-              return `<button type="button" class="edit-trigger entry-cell entry-macro is-locked" data-locked="true"><span class="entry-macro-label">${label}</span><span class="entry-macro-value">${displayVal}</span></button>`;
+              return `<button type="button" class="edit-trigger entry-cell entry-macro is-locked" data-locked="true" data-macro-key="${key}"><span class="entry-macro-label">${full} </span><span class="entry-macro-value">${displayVal}</span></button>`;
             }
-            return `<button type="button" class="edit-trigger entry-cell entry-macro" data-edit-macro="${key}"><span class="entry-macro-label">${label}</span><span class="entry-macro-value">${displayVal}</span></button>`;
+            return `<button type="button" class="edit-trigger entry-cell entry-macro" data-edit-macro="${key}" data-macro-key="${key}"><span class="entry-macro-label">${full} </span><span class="entry-macro-value">${displayVal}</span></button>`;
           }).join('');
 
           const kcalCellLocked = caloriesEnabledJs
-            ? `<button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'} is-locked" data-locked="true">${entry.amount} kcal</button>`
+            ? `<button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'} is-locked" data-locked="true"><span class="entry-macro-label">Calories </span>${entry.amount}</button>`
             : '';
           const kcalCellEditable = caloriesEnabledJs
-            ? `<button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}" data-edit-amount>${entry.amount} kcal</button>`
+            ? `<button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}" data-edit-amount><span class="entry-macro-label">Calories </span>${entry.amount}</button>`
             : '';
 
           if (!canEdit) {
             return `
             <div class="entry-row view-only" data-entry-row data-entry-id="${entry.id}">
               <button type="button" class="edit-trigger entry-cell entry-name is-locked" data-locked="true">${safeName}</button>
-              <div class="entry-data">
-                ${kcalCellLocked}
-                ${macroCells}
-                <span class="entry-cell entry-time muted small">${entry.time || ''}</span>
-              </div>
+              ${kcalCellLocked}
+              ${macroCells}
+              <span class="entry-cell entry-time muted small">${entry.time || ''}</span>
               <form class="inline-form entry-cell entry-delete delete-placeholder" aria-hidden="true">
                 <button type="button" class="ghost danger small placeholder-delete" tabindex="-1">Delete</button>
               </form>
@@ -694,11 +700,9 @@
           return `
           <div class="entry-row" data-entry-row data-entry-id="${entry.id}">
             <button type="button" class="edit-trigger entry-cell entry-name" data-edit-name>${safeName}</button>
-            <div class="entry-data">
-              ${kcalCellEditable}
-              ${macroCells}
-              <span class="entry-cell entry-time muted small" data-entry-time>${entry.time || ''}</span>
-            </div>
+            ${kcalCellEditable}
+            ${macroCells}
+            <span class="entry-cell entry-time muted small" data-entry-time>${entry.time || ''}</span>
             <form action="/entries/${entry.id}/delete" method="POST" class="inline-form entry-cell entry-delete" data-delete-form>
               <input type="hidden" name="_csrf" value="${csrfToken}">
               <button type="submit" class="ghost danger small" data-delete-entry data-entry-id="${entry.id}">Delete</button>
@@ -939,8 +943,8 @@
         // Close any other inline edit (entries or weight) for consistency
         if (activeInlineEdit) {
           const { form, btn: openBtn } = activeInlineEdit;
-          form.remove();
           if (openBtn) openBtn.classList.remove('hidden');
+          form.remove();
           activeInlineEdit = null;
         }
 
@@ -1224,7 +1228,14 @@
           nameBtn.textContent = entry.name || 'Untitled';
         }
         if (amountBtn) {
-          amountBtn.textContent = `${entry.amount} kcal`;
+          const amountLabel = amountBtn.querySelector('.entry-macro-label');
+          if (amountLabel) {
+            // Preserve the inline label, update only the value text after it
+            while (amountLabel.nextSibling) amountLabel.nextSibling.remove();
+            amountLabel.insertAdjacentText('afterend', `${entry.amount}`);
+          } else {
+            amountBtn.textContent = `${entry.amount}`;
+          }
           amountBtn.classList.toggle('pos', entry.amount >= 0);
           amountBtn.classList.toggle('neg', entry.amount < 0);
         }
@@ -1257,14 +1268,14 @@
         }
         if (activeInlineEdit) {
           const { form, btn: openBtn } = activeInlineEdit;
-          form.remove();
           openBtn.classList.remove('hidden');
+          form.remove();
           activeInlineEdit = null;
         }
 
         let currentValue;
         if (type === 'amount') {
-          currentValue = btn.textContent.replace('kcal', '').trim();
+          currentValue = btn.textContent.replace(/calories|kcal|cal\s*/gi, '').trim();
         } else if (type === 'macro') {
           const valueSpan = btn.querySelector('.entry-macro-value');
           const txt = valueSpan ? valueSpan.textContent.trim() : btn.textContent.trim();
@@ -1273,40 +1284,48 @@
           currentValue = btn.textContent.trim() === 'Untitled' ? '' : btn.textContent.trim();
         }
 
+        const isCompact = type === 'amount' || type === 'macro';
+        const btnW = isCompact ? btn.offsetWidth + 'px' : null;
+
         btn.classList.add('hidden');
 
         const form = document.createElement('form');
-        const isCompact = type === 'amount' || type === 'macro';
-        form.className = `inline-edit${isCompact ? ' inline-edit--compact' : ''}`;
+        form.className = `inline-edit${isCompact ? ' inline-edit--compact inline-edit--' + type : ''}`;
         form.dataset.inlineEditing = 'true';
+        if (btnW) {
+          form.style.width = btnW;
+          form.style.minWidth = btnW;
+          form.style.maxWidth = btnW;
+          form.style.flex = '0 0 ' + btnW;
+        }
 
         const input = document.createElement('input');
         input.type = type === 'macro' ? 'number' : 'text';
-        if (type === 'amount') input.inputMode = 'text';
+        if (type === 'amount') {
+          input.inputMode = 'text';
+          input.maxLength = 24;
+        }
         if (type === 'macro') {
           input.inputMode = 'numeric';
           input.min = '0';
-          input.max = '9999';
+          input.max = String(MAX_ENTRY_MACRO);
+          input.step = '1';
         }
         input.autocomplete = 'off';
         input.className = `inline-edit-input${isCompact ? ' inline-edit-input--compact' : ''}`;
         input.placeholder = placeholder;
         input.value = currentValue;
 
-        const spinner = document.createElement('span');
-        spinner.className = 'inline-edit-spinner hidden';
-
-        form.append(input, spinner);
+        form.append(input);
+        btn.insertAdjacentElement('afterend', form);
 
         const tearDown = () => {
-          form.remove();
           btn.classList.remove('hidden');
+          form.remove();
           row.classList.remove('is-editing');
           if (activeInlineEdit && activeInlineEdit.form === form) {
             activeInlineEdit = null;
           }
-          form.classList.remove('is-saving');
-          spinner.classList.add('hidden');
         };
 
         let submitting = false;
@@ -1317,16 +1336,23 @@
             tearDown();
             return;
           }
+          const parsedAmount = type === 'amount' ? parseCalorieInputValue(value) : null;
+          if (type === 'amount' && parsedAmount === null) {
+            return;
+          }
+          const parsedMacroValue = type === 'macro' && value !== '' ? parseMacroFieldValue(value) : null;
+          if (type === 'macro' && value !== '' && parsedMacroValue === null) {
+            return;
+          }
           submitting = true;
           form.classList.add('is-saving');
-          spinner.classList.remove('hidden');
           row.classList.add('is-editing');
           try {
             let payload;
             if (type === 'amount') {
-              payload = { amount: value };
+              payload = { amount: parsedAmount };
             } else if (type === 'macro') {
-              payload = { [`${macroKey}_g`]: value || null };
+              payload = { [`${macroKey}_g`]: value === '' ? null : parsedMacroValue };
             } else {
               payload = { name: value };
             }
@@ -1337,7 +1363,6 @@
             console.error('Update failed', err);
             submitting = false;
             form.classList.remove('is-saving');
-            spinner.classList.add('hidden');
           }
         };
 
@@ -1359,7 +1384,6 @@
           handleSubmit();
         });
 
-        btn.insertAdjacentElement('afterend', form);
         input.focus();
         input.select();
         activeInlineEdit = { form, btn };
@@ -1461,25 +1485,56 @@
         return result;
       };
 
-      const isValidCalorieInput = (value) => {
-        if (!value || !value.trim()) return false;
+      const parseCalorieInputValue = (value) => {
+        if (!value || !value.trim()) return null;
         const expr = value.trim().replace(/\s+/g, '');
-        if (!/^[\d+\-*/().]+$/.test(expr)) return false;
-        if (!/\d/.test(expr)) return false;
+        if (!/^[\d+\-*/().]+$/.test(expr)) return null;
+        if (!/\d/.test(expr)) return null;
         try {
           const result = safeMathEval(expr);
-          return typeof result === 'number' && isFinite(result);
+          if (typeof result !== 'number' || !isFinite(result)) return null;
+          const rounded = Math.round(result);
+          if (Math.abs(rounded) > MAX_ENTRY_CALORIES) return null;
+          return rounded;
         } catch {
-          return false;
+          return null;
         }
       };
 
+      const isValidCalorieInput = (value) => parseCalorieInputValue(value) !== null;
+
       const macroInputs = Array.from(logForm ? logForm.querySelectorAll('[data-macro-input]') : []);
 
-      const hasAnyMacroValue = () => macroInputs.some(inp => {
-        const v = inp.value.trim();
-        return v !== '' && !Number.isNaN(parseInt(v, 10));
-      });
+      const parseMacroFieldValue = (value) => {
+        const raw = String(value ?? '').trim();
+        if (!raw) return null;
+        if (!/^\d+$/.test(raw)) return null;
+        const parsed = parseInt(raw, 10);
+        if (Number.isNaN(parsed) || parsed < 0 || parsed > MAX_ENTRY_MACRO) return null;
+        return parsed;
+      };
+
+      const clampMacroFieldValue = (value) => {
+        const parsed = parseInt(value, 10);
+        if (Number.isNaN(parsed) || parsed < 0) return null;
+        return Math.min(parsed, MAX_ENTRY_MACRO);
+      };
+
+      const clampCaloriesValue = (value) => {
+        const parsed = parseInt(value, 10);
+        if (Number.isNaN(parsed)) return null;
+        return Math.max(-MAX_ENTRY_CALORIES, Math.min(MAX_ENTRY_CALORIES, parsed));
+      };
+
+      const sanitizeMacroInput = (value) => {
+        const digits = String(value ?? '').replace(/\D+/g, '').slice(0, 3);
+        if (!digits) return '';
+        const parsed = parseInt(digits, 10);
+        if (Number.isNaN(parsed)) return '';
+        return String(Math.min(parsed, MAX_ENTRY_MACRO));
+      };
+
+      const hasAnyMacroValue = () => macroInputs.some(inp => parseMacroFieldValue(inp.value) !== null);
 
       const updateSubmitState = () => {
         if (!submitBtn) return;
@@ -1515,7 +1570,20 @@
 
         calorieInput.addEventListener('input', updateSubmitState);
       }
-      macroInputs.forEach(inp => inp.addEventListener('input', updateSubmitState));
+      macroInputs.forEach((inp) => {
+        inp.addEventListener('beforeinput', (e) => {
+          if (e.inputType === 'insertText' && e.data && /[^0-9]/.test(e.data)) {
+            e.preventDefault();
+          }
+        });
+        inp.addEventListener('input', () => {
+          const sanitized = sanitizeMacroInput(inp.value);
+          if (sanitized !== inp.value) {
+            inp.value = sanitized;
+          }
+          updateSubmitState();
+        });
+      });
       updateSubmitState();
 
       // Auto-calculate calories from macros (P×4 + C×4 + F×9)
@@ -1524,11 +1592,11 @@
 
         const autoFillCalories = () => {
           if (userOverride) return;
-          const p = parseInt(document.querySelector('[data-macro-input="protein"]')?.value, 10) || 0;
-          const c = parseInt(document.querySelector('[data-macro-input="carbs"]')?.value, 10) || 0;
-          const f = parseInt(document.querySelector('[data-macro-input="fat"]')?.value, 10) || 0;
+          const p = clampMacroFieldValue(document.querySelector('[data-macro-input="protein"]')?.value) || 0;
+          const c = clampMacroFieldValue(document.querySelector('[data-macro-input="carbs"]')?.value) || 0;
+          const f = clampMacroFieldValue(document.querySelector('[data-macro-input="fat"]')?.value) || 0;
           if (p === 0 && c === 0 && f === 0) return;
-          calorieInput.value = (p * 4) + (c * 4) + (f * 9);
+          calorieInput.value = Math.min(MAX_ENTRY_CALORIES, (p * 4) + (c * 4) + (f * 9));
           calorieInput.dispatchEvent(new Event('input'));
         };
 
@@ -1728,7 +1796,7 @@
         modal.querySelector('[data-ai-actions]').style.display = 'none';
         modal.querySelector('[data-ai-loading]').style.display = 'none';
         modal.querySelector('[data-ai-result]').style.display = 'block';
-        modal.querySelector('[data-ai-calories]').textContent = `${data.calories} kcal`;
+        modal.querySelector('[data-ai-calories]').textContent = `${data.calories} calories`;
         modal.querySelector('[data-ai-food]').textContent = data.food;
         modal.querySelector('[data-ai-confidence]').textContent = `Confidence: ${data.confidence}`;
       };
@@ -1772,20 +1840,23 @@
           if (data.macros) {
             Object.entries(data.macros).forEach(([key, value]) => {
               const input = document.querySelector(`[data-macro-input="${key}"]`);
-              if (input && value != null) {
-                input.value = value;
+              const clamped = clampMacroFieldValue(value);
+              if (input && clamped != null) {
+                input.value = clamped;
               }
             });
           }
           // Compute calories from macros when auto-calc is on, otherwise use AI estimate
           if (autoCalcCaloriesJs && data.macros && calorieInput) {
-            const p = parseInt(data.macros.protein, 10) || 0;
-            const c = parseInt(data.macros.carbs, 10) || 0;
-            const f = parseInt(data.macros.fat, 10) || 0;
+            const p = clampMacroFieldValue(data.macros.protein) || 0;
+            const c = clampMacroFieldValue(data.macros.carbs) || 0;
+            const f = clampMacroFieldValue(data.macros.fat) || 0;
             const computed = (p * 4) + (c * 4) + (f * 9);
-            calorieInput.value = computed > 0 ? computed : data.calories;
+            const aiFallback = clampCaloriesValue(data.calories);
+            calorieInput.value = computed > 0 ? Math.min(MAX_ENTRY_CALORIES, computed) : (aiFallback ?? '');
           } else if (calorieInput) {
-            calorieInput.value = data.calories;
+            const clampedCalories = clampCaloriesValue(data.calories);
+            calorieInput.value = clampedCalories != null ? clampedCalories : '';
           }
           closeModal();
           if (calorieInput) calorieInput.dispatchEvent(new Event('input'));

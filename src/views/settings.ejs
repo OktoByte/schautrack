@@ -13,7 +13,7 @@
           <% const goals = user.macro_goals || {};
              const defaultModes = { calories: 'limit', protein: 'target', carbs: 'limit', fat: 'limit', fiber: 'target', sugar: 'limit' };
              const allNutrients = [
-               { key: 'calories', label: 'Calories', unit: 'kcal', max: 99999, fieldName: 'calorie_goal',
+               { key: 'calories', label: 'Calories', unit: 'calories', max: 99999, fieldName: 'calorie_goal',
                  enabled: (user.macros_enabled || {}).calories !== false,
                  goal: user.daily_goal,
                  mode: goals.calories_mode || defaultModes.calories },

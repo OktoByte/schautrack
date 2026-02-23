@@ -108,6 +108,14 @@ describe('Math Parser', () => {
       expect(parseAmount('(100 + 50) * 2 - 10')).toEqual({ ok: true, value: 290 });
       expect(parseAmount('100 / (2 + 3) * 4')).toEqual({ ok: true, value: 80 });
     });
+
+    test('should enforce max absolute value when maxAbs option is set', () => {
+      expect(parseAmount('9999', { maxAbs: 9999 })).toEqual({ ok: true, value: 9999 });
+      expect(parseAmount('-9999', { maxAbs: 9999 })).toEqual({ ok: true, value: -9999 });
+      expect(parseAmount('10000', { maxAbs: 9999 })).toEqual({ ok: false, value: 0 });
+      expect(parseAmount('-10000', { maxAbs: 9999 })).toEqual({ ok: false, value: 0 });
+      expect(parseAmount('5000 + 5000', { maxAbs: 9999 })).toEqual({ ok: false, value: 0 });
+    });
   });
 
   // safeMathEval operates on whitespace-stripped expressions
