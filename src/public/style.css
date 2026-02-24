@@ -327,6 +327,19 @@ a:focus-visible,
   gap: var(--space-md);
 }
 
+.settings-right-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
+}
+.settings-right-stack .panel {
+  margin-bottom: 0;
+}
+.settings-right-grow {
+  flex: 1;
+}
+
 /* Today panel */
 .today-panel {
   margin-bottom: var(--space-lg);
