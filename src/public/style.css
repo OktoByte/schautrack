@@ -1364,7 +1364,8 @@ a:focus-visible,
 /* Mobile Navigation */
 @media (max-width: 768px) {
   .top-bar {
-    padding: 16px 0;
+    padding-top: 16px;
+    padding-bottom: 0;
   }
 
   .hamburger {
@@ -1436,7 +1437,10 @@ a:focus-visible,
 
 @media (max-width: 640px) {
   .shell {
-    width: min(1100px, 90vw);
+    width: auto;
+    margin: 0;
+    padding-left: var(--space-sm);
+    padding-right: var(--space-sm);
   }
 
   .top-bar {
@@ -1444,7 +1448,8 @@ a:focus-visible,
     justify-content: space-between;
     align-items: center;
     gap: var(--space-sm);
-    padding: var(--space-md) 0;
+    padding-top: var(--space-sm);
+    padding-bottom: var(--space-sm);
     margin-bottom: var(--space-xs);
   }
 
