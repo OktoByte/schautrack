@@ -2505,6 +2505,8 @@ a:focus-visible,
   align-items: center;
   gap: var(--space-sm);
   transition: opacity 0.2s ease;
+  width: 200px;
+  flex-shrink: 0;
 }
 
 .macro-row-fields.disabled {
@@ -2537,12 +2539,20 @@ a:focus-visible,
   margin: 0;
 }
 
-.macro-row-fields input {
-  width: 90px;
+.macro-row-fields .input-unit-wrap {
+  width: auto;
+  flex: 1;
+  min-width: 0;
+}
+
+.macro-row-fields .input-unit-wrap input {
+  width: 100%;
+  min-width: 0;
 }
 
 .macro-row-fields select {
   width: 80px;
+  flex-shrink: 0;
 }
 
 .macro-row-fields input:focus,
@@ -3064,12 +3074,6 @@ input[data-auto-calc-locked] {
 
   .macro-row-fields {
     width: 100%;
-  }
-
-  .macro-row-fields input,
-  .macro-row-fields select {
-    flex: 1;
-    min-width: 0;
   }
 
   /* Entry form mobile */
