@@ -306,6 +306,7 @@ router.get('/dashboard', requireLogin, async (req, res) => {
       label: 'You',
       isSelf: true,
       dailyGoal,
+      goalThreshold: userThreshold,
       dailyStats,
       todayStr: todayStrTz,
     },
@@ -322,7 +323,8 @@ router.get('/dashboard', requireLogin, async (req, res) => {
 
       const linkGoal = getCalorieGoal(link);
       const totals = await getTotalsByDate(link.userId, linkOldest, linkNewest);
-      const stats = buildDailyStats(linkDayOptions, totals, linkGoal, { threshold: userThreshold });
+      const linkThreshold = link.goal_threshold;
+      const stats = buildDailyStats(linkDayOptions, totals, linkGoal, { threshold: linkThreshold });
       sharedViews.push({
         linkId: link.linkId,
         userId: link.userId,
@@ -330,6 +332,7 @@ router.get('/dashboard', requireLogin, async (req, res) => {
         label: (link.label || '').trim() || link.email,
         isSelf: false,
         dailyGoal: linkGoal,
+        goalThreshold: linkThreshold,
         dailyStats: stats,
         todayStr: linkTodayStr,
       });
@@ -457,7 +460,8 @@ router.get('/overview', requireLogin, requireLinkAuth, async (req, res) => {
     const dailyGoal = getCalorieGoal(targetUser);
     const totalsByDate = await getTotalsByDate(targetUserId, oldest, newest);
     const todayTotal = totalsByDate.get(todayStrTz) || 0;
-    const viewerThreshold = req.currentUser.goal_threshold;
+    const isSelf = targetUserId === req.currentUser.id;
+    const effectiveThreshold = isSelf ? req.currentUser.goal_threshold : targetUser.goal_threshold;
 
     // Only include macro data for the viewer's own card (macro tracking is personal,
     // linked users' cards only show calorie dots/stats)
@@ -469,9 +473,9 @@ router.get('/overview', requireLogin, requireLinkAuth, async (req, res) => {
     let calorieStatusObj = null;
     let macroTotalsByDate = null;
 
-    if (targetUserId === req.currentUser.id) {
+    if (isSelf) {
       const viewerCalEnabled = (req.currentUser.macros_enabled || {}).calories !== false;
-      calorieStatusObj = viewerCalEnabled ? computeMacroStatus(todayTotal, dailyGoal, viewerModes.calories, viewerThreshold) : null;
+      calorieStatusObj = viewerCalEnabled ? computeMacroStatus(todayTotal, dailyGoal, viewerModes.calories, effectiveThreshold) : null;
       if (viewerEnabledMacros.length > 0) {
         macroTotalsByDate = await getMacroTotalsByDate(targetUserId, oldest, newest);
         todayMacroTotals = macroTotalsByDate.get(todayStrTz) || {};
@@ -479,26 +483,25 @@ router.get('/overview', requireLogin, requireLinkAuth, async (req, res) => {
         for (const key of viewerEnabledMacros) {
           const total = todayMacroTotals[key] || 0;
           const goal = viewerGoals[key] != null ? viewerGoals[key] : null;
-          macroStatuses[key] = computeMacroStatus(total, goal, viewerModes[key], viewerThreshold);
+          macroStatuses[key] = computeMacroStatus(total, goal, viewerModes[key], effectiveThreshold);
         }
       }
     }
 
     // Build daily stats — include macro data for self, calorie-only for linked users
-    const isSelf = targetUserId === req.currentUser.id;
     const dailyStats = buildDailyStats(dayOptions, totalsByDate, dailyGoal, isSelf ? {
       macroTotalsByDate,
       enabledMacros: viewerEnabledMacros,
       macroGoals: viewerGoals,
       macroModes: viewerModes,
-      threshold: viewerThreshold,
-    } : { threshold: viewerThreshold });
+      threshold: effectiveThreshold,
+    } : { threshold: effectiveThreshold });
 
     const goalStatus = !dailyGoal
       ? 'unset'
       : todayTotal <= dailyGoal
         ? 'under'
-        : computeMacroStatus(todayTotal, dailyGoal, 'limit', viewerThreshold).statusClass === 'macro-stat--danger'
+        : computeMacroStatus(todayTotal, dailyGoal, 'limit', effectiveThreshold).statusClass === 'macro-stat--danger'
           ? 'over_threshold'
           : 'over';
     const goalDelta = dailyGoal ? Math.abs(dailyGoal - todayTotal) : null;
@@ -507,6 +510,7 @@ router.get('/overview', requireLogin, requireLinkAuth, async (req, res) => {
       ok: true,
       userId: targetUserId,
       dailyGoal,
+      goalThreshold: effectiveThreshold,
       todayTotal,
       todayStr: todayStrTz,
       goalStatus,
