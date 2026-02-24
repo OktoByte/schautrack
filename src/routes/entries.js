@@ -1054,3 +1054,4 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
 });
 
 module.exports = router;
+module.exports.buildDailyStats = buildDailyStats;
