@@ -13,7 +13,7 @@
           <% const goals = user.macro_goals || {};
              const defaultModes = { calories: 'limit', protein: 'target', carbs: 'limit', fat: 'limit', fiber: 'target', sugar: 'limit' };
              const allNutrients = [
-               { key: 'calories', label: 'Calories', unit: 'calories', max: 99999, fieldName: 'calorie_goal',
+               { key: 'calories', label: 'Calories', unit: 'kcal', max: 99999, fieldName: 'calorie_goal',
                  enabled: (user.macros_enabled || {}).calories !== false,
                  goal: goals.calories != null ? goals.calories : user.daily_goal,
                  mode: goals.calories_mode || defaultModes.calories },
@@ -30,14 +30,17 @@
             const mode = n.mode || goals[`${n.key}_mode`] || defaultModes[n.key] || 'limit';
             const fieldName = n.fieldName || `${n.key}_goal`;
           %>
-            <div class="macro-row <%= enabled ? '' : 'macro-row--off' %>">
+            <div class="macro-row <%= enabled ? '' : 'macro-row--off' %>" data-nutrient="<%= n.key %>">
               <label class="macro-toggle">
                 <input type="checkbox" name="<%= n.key %>_enabled" <%= enabled ? 'checked' : '' %> data-macro-toggle="<%= n.key %>">
                 <span class="macro-label"><%= n.label %></span>
               </label>
               <div class="macro-row-fields <%= !enabled ? 'disabled' : '' %>" data-macro-goal="<%= n.key %>" data-macro-mode="<%= n.key %>">
-                <input type="number" name="<%= fieldName %>" min="0" max="<%= n.max %>"
-                       placeholder="Goal (<%= n.unit %>)" value="<%= goal || '' %>" <%= !enabled ? 'disabled' : '' %>>
+                <span class="input-unit-wrap">
+                  <input type="number" name="<%= fieldName %>" min="0" max="<%= n.max %>"
+                         placeholder="Goal" value="<%= goal || '' %>" <%= !enabled ? 'disabled' : '' %>>
+                  <span class="input-unit"><%= n.unit %></span>
+                </span>
                 <select name="<%= n.key %>_mode" <%= !enabled ? 'disabled' : '' %>>
                   <option value="limit" <%= mode === 'limit' ? 'selected' : '' %>>Limit</option>
                   <option value="target" <%= mode === 'target' ? 'selected' : '' %>>Target</option>

@@ -1571,6 +1571,12 @@ a:focus-visible,
     margin-bottom: var(--space-sm);
   }
 
+  .panel-header:has(.ai-photo-wrap) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
   .macro-summary {
     grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: var(--space-xs);
@@ -2481,6 +2487,19 @@ a:focus-visible,
   font-size: 0.95rem;
 }
 
+.macro-row[data-nutrient="calories"] .macro-label,
+.macro-row[data-nutrient="calories"] .input-unit { color: var(--accent); }
+.macro-row[data-nutrient="protein"] .macro-label,
+.macro-row[data-nutrient="protein"] .input-unit { color: #22d3ee; }
+.macro-row[data-nutrient="carbs"] .macro-label,
+.macro-row[data-nutrient="carbs"] .input-unit { color: #a78bfa; }
+.macro-row[data-nutrient="fat"] .macro-label,
+.macro-row[data-nutrient="fat"] .input-unit { color: #fb923c; }
+.macro-row[data-nutrient="fiber"] .macro-label,
+.macro-row[data-nutrient="fiber"] .input-unit { color: #4ade80; }
+.macro-row[data-nutrient="sugar"] .macro-label,
+.macro-row[data-nutrient="sugar"] .input-unit { color: #f472b6; }
+
 .macro-row-fields {
   display: flex;
   align-items: center;
@@ -2590,6 +2609,28 @@ input[data-auto-calc-locked] {
   min-width: 220px;
 }
 
+.input-unit-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.input-unit-wrap input {
+  width: 100%;
+  padding-right: 32px;
+}
+
+.input-unit {
+  position: absolute;
+  right: 10px;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  opacity: 0.6;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
 .entry-field-nutrient {
   flex: 1;
   min-width: 0;
@@ -2604,12 +2645,12 @@ input[data-auto-calc-locked] {
   opacity: 0.3;
 }
 
-.entry-field-nutrient[data-nutrient-field="kcal"] span { color: var(--accent); }
-.entry-field-nutrient[data-nutrient-field="protein"] span { color: #22d3ee; }
-.entry-field-nutrient[data-nutrient-field="carbs"] span { color: #a78bfa; }
-.entry-field-nutrient[data-nutrient-field="fat"] span { color: #fb923c; }
-.entry-field-nutrient[data-nutrient-field="fiber"] span { color: #4ade80; }
-.entry-field-nutrient[data-nutrient-field="sugar"] span { color: #f472b6; }
+.entry-field-nutrient[data-nutrient-field="kcal"] > span { color: var(--accent); }
+.entry-field-nutrient[data-nutrient-field="protein"] > span { color: #22d3ee; }
+.entry-field-nutrient[data-nutrient-field="carbs"] > span { color: #a78bfa; }
+.entry-field-nutrient[data-nutrient-field="fat"] > span { color: #fb923c; }
+.entry-field-nutrient[data-nutrient-field="fiber"] > span { color: #4ade80; }
+.entry-field-nutrient[data-nutrient-field="sugar"] > span { color: #f472b6; }
 
 .entry-field-date {
   flex: 1.5;
@@ -2710,6 +2751,13 @@ input[data-auto-calc-locked] {
 .entry-macro-value {
   color: currentColor;
   font-weight: 700;
+}
+
+.entry-unit {
+  font-weight: 400;
+  opacity: 0.55;
+  font-size: 0.8em;
+  margin-left: 1px;
 }
 
 .entry-cell.entry-time {

@@ -13,7 +13,7 @@
       <div class="macro-stat macro-stat--kcal <%= calorieStatus.statusClass %>" data-macro-chip="kcal" data-stat-balance>
         <div class="macro-stat-label">Calories</div>
         <div class="macro-stat-value">
-          <span data-stat-logged><%= todayTotal %></span><% if (dailyGoal) { %><span class="macro-stat-goal" data-stat-goal> / <%= dailyGoal %></span><% } %>
+          <span data-stat-logged><%= todayTotal %></span><% if (dailyGoal) { %><span class="macro-stat-goal" data-stat-goal> / <%= dailyGoal %> kcal</span><% } %>
         </div>
         <% if (dailyGoal) { %>
         <div class="macro-stat-bar"><div class="macro-stat-fill" data-stat-fill style="width: <%= kcalPct %>%"></div></div>
@@ -78,21 +78,27 @@
         <% if (caloriesEnabled) { %>
         <label class="field entry-field-nutrient" data-nutrient-field="kcal">
           <span>Calories</span>
-          <input
-            type="text"
-            placeholder="-"
-            autocomplete="off"
-            id="math-input"
-            data-calorie-input
-            <% if (autoCalcCalories) { %>readonly data-auto-calc-locked<% } else { %>inputmode="tel" pattern="[0-9+\-*/().\s]*" maxlength="24" name="amount"<% } %>
-          >
+          <span class="input-unit-wrap">
+            <input
+              type="text"
+              placeholder=""
+              autocomplete="off"
+              id="math-input"
+              data-calorie-input
+              <% if (autoCalcCalories) { %>readonly data-auto-calc-locked<% } else { %>inputmode="tel" pattern="[0-9+\-*/().\s]*" maxlength="24" name="amount"<% } %>
+            >
+            <span class="input-unit">kcal</span>
+          </span>
         </label>
         <% } %>
         <% if (enabledMacros && enabledMacros.length > 0) { %>
           <% enabledMacros.forEach((key) => { %>
             <label class="field entry-field-nutrient" data-nutrient-field="<%= key %>">
               <span><%= macroLabels[key].label %></span>
-              <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" name="<%= key %>_g" placeholder="-" autocomplete="off" data-macro-input="<%= key %>">
+              <span class="input-unit-wrap">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" name="<%= key %>_g" placeholder="" autocomplete="off" data-macro-input="<%= key %>">
+                <span class="input-unit">g</span>
+              </span>
             </label>
           <% }) %>
         <% } %>
@@ -239,10 +245,10 @@
           <% recentEntries.forEach((entry) => { %>
             <div class="entry-row" data-entry-row data-entry-id="<%= entry.id %>">
               <button type="button" class="edit-trigger entry-cell entry-name" data-edit-name><%= entry.entry_name || 'Untitled' %></button>
-              <% if (caloriesEnabled && autoCalcCalories) { %><span class="entry-cell entry-amount entry-amount-locked <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-locked-amount><span class="entry-macro-label">Calories </span><%= entry.amount %></span><% } else if (caloriesEnabled) { %><button type="button" class="edit-trigger entry-cell entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><span class="entry-macro-label">Calories </span><%= entry.amount %></button><% } %>
+              <% if (caloriesEnabled && autoCalcCalories) { %><span class="entry-cell entry-amount entry-amount-locked <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-locked-amount><span class="entry-macro-label">Calories </span><%= entry.amount %><span class="entry-unit"> kcal</span></span><% } else if (caloriesEnabled) { %><button type="button" class="edit-trigger entry-cell entry-amount <%= entry.amount >= 0 ? 'pos' : 'neg' %>" data-edit-amount><span class="entry-macro-label">Calories </span><%= entry.amount %><span class="entry-unit"> kcal</span></button><% } %>
               <% if (enabledMacros && enabledMacros.length > 0) { %>
                 <% enabledMacros.forEach((key) => { %>
-                  <button type="button" class="edit-trigger entry-cell entry-macro" data-edit-macro="<%= key %>" data-macro-key="<%= key %>"><span class="entry-macro-label"><%= macroLabels[key].label %> </span><span class="entry-macro-value"><%= entry[key + '_g'] != null ? entry[key + '_g'] : '-' %></span></button>
+                  <button type="button" class="edit-trigger entry-cell entry-macro" data-edit-macro="<%= key %>" data-macro-key="<%= key %>"><span class="entry-macro-label"><%= macroLabels[key].label %> </span><span class="entry-macro-value"><%= entry[key + '_g'] != null ? entry[key + '_g'] : '-' %></span><% if (entry[key + '_g'] != null) { %><span class="entry-unit">g</span><% } %></button>
                 <% }) %>
               <% } %>
               <span class="entry-cell entry-time muted small" data-entry-time><%= entry.timeFormatted %></span>
@@ -485,7 +491,7 @@
           statLogged.textContent = data.todayTotal || 0;
         }
         if (statGoal && data.dailyGoal) {
-          statGoal.textContent = ` / ${data.dailyGoal}`;
+          statGoal.textContent = ` / ${data.dailyGoal} kcal`;
         }
         if (statBalance) {
           statBalance.classList.remove('macro-stat--success', 'macro-stat--warning', 'macro-stat--danger');
@@ -734,20 +740,21 @@
           const macroCells = enabledMacrosJs.map(key => {
             const val = entry.macros?.[key];
             const displayVal = val != null ? val : '-';
+            const unitSpan = val != null ? '<span class="entry-unit">g</span>' : '';
             const full = macroFullJs[key] || macroLabelsJs[key]?.label || key;
             if (!canEdit) {
-              return `<button type="button" class="edit-trigger entry-cell entry-macro is-locked" data-locked="true" data-macro-key="${key}"><span class="entry-macro-label">${full} </span><span class="entry-macro-value">${displayVal}</span></button>`;
+              return `<button type="button" class="edit-trigger entry-cell entry-macro is-locked" data-locked="true" data-macro-key="${key}"><span class="entry-macro-label">${full} </span><span class="entry-macro-value">${displayVal}</span>${unitSpan}</button>`;
             }
-            return `<button type="button" class="edit-trigger entry-cell entry-macro" data-edit-macro="${key}" data-macro-key="${key}"><span class="entry-macro-label">${full} </span><span class="entry-macro-value">${displayVal}</span></button>`;
+            return `<button type="button" class="edit-trigger entry-cell entry-macro" data-edit-macro="${key}" data-macro-key="${key}"><span class="entry-macro-label">${full} </span><span class="entry-macro-value">${displayVal}</span>${unitSpan}</button>`;
           }).join('');
 
           const kcalCellLocked = caloriesEnabledJs
-            ? `<button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'} is-locked" data-locked="true"><span class="entry-macro-label">Calories </span>${entry.amount}</button>`
+            ? `<button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'} is-locked" data-locked="true"><span class="entry-macro-label">Calories </span>${entry.amount}<span class="entry-unit"> kcal</span></button>`
             : '';
           const kcalCellEditable = caloriesEnabledJs
             ? (autoCalcCaloriesJs
-              ? `<span class="entry-cell entry-amount entry-amount-locked ${entry.amount >= 0 ? 'pos' : 'neg'}" data-locked-amount><span class="entry-macro-label">Calories </span>${entry.amount}</span>`
-              : `<button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}" data-edit-amount><span class="entry-macro-label">Calories </span>${entry.amount}</button>`)
+              ? `<span class="entry-cell entry-amount entry-amount-locked ${entry.amount >= 0 ? 'pos' : 'neg'}" data-locked-amount><span class="entry-macro-label">Calories </span>${entry.amount}<span class="entry-unit"> kcal</span></span>`
+              : `<button type="button" class="edit-trigger entry-cell entry-amount ${entry.amount >= 0 ? 'pos' : 'neg'}" data-edit-amount><span class="entry-macro-label">Calories </span>${entry.amount}<span class="entry-unit"> kcal</span></button>`)
             : '';
 
           if (!canEdit) {
@@ -1321,9 +1328,10 @@
         if (amountBtn) {
           const amountLabel = amountBtn.querySelector('.entry-macro-label');
           if (amountLabel) {
-            // Preserve the inline label, update only the value text after it
+            // Preserve the inline label, update only the value text and unit after it
             while (amountLabel.nextSibling) amountLabel.nextSibling.remove();
             amountLabel.insertAdjacentText('afterend', `${entry.amount}`);
+            amountLabel.parentNode.insertAdjacentHTML('beforeend', '<span class="entry-unit"> kcal</span>');
           } else {
             amountBtn.textContent = `${entry.amount}`;
           }
@@ -1344,6 +1352,12 @@
                 valueSpan.textContent = val != null ? val : '-';
               } else {
                 macroBtn.textContent = val != null ? val : '-';
+              }
+              let unitEl = macroBtn.querySelector('.entry-unit');
+              if (val != null) {
+                if (!unitEl) { macroBtn.insertAdjacentHTML('beforeend', '<span class="entry-unit">g</span>'); }
+              } else if (unitEl) {
+                unitEl.remove();
               }
             }
           });
@@ -1918,6 +1932,7 @@
       };
 
       let currentAbortController = null;
+      let lastAiResult = null;
 
       const analyzeImage = async (base64Image, context = '') => {
         showLoading();
@@ -1945,6 +1960,7 @@
           }
           // Decrement usage badge after successful request
           decrementUsage();
+          lastAiResult = data;
           // Auto-fill form fields and close modal
           if (nameInput && data.food) nameInput.value = data.food;
           // Fill macro inputs first (needed for auto-calc)
@@ -1957,14 +1973,13 @@
               }
             });
           }
-          // Compute calories from macros when auto-calc is on, otherwise use AI estimate
+          // Compute calories from macros when auto-calc is on (ignore AI calorie estimate entirely)
           if (autoCalcCaloriesJs && data.macros && calorieInput) {
             const p = clampMacroFieldValue(data.macros.protein) || 0;
             const c = clampMacroFieldValue(data.macros.carbs) || 0;
             const f = clampMacroFieldValue(data.macros.fat) || 0;
             const computed = (p * 4) + (c * 4) + (f * 9);
-            const aiFallback = clampCaloriesValue(data.calories);
-            calorieInput.value = computed > 0 ? Math.min(MAX_ENTRY_CALORIES, computed) : (aiFallback ?? '');
+            calorieInput.value = computed > 0 ? Math.min(MAX_ENTRY_CALORIES, computed) : '';
           } else if (calorieInput) {
             const clampedCalories = clampCaloriesValue(data.calories);
             calorieInput.value = clampedCalories != null ? clampedCalories : '';
@@ -2103,12 +2118,16 @@
             const dateInput = document.querySelector('[data-date-input]');
             const entryDate = dateInput ? dateInput.value : new Date().toISOString().slice(0, 10);
 
-            try {
-              const res = await postJson('/entries', {
-                amount: calories,
-                entry_name: food,
-                entry_date: entryDate
+            // Include macros so server can compute calories when auto-calc is on
+            const body = { amount: calories, entry_name: food, entry_date: entryDate };
+            if (lastAiResult && lastAiResult.macros) {
+              Object.entries(lastAiResult.macros).forEach(([key, value]) => {
+                if (value != null) body['macro_' + key] = value;
               });
+            }
+
+            try {
+              const res = await postJson('/entries', body);
               const data = await res.json();
               if (data.ok) {
                 closeModal();
@@ -2124,10 +2143,14 @@
           if (e.target.closest('[data-ai-use]')) {
             const calories = modal.querySelector('[data-ai-calories]').textContent.replace(/[^\d]/g, '');
             const food = modal.querySelector('[data-ai-food]').textContent;
-            if (calorieInput) calorieInput.value = calories;
+            if (!autoCalcCaloriesJs && calorieInput) calorieInput.value = calories;
             if (nameInput && food) nameInput.value = food;
             closeModal();
             if (calorieInput) calorieInput.dispatchEvent(new Event('input'));
+            // Trigger macro inputs so auto-calc recomputes calories
+            document.querySelectorAll('[data-macro-input]').forEach(inp => {
+              if (inp.value) inp.dispatchEvent(new Event('input'));
+            });
           }
         });
 
