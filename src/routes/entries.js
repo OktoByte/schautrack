@@ -324,7 +324,19 @@ router.get('/dashboard', requireLogin, async (req, res) => {
       const linkGoal = getCalorieGoal(link);
       const totals = await getTotalsByDate(link.userId, linkOldest, linkNewest);
       const linkThreshold = link.goal_threshold;
-      const stats = buildDailyStats(linkDayOptions, totals, linkGoal, { threshold: linkThreshold });
+      const linkEnabledMacros = getEnabledMacros(link);
+      const linkMacroGoals = getMacroGoals(link);
+      const linkMacroModes = getMacroModes(link);
+      const linkMacroTotals = linkEnabledMacros.length > 0
+        ? await getMacroTotalsByDate(link.userId, linkOldest, linkNewest)
+        : null;
+      const stats = buildDailyStats(linkDayOptions, totals, linkGoal, {
+        macroTotalsByDate: linkMacroTotals,
+        enabledMacros: linkEnabledMacros,
+        macroGoals: linkMacroGoals,
+        macroModes: linkMacroModes,
+        threshold: linkThreshold,
+      });
       sharedViews.push({
         linkId: link.linkId,
         userId: link.userId,
@@ -463,39 +475,41 @@ router.get('/overview', requireLogin, requireLinkAuth, async (req, res) => {
     const isSelf = targetUserId === req.currentUser.id;
     const effectiveThreshold = isSelf ? req.currentUser.goal_threshold : targetUser.goal_threshold;
 
-    // Only include macro data for the viewer's own card (macro tracking is personal,
-    // linked users' cards only show calorie dots/stats)
-    const viewerEnabledMacros = getEnabledMacros(req.currentUser);
-    const viewerModes = getMacroModes(req.currentUser);
-    const viewerGoals = getMacroGoals(req.currentUser);
+    // Use the target user's macro settings for dot status (so linked user dots match their own view)
+    const targetEnabledMacros = getEnabledMacros(targetUser);
+    const targetModes = getMacroModes(targetUser);
+    const targetGoals = getMacroGoals(targetUser);
     let todayMacroTotals = null;
     let macroStatuses = null;
     let calorieStatusObj = null;
     let macroTotalsByDate = null;
 
+    const targetCalEnabled = (targetUser.macros_enabled || {}).calories !== false;
+    if (targetEnabledMacros.length > 0) {
+      macroTotalsByDate = await getMacroTotalsByDate(targetUserId, oldest, newest);
+      todayMacroTotals = macroTotalsByDate.get(todayStrTz) || {};
+    }
+
     if (isSelf) {
-      const viewerCalEnabled = (req.currentUser.macros_enabled || {}).calories !== false;
-      calorieStatusObj = viewerCalEnabled ? computeMacroStatus(todayTotal, dailyGoal, viewerModes.calories, effectiveThreshold) : null;
-      if (viewerEnabledMacros.length > 0) {
-        macroTotalsByDate = await getMacroTotalsByDate(targetUserId, oldest, newest);
-        todayMacroTotals = macroTotalsByDate.get(todayStrTz) || {};
+      calorieStatusObj = targetCalEnabled ? computeMacroStatus(todayTotal, dailyGoal, targetModes.calories, effectiveThreshold) : null;
+      if (targetEnabledMacros.length > 0) {
         macroStatuses = {};
-        for (const key of viewerEnabledMacros) {
+        for (const key of targetEnabledMacros) {
           const total = todayMacroTotals[key] || 0;
-          const goal = viewerGoals[key] != null ? viewerGoals[key] : null;
-          macroStatuses[key] = computeMacroStatus(total, goal, viewerModes[key], effectiveThreshold);
+          const goal = targetGoals[key] != null ? targetGoals[key] : null;
+          macroStatuses[key] = computeMacroStatus(total, goal, targetModes[key], effectiveThreshold);
         }
       }
     }
 
-    // Build daily stats — include macro data for self, calorie-only for linked users
-    const dailyStats = buildDailyStats(dayOptions, totalsByDate, dailyGoal, isSelf ? {
+    // Build daily stats — always include target user's macro data for accurate dot colors
+    const dailyStats = buildDailyStats(dayOptions, totalsByDate, dailyGoal, {
       macroTotalsByDate,
-      enabledMacros: viewerEnabledMacros,
-      macroGoals: viewerGoals,
-      macroModes: viewerModes,
+      enabledMacros: targetEnabledMacros,
+      macroGoals: targetGoals,
+      macroModes: targetModes,
       threshold: effectiveThreshold,
-    } : { threshold: effectiveThreshold });
+    });
 
     const goalStatus = !dailyGoal
       ? 'unset'

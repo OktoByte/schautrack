@@ -92,7 +92,8 @@ async function getAcceptedLinkUsers(userId) {
             u.daily_goal AS other_daily_goal,
             u.macro_goals AS other_macro_goals,
             u.timezone AS other_timezone,
-            u.goal_threshold AS other_goal_threshold
+            u.goal_threshold AS other_goal_threshold,
+            u.macros_enabled AS other_macros_enabled
        FROM account_links al
         JOIN users u ON u.id = CASE WHEN al.requester_id = $1 THEN al.target_id ELSE al.requester_id END
       WHERE al.status = 'accepted'
@@ -110,6 +111,7 @@ async function getAcceptedLinkUsers(userId) {
     macro_goals: row.other_macro_goals || {},
     timezone: row.other_timezone || 'UTC',
     goal_threshold: row.other_goal_threshold,
+    macros_enabled: row.other_macros_enabled || {},
     since: row.created_at,
   }));
 }
