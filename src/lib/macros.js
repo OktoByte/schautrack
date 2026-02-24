@@ -56,7 +56,12 @@ const computeMacroStatus = (total, goal, mode, threshold) => {
       const over = total - goal;
       return { statusClass: 'macro-stat--success', statusText: over > 0 ? `${over} over target` : 'Goal met' };
     }
-    return { statusClass: '', statusText: `${goal - total} remaining` };
+    const under = goal - total;
+    const pctT = threshold != null ? threshold : 10;
+    if (under * 100 > goal * pctT) {
+      return { statusClass: 'macro-stat--danger', statusText: `${under} remaining` };
+    }
+    return { statusClass: 'macro-stat--warning', statusText: `${under} remaining` };
   }
 
   // Limit mode

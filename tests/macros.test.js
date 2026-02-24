@@ -226,9 +226,17 @@ describe('computeMacroStatus', () => {
   });
 
   describe('target mode', () => {
-    test('returns empty class when under target', () => {
+    test('returns warning when slightly under target (within 10%)', () => {
+      // 140 of 150 = 10 under, 10*100=1000 vs 150*10=1500 → within threshold → warning
+      const result = computeMacroStatus(140, 150, 'target');
+      expect(result.statusClass).toBe('macro-stat--warning');
+      expect(result.statusText).toBe('10 remaining');
+    });
+
+    test('returns danger when far under target (beyond 10%)', () => {
+      // 80 of 150 = 70 under, 70*100=7000 vs 150*10=1500 → beyond threshold → danger
       const result = computeMacroStatus(80, 150, 'target');
-      expect(result.statusClass).toBe('');
+      expect(result.statusClass).toBe('macro-stat--danger');
       expect(result.statusText).toBe('70 remaining');
     });
 
@@ -244,9 +252,9 @@ describe('computeMacroStatus', () => {
       expect(result.statusText).toBe('30 over target');
     });
 
-    test('returns empty class when total is 0', () => {
+    test('returns danger when total is 0', () => {
       const result = computeMacroStatus(0, 100, 'target');
-      expect(result.statusClass).toBe('');
+      expect(result.statusClass).toBe('macro-stat--danger');
       expect(result.statusText).toBe('100 remaining');
     });
   });
@@ -272,8 +280,11 @@ describe('computeMacroStatus with custom threshold', () => {
     expect(computeMacroStatus(2001, 2000, 'limit', 0).statusClass).toBe('macro-stat--danger');
   });
 
-  test('threshold does not affect target mode', () => {
-    expect(computeMacroStatus(80, 150, 'target', 5).statusClass).toBe('');
+  test('threshold affects target mode too', () => {
+    // 80 of 150 = 70 under, 70*100=7000 vs 150*5=750 → danger
+    expect(computeMacroStatus(80, 150, 'target', 5).statusClass).toBe('macro-stat--danger');
+    // 145 of 150 = 5 under, 5*100=500 vs 150*5=750 → warning (within threshold)
+    expect(computeMacroStatus(145, 150, 'target', 5).statusClass).toBe('macro-stat--warning');
     expect(computeMacroStatus(150, 150, 'target', 5).statusClass).toBe('macro-stat--success');
   });
 });
