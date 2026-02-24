@@ -56,7 +56,6 @@
           </div>
         </div>
         <p class="muted small">Green on target. Yellow within threshold. Red beyond it.</p>
-        <button type="submit" class="primary">Save nutrition goals</button>
       </form>
     </div>
 
@@ -89,7 +88,6 @@
           </div>
           <p class="muted small">Affects how weights display across the app.</p>
         </div>
-        <button type="submit" class="primary">Save</button>
       </form>
       <div class="data-card stack danger-card spaced-top">
         <p class="muted">Need to delete your account? You can request deletion without logging in.</p>
@@ -350,6 +348,9 @@
           <h2>Backup &amp; restore</h2>
         </div>
       </div>
+      <% if (importFeedback) { %>
+        <div class="alert <%= importFeedback.type === 'error' ? 'danger' : 'success' %>"><%= importFeedback.message %></div>
+      <% } %>
       <div class="data-actions">
         <form action="/settings/export" method="GET" class="data-card stack">
           <p class="muted">Download your entries and goal as JSON.</p>
@@ -357,8 +358,8 @@
         </form>
         <form id="import-form" action="/settings/import" method="POST" enctype="multipart/form-data" class="data-card stack">
           <p class="muted danger-text">Import a saved export (.json). This will delete all current entries and replace them with the file.</p>
-          <input class="file-input" type="file" name="import_file" accept="application/json" required>
-          <button type="submit" class="primary full">Import JSON</button>
+          <input class="file-input" type="file" name="import_file" accept="application/json" required hidden>
+          <button type="button" class="primary full" id="import-btn">Import JSON</button>
         </form>
       </div>
     </div>
@@ -366,38 +367,69 @@
 
   <script>
     (() => {
-      const importForm = document.getElementById('import-form');
-      if (importForm) {
-        importForm.addEventListener('submit', (evt) => {
-          const ok = confirm('Importing will DELETE all current entries and replace them with the backup file. Continue?');
-          if (!ok) {
-            evt.preventDefault();
-          }
-        });
+      const csrfToken = '<%= csrfToken %>';
+
+      // --- Autosave helper ---
+      function autosave(form, debounceMs) {
+        let timer = null;
+        const indicator = document.createElement('span');
+        indicator.className = 'autosave-indicator';
+        form.appendChild(indicator);
+
+        function save() {
+          // Re-enable disabled fields so values are included
+          const disabled = Array.from(form.querySelectorAll('input:disabled, select:disabled'));
+          disabled.forEach(el => el.disabled = false);
+          const data = new URLSearchParams(new FormData(form));
+          disabled.forEach(el => el.disabled = true);
+
+          indicator.textContent = 'Saving…';
+          indicator.classList.add('visible');
+          indicator.classList.remove('error');
+
+          fetch(form.action, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json', 'X-CSRF-Token': csrfToken },
+            body: data
+          }).then(r => {
+            if (!r.ok) throw new Error(r.status);
+            indicator.textContent = 'Saved';
+            setTimeout(() => indicator.classList.remove('visible'), 1200);
+          }).catch(() => {
+            indicator.textContent = 'Save failed';
+            indicator.classList.add('error');
+            setTimeout(() => indicator.classList.remove('visible', 'error'), 2500);
+          });
+        }
+
+        function trigger() {
+          clearTimeout(timer);
+          timer = setTimeout(save, debounceMs);
+        }
+
+        return trigger;
       }
 
-      const unitGroup = document.querySelector('[data-weight-unit]');
-      if (unitGroup) {
-        unitGroup.addEventListener('change', (evt) => {
-          if (evt.target.name !== 'weight_unit') return;
-          unitGroup.querySelectorAll('.pill').forEach((pill) => pill.classList.remove('active'));
-          const label = evt.target.closest('.pill');
-          if (label) label.classList.add('active');
-        });
-      }
-
-      // Re-enable disabled fields before submit so goals survive disable/re-enable
+      // --- Nutrition goals autosave ---
       const macroForm = document.querySelector('form[action="/settings/macros"]');
       if (macroForm) {
-        macroForm.addEventListener('submit', () => {
-          macroForm.querySelectorAll('input:disabled, select:disabled').forEach(el => el.disabled = false);
-        });
+        const triggerMacroSave = autosave(macroForm, 600);
+        macroForm.addEventListener('input', triggerMacroSave);
+        macroForm.addEventListener('change', triggerMacroSave);
+        macroForm.addEventListener('submit', (e) => e.preventDefault());
       }
 
-      // Macro toggle handling
+      // --- Preferences autosave ---
+      const prefForm = document.querySelector('form[action="/settings/preferences"]');
+      if (prefForm) {
+        const triggerPrefSave = autosave(prefForm, 600);
+        prefForm.addEventListener('change', triggerPrefSave);
+        prefForm.addEventListener('submit', (e) => e.preventDefault());
+      }
+
+      // --- Macro toggle handling ---
       document.querySelectorAll('[data-macro-toggle]').forEach((checkbox) => {
         checkbox.addEventListener('change', () => {
-          const macroKey = checkbox.getAttribute('data-macro-toggle');
           const row = checkbox.closest('.macro-row');
           const fieldsWrap = row && row.querySelector('.macro-row-fields');
           if (!fieldsWrap) return;
@@ -413,7 +445,35 @@
         });
       });
 
-      // Copy button for TOTP secret
+      // --- Weight unit pill styling ---
+      const unitGroup = document.querySelector('[data-weight-unit]');
+      if (unitGroup) {
+        unitGroup.addEventListener('change', (evt) => {
+          if (evt.target.name !== 'weight_unit') return;
+          unitGroup.querySelectorAll('.pill').forEach((pill) => pill.classList.remove('active'));
+          const label = evt.target.closest('.pill');
+          if (label) label.classList.add('active');
+        });
+      }
+
+      // --- Import form ---
+      const importForm = document.getElementById('import-form');
+      const importBtn = document.getElementById('import-btn');
+      const importFile = importForm ? importForm.querySelector('input[name="import_file"]') : null;
+      if (importBtn && importFile) {
+        importBtn.addEventListener('click', () => importFile.click());
+        importFile.addEventListener('change', () => {
+          if (!importFile.files.length) return;
+          const ok = confirm('Importing will DELETE all current entries and replace them with "' + importFile.files[0].name + '". Continue?');
+          if (ok) {
+            importForm.submit();
+          } else {
+            importFile.value = '';
+          }
+        });
+      }
+
+      // --- Copy button for TOTP secret ---
       document.querySelectorAll('[data-copy]').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const text = btn.getAttribute('data-copy');

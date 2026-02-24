@@ -33,6 +33,8 @@ const renderSettings = async (req, res) => {
   delete req.session.aiFeedback;
   const emailFeedback = req.session.emailFeedback || null;
   delete req.session.emailFeedback;
+  const importFeedback = req.session.importFeedback || null;
+  delete req.session.importFeedback;
 
   let linkState = { incoming: [], outgoing: [] };
   let acceptedLinks = [];
@@ -91,12 +93,14 @@ const renderSettings = async (req, res) => {
     maxLinks: MAX_LINKS,
     availableSlots: Math.max(0, MAX_LINKS - acceptedLinks.length),
     timezones,
+    importFeedback,
   });
 };
 
 router.get('/settings', requireLogin, renderSettings);
 
 router.post('/settings/preferences', requireLogin, csrfProtection, async (req, res) => {
+  const wantsJson = (req.headers.accept || '').includes('application/json');
   const unitRaw = (req.body.weight_unit || '').toLowerCase();
   const weightUnit = ['kg', 'lb'].includes(unitRaw) ? unitRaw : 'kg';
 
@@ -112,8 +116,10 @@ router.post('/settings/preferences', requireLogin, csrfProtection, async (req, r
     } else {
       await pool.query('UPDATE users SET weight_unit = $1 WHERE id = $2', [weightUnit, req.currentUser.id]);
     }
+    if (wantsJson) return res.json({ ok: true });
   } catch (err) {
     console.error('Failed to update preferences', err);
+    if (wantsJson) return res.status(500).json({ ok: false, error: 'Failed to save preferences' });
   }
 
   res.redirect('/settings');

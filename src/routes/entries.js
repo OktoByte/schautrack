@@ -989,9 +989,11 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
       await upsertWeightEntry(req.currentUser.id, w.date, w.weight, client.query.bind(client));
     }
     await client.query('COMMIT');
+    req.session.importFeedback = { type: 'success', message: `Imported ${toInsert.length} entries and ${weightToInsert.length} weight records.` };
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     console.error('Import failed', err);
+    req.session.importFeedback = { type: 'error', message: 'Import failed — the file may contain invalid data. Your existing entries were not changed.' };
   } finally {
     client.release();
   }

@@ -2499,6 +2499,23 @@ a:focus-visible,
   border-color: var(--accent);
 }
 
+/* Autosave indicator */
+.autosave-indicator {
+  display: block;
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--success);
+  opacity: 0;
+  transition: opacity 0.2s;
+  min-height: 1.2em;
+}
+.autosave-indicator.visible {
+  opacity: 1;
+}
+.autosave-indicator.error {
+  color: var(--danger);
+}
+
 .auto-calc-badge {
   font-size: 0.65rem;
   font-weight: 600;
