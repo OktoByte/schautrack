@@ -25,6 +25,7 @@ const {
   getEnabledMacros,
   getMacroGoals,
   getMacroModes,
+  getCalorieGoal,
   computeMacroStatus,
   computeDotStatus,
   worstDotStatus,
@@ -233,7 +234,9 @@ router.get('/dashboard', requireLogin, async (req, res) => {
   const todayMacroTotals = macroTotalsByDate.get(todayStr) || {};
   const userThreshold = user.goal_threshold;
 
-  const dailyStats = buildDailyStats(dayOptions, totalsByDate, user.daily_goal, {
+  const dailyGoal = getCalorieGoal(user);
+
+  const dailyStats = buildDailyStats(dayOptions, totalsByDate, dailyGoal, {
     macroTotalsByDate,
     enabledMacros,
     macroGoals,
@@ -246,16 +249,16 @@ router.get('/dashboard', requireLogin, async (req, res) => {
   const autoCalcCalories = isAutoCalcCalories(user);
 
   // Compute calorie status using the unified function
-  const calorieStatus = caloriesEnabled ? computeMacroStatus(todayTotal, user.daily_goal, macroModes.calories, userThreshold) : { statusClass: '', statusText: '' };
+  const calorieStatus = caloriesEnabled ? computeMacroStatus(todayTotal, dailyGoal, macroModes.calories, userThreshold) : { statusClass: '', statusText: '' };
   // Keep backward-compat goalStatus/goalDelta for today panel
-  const goalStatus = !user.daily_goal
+  const goalStatus = !dailyGoal
     ? 'unset'
-    : todayTotal <= user.daily_goal
+    : todayTotal <= dailyGoal
       ? 'under'
-      : computeMacroStatus(todayTotal, user.daily_goal, 'limit', userThreshold).statusClass === 'macro-stat--danger'
+      : computeMacroStatus(todayTotal, dailyGoal, 'limit', userThreshold).statusClass === 'macro-stat--danger'
         ? 'over_threshold'
         : 'over';
-  const goalDelta = user.daily_goal ? Math.abs(user.daily_goal - todayTotal) : null;
+  const goalDelta = dailyGoal ? Math.abs(dailyGoal - todayTotal) : null;
 
   const { rows: recentEntries } = await pool.query(
     'SELECT id, entry_date, amount, entry_name, created_at, protein_g, carbs_g, fat_g, fiber_g, sugar_g FROM calorie_entries WHERE user_id = $1 AND entry_date = $2 ORDER BY created_at DESC',
@@ -301,7 +304,7 @@ router.get('/dashboard', requireLogin, async (req, res) => {
       email: user.email,
       label: 'You',
       isSelf: true,
-      dailyGoal: user.daily_goal,
+      dailyGoal,
       dailyStats,
       todayStr: todayStrTz,
     },
@@ -316,15 +319,16 @@ router.get('/dashboard', requireLogin, async (req, res) => {
       const linkOldest = linkDayOptions.length > 0 ? linkDayOptions[linkDayOptions.length - 1] : oldest;
       const linkNewest = linkDayOptions.length > 0 ? linkDayOptions[0] : newest;
 
+      const linkGoal = getCalorieGoal(link);
       const totals = await getTotalsByDate(link.userId, linkOldest, linkNewest);
-      const stats = buildDailyStats(linkDayOptions, totals, link.daily_goal, { threshold: userThreshold });
+      const stats = buildDailyStats(linkDayOptions, totals, linkGoal, { threshold: userThreshold });
       sharedViews.push({
         linkId: link.linkId,
         userId: link.userId,
         email: link.email,
         label: (link.label || '').trim() || link.email,
         isSelf: false,
-        dailyGoal: link.daily_goal,
+        dailyGoal: linkGoal,
         dailyStats: stats,
         todayStr: linkTodayStr,
       });
@@ -380,6 +384,7 @@ router.get('/dashboard', requireLogin, async (req, res) => {
 
   res.render('dashboard', {
     user,
+    dailyGoal,
     todayTotal,
     goalStatus,
     goalDelta,
@@ -448,7 +453,7 @@ router.get('/overview', requireLogin, requireLinkAuth, async (req, res) => {
   const todayStrTz = formatDateInTz(new Date(), targetTz);
 
   try {
-    const dailyGoal = targetUser?.daily_goal || null;
+    const dailyGoal = getCalorieGoal(targetUser);
     const totalsByDate = await getTotalsByDate(targetUserId, oldest, newest);
     const todayTotal = totalsByDate.get(todayStrTz) || 0;
     const viewerThreshold = req.currentUser.goal_threshold;
@@ -817,7 +822,7 @@ router.get('/settings/export', requireLogin, async (req, res) => {
     res.write(`"exported_at":${JSON.stringify(new Date().toISOString())},\n`);
     res.write(`"user":${JSON.stringify({
       email: user.email,
-      daily_goal: user.daily_goal,
+      daily_goal: getCalorieGoal(user),
       macros_enabled: user.macros_enabled || {},
       macro_goals: user.macro_goals || {},
     })},\n`);
@@ -879,8 +884,11 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
     return res.redirect('/settings');
   }
 
+  // Support old exports (daily_goal at top level or in user object) and new (macro_goals.calories)
   const goalCandidate =
-    parsed.daily_goal !== undefined ? parsed.daily_goal : parsed.user?.daily_goal;
+    parsed.user?.macro_goals?.calories !== undefined ? parsed.user.macro_goals.calories
+    : parsed.daily_goal !== undefined ? parsed.daily_goal
+    : parsed.user?.daily_goal;
   const entries = Array.isArray(parsed.entries) ? parsed.entries.slice(0, 500) : [];
   const weights = Array.isArray(parsed.weights) ? parsed.weights.slice(0, 500) : [];
 
@@ -927,18 +935,12 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
     await client.query('BEGIN');
     await client.query('DELETE FROM calorie_entries WHERE user_id = $1', [req.currentUser.id]);
     await client.query('DELETE FROM weight_entries WHERE user_id = $1', [req.currentUser.id]);
-    if (Number.isInteger(goalCandidate) && goalCandidate >= 0) {
-      await client.query('UPDATE users SET daily_goal = $1 WHERE id = $2', [
-        goalCandidate,
-        req.currentUser.id,
-      ]);
-    }
     // Import macro preferences if present (validate keys against known macros)
     const importedMacrosEnabled = parsed.user?.macros_enabled;
     const importedMacroGoals = parsed.user?.macro_goals;
-    if (importedMacrosEnabled || importedMacroGoals) {
+    if (importedMacrosEnabled || importedMacroGoals || (Number.isInteger(goalCandidate) && goalCandidate >= 0)) {
       const validToggleKeys = [...MACRO_KEYS, 'calories'];
-      const validGoalKeys = [...MACRO_KEYS.map(k => k), ...MACRO_KEYS.map(k => `${k}_mode`), 'calories_mode'];
+      const validGoalKeys = ['calories', ...MACRO_KEYS.map(k => k), ...MACRO_KEYS.map(k => `${k}_mode`), 'calories_mode'];
 
       const macrosEnabled = {};
       if (importedMacrosEnabled && typeof importedMacrosEnabled === 'object') {
@@ -958,6 +960,10 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
             macroGoalsImport[key] = val;
           }
         }
+      }
+      // Ensure calorie goal from old-format exports (daily_goal) gets stored in macro_goals
+      if (macroGoalsImport.calories == null && Number.isInteger(goalCandidate) && goalCandidate >= 0) {
+        macroGoalsImport.calories = goalCandidate;
       }
       await client.query('UPDATE users SET macros_enabled = $1, macro_goals = $2 WHERE id = $3', [
         JSON.stringify(macrosEnabled),

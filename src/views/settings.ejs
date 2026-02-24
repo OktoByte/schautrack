@@ -15,7 +15,7 @@
              const allNutrients = [
                { key: 'calories', label: 'Calories', unit: 'calories', max: 99999, fieldName: 'calorie_goal',
                  enabled: (user.macros_enabled || {}).calories !== false,
-                 goal: user.daily_goal,
+                 goal: goals.calories != null ? goals.calories : user.daily_goal,
                  mode: goals.calories_mode || defaultModes.calories },
                { key: 'protein', label: 'Protein', unit: 'g', max: 9999 },
                { key: 'carbs', label: 'Carbs', unit: 'g', max: 9999 },

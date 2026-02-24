@@ -104,6 +104,13 @@ const parseMacroInput = (value) => {
   return Number.isNaN(num) || num < 0 ? null : num;
 };
 
+const getCalorieGoal = (user) => {
+  const goals = user?.macro_goals || {};
+  if (goals.calories != null) return goals.calories;
+  // Fallback for migration period (legacy daily_goal column)
+  return user?.daily_goal ?? null;
+};
+
 const isAutoCalcCalories = (user) => {
   const enabled = user?.macros_enabled || {};
   return enabled.protein === true
@@ -155,6 +162,7 @@ module.exports = {
   getEnabledMacros,
   getMacroGoals,
   getMacroModes,
+  getCalorieGoal,
   computeMacroStatus,
   computeDotStatus,
   worstDotStatus,

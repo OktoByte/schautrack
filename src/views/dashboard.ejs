@@ -1,6 +1,6 @@
 <%- include('partials/header', { title: 'Dashboard' }) %>
   <%
-    const kcalPct = user.daily_goal ? Math.min(Math.round((todayTotal / user.daily_goal) * 100), 100) : null;
+    const kcalPct = dailyGoal ? Math.min(Math.round((todayTotal / dailyGoal) * 100), 100) : null;
   %>
   <section class="panel today-panel">
     <div class="panel-header">
@@ -13,9 +13,9 @@
       <div class="macro-stat macro-stat--kcal <%= calorieStatus.statusClass %>" data-macro-chip="kcal" data-stat-balance>
         <div class="macro-stat-label">Calories</div>
         <div class="macro-stat-value">
-          <span data-stat-logged><%= todayTotal %></span><% if (user.daily_goal) { %><span class="macro-stat-goal" data-stat-goal> / <%= user.daily_goal %></span><% } %>
+          <span data-stat-logged><%= todayTotal %></span><% if (dailyGoal) { %><span class="macro-stat-goal" data-stat-goal> / <%= dailyGoal %></span><% } %>
         </div>
-        <% if (user.daily_goal) { %>
+        <% if (dailyGoal) { %>
         <div class="macro-stat-bar"><div class="macro-stat-fill" data-stat-fill style="width: <%= kcalPct %>%"></div></div>
         <% } %>
         <div class="macro-stat-detail muted small" data-stat-status-detail><%= calorieStatus.statusText %></div>
@@ -320,7 +320,7 @@
       const macroGoalsJs = <%- JSON.stringify(macroGoals || {}) %>;
       const macroModesJs = <%- JSON.stringify(macroModes || {}) %>;
       const goalThresholdJs = <%- JSON.stringify(user.goal_threshold != null ? user.goal_threshold : 10) %>;
-      const selfDailyGoalJs = <%- JSON.stringify(user.daily_goal || null) %>;
+      const selfDailyGoalJs = <%- JSON.stringify(dailyGoal || null) %>;
       const panelHeading = document.querySelector('[data-panel-heading]');
       const MAX_ENTRY_CALORIES = 9999;
       const MAX_ENTRY_MACRO = 999;

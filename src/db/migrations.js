@@ -267,6 +267,19 @@ async function ensureMacroSchema() {
   });
 }
 
+// Migrate daily_goal column into macro_goals.calories
+async function migrateCalorieGoalToMacroGoals() {
+  await withTransaction(async (client) => {
+    await client.query(`
+      UPDATE users
+         SET macro_goals = jsonb_set(COALESCE(macro_goals, '{}'::jsonb), '{calories}', to_jsonb(daily_goal)),
+             daily_goal = NULL
+       WHERE daily_goal IS NOT NULL
+         AND NOT (COALESCE(macro_goals, '{}'::jsonb) ? 'calories')
+    `);
+  });
+}
+
 // Retry schema initialization with exponential backoff
 async function initSchemaWithRetry(maxRetries = 10, initialDelay = 1000) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -288,6 +301,10 @@ async function initSchemaWithRetry(maxRetries = 10, initialDelay = 1000) {
         ensureAIUsageSchema(),
         ensureMacroSchema()
       ]);
+
+      // Data migrations (must run after schema migrations)
+      await migrateCalorieGoalToMacroGoals();
+
       console.log('Schema initialization successful');
       return;
     } catch (err) {
@@ -315,5 +332,6 @@ module.exports = {
   ensureAdminSettingsSchema,
   ensureAIKeysSchema,
   ensureAIUsageSchema,
-  ensureMacroSchema
+  ensureMacroSchema,
+  migrateCalorieGoalToMacroGoals
 };

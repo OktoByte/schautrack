@@ -122,7 +122,7 @@ router.post('/settings/preferences', requireLogin, csrfProtection, async (req, r
 router.post('/settings/macros', requireLogin, csrfProtection, async (req, res) => {
   const wantsJson = (req.headers.accept || '').includes('application/json');
 
-  // Parse calorie goal
+  // Parse calorie goal (now stored in macro_goals.calories)
   const calorieGoal = parseMacroInput(req.body.calorie_goal);
 
   // Parse enabled macros, goals, and modes
@@ -132,7 +132,10 @@ router.post('/settings/macros', requireLogin, csrfProtection, async (req, res) =
   // Calories enabled state
   enabledMacros.calories = req.body.calories_enabled === 'on' || req.body.calories_enabled === 'true';
 
-  // Calorie mode
+  // Calorie goal and mode (stored in macro_goals alongside other macros)
+  if (calorieGoal !== null) {
+    macroGoals.calories = calorieGoal;
+  }
   const calMode = req.body.calories_mode;
   if (calMode === 'limit' || calMode === 'target') {
     macroGoals.calories_mode = calMode;
@@ -157,8 +160,8 @@ router.post('/settings/macros', requireLogin, csrfProtection, async (req, res) =
 
   try {
     await pool.query(
-      'UPDATE users SET daily_goal = $1, macros_enabled = $2, macro_goals = $3, goal_threshold = $4 WHERE id = $5',
-      [calorieGoal, JSON.stringify(enabledMacros), JSON.stringify(macroGoals), goalThreshold, req.currentUser.id]
+      'UPDATE users SET macros_enabled = $1, macro_goals = $2, goal_threshold = $3 WHERE id = $4',
+      [JSON.stringify(enabledMacros), JSON.stringify(macroGoals), goalThreshold, req.currentUser.id]
     );
 
     if (wantsJson) {

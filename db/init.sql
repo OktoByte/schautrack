@@ -98,8 +98,9 @@ CREATE TABLE IF NOT EXISTS admin_settings (
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS macro_goals JSONB DEFAULT '{}';
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS goal_threshold INTEGER DEFAULT 10;
 --   goal_threshold: percentage (0-100) above which a goal violation turns red instead of yellow.
---   macro_goals JSONB shape: { "protein": 150, "protein_mode": "target", "carbs": 200, "carbs_mode": "limit", "calories_mode": "limit" }
---   Goal values are integers (grams). Mode values are "limit" (stay under) or "target" (try to reach).
+--   macro_goals JSONB shape: { "calories": 2000, "calories_mode": "limit", "protein": 150, "protein_mode": "target", "carbs": 200, "carbs_mode": "limit" }
+--   Goal values are integers (grams, or kcal for calories). Mode values are "limit" (stay under) or "target" (try to reach).
+--   Note: calorie goal was migrated from the legacy daily_goal column into macro_goals.calories.
 --   Missing _mode keys fall back to defaults in src/lib/macros.js MACRO_GOAL_MODES.
 -- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS protein_g INTEGER;
 -- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS carbs_g INTEGER;

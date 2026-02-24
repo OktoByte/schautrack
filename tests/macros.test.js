@@ -11,6 +11,7 @@ const {
   getEnabledMacros,
   getMacroGoals,
   getMacroModes,
+  getCalorieGoal,
   computeMacroStatus,
   computeDotStatus,
   worstDotStatus,
@@ -435,5 +436,34 @@ describe('getMacroTotalsByDate', () => {
     });
     const result = await getMacroTotalsByDate(1, '2024-01-01', '2024-01-01');
     expect(result.get('2024-01-01')).toEqual({ protein: 0, carbs: 0, fat: 0, fiber: 10, sugar: 0 });
+  });
+});
+
+describe('getCalorieGoal', () => {
+  test('reads from macro_goals.calories', () => {
+    expect(getCalorieGoal({ macro_goals: { calories: 2000 } })).toBe(2000);
+  });
+
+  test('falls back to daily_goal when macro_goals.calories is missing', () => {
+    expect(getCalorieGoal({ daily_goal: 1800, macro_goals: {} })).toBe(1800);
+  });
+
+  test('falls back to daily_goal when macro_goals is null', () => {
+    expect(getCalorieGoal({ daily_goal: 1500 })).toBe(1500);
+  });
+
+  test('prefers macro_goals.calories over daily_goal', () => {
+    expect(getCalorieGoal({ daily_goal: 1500, macro_goals: { calories: 2000 } })).toBe(2000);
+  });
+
+  test('returns null when neither is set', () => {
+    expect(getCalorieGoal({ macro_goals: {} })).toBeNull();
+    expect(getCalorieGoal({})).toBeNull();
+    expect(getCalorieGoal(null)).toBeNull();
+    expect(getCalorieGoal(undefined)).toBeNull();
+  });
+
+  test('handles zero calorie goal', () => {
+    expect(getCalorieGoal({ macro_goals: { calories: 0 } })).toBe(0);
   });
 });
