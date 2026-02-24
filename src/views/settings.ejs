@@ -46,6 +46,16 @@
             </div>
           <% }) %>
         </div>
+        <div class="macro-row" style="border-color: rgba(245, 158, 11, 0.2); background: rgba(245, 158, 11, 0.04);">
+          <span class="macro-label" style="color: #fcd34d;">Threshold</span>
+          <div class="macro-row-fields">
+            <span style="position: relative; display: inline-flex; align-items: center; width: 80px;">
+              <input type="number" name="goal_threshold" min="0" max="99" value="<%= user.goal_threshold != null ? user.goal_threshold : 10 %>" style="width: 100%; padding-right: 24px;">
+              <span class="muted" style="position: absolute; right: 10px; font-size: 0.85rem; pointer-events: none;">%</span>
+            </span>
+          </div>
+        </div>
+        <p class="muted small">Green on target. Yellow within threshold. Red beyond it.</p>
         <button type="submit" class="primary">Save nutrition goals</button>
       </form>
     </div>

@@ -7,10 +7,13 @@ const {
   MACRO_KEYS,
   MACRO_LABELS,
   MACRO_GOAL_MODES,
+  DOT_STATUS_RANK,
   getEnabledMacros,
   getMacroGoals,
   getMacroModes,
   computeMacroStatus,
+  computeDotStatus,
+  worstDotStatus,
   parseMacroInput,
   isAutoCalcCalories,
   computeCaloriesFromMacros,
@@ -246,6 +249,76 @@ describe('computeMacroStatus', () => {
       expect(result.statusClass).toBe('');
       expect(result.statusText).toBe('100 remaining');
     });
+  });
+});
+
+describe('computeMacroStatus with custom threshold', () => {
+  test('uses threshold=10 by default (no arg)', () => {
+    // 2201 over 2000 = 201 over, 201/2000 = 10.05% > 10% → danger
+    expect(computeMacroStatus(2201, 2000, 'limit').statusClass).toBe('macro-stat--danger');
+    // 2200 over 2000 = 200 over, 200/2000 = 10% = 10% → warning (not strictly over)
+    expect(computeMacroStatus(2200, 2000, 'limit').statusClass).toBe('macro-stat--warning');
+  });
+
+  test('respects custom threshold of 20', () => {
+    // 2201 over 2000 = 201 over, 201*100=20100 vs 2000*20=40000 → warning
+    expect(computeMacroStatus(2201, 2000, 'limit', 20).statusClass).toBe('macro-stat--warning');
+    // 2401 over 2000 = 401 over, 401*100=40100 vs 2000*20=40000 → danger
+    expect(computeMacroStatus(2401, 2000, 'limit', 20).statusClass).toBe('macro-stat--danger');
+  });
+
+  test('threshold=0 makes any overage danger', () => {
+    // 2001 over 2000 = 1 over, 1*100=100 vs 2000*0=0 → danger
+    expect(computeMacroStatus(2001, 2000, 'limit', 0).statusClass).toBe('macro-stat--danger');
+  });
+
+  test('threshold does not affect target mode', () => {
+    expect(computeMacroStatus(80, 150, 'target', 5).statusClass).toBe('');
+    expect(computeMacroStatus(150, 150, 'target', 5).statusClass).toBe('macro-stat--success');
+  });
+});
+
+describe('computeDotStatus', () => {
+  test('maps success to under', () => {
+    expect(computeDotStatus('macro-stat--success')).toBe('under');
+  });
+
+  test('maps warning to over', () => {
+    expect(computeDotStatus('macro-stat--warning')).toBe('over');
+  });
+
+  test('maps danger to over_threshold', () => {
+    expect(computeDotStatus('macro-stat--danger')).toBe('over_threshold');
+  });
+
+  test('maps empty class (target not met) to over', () => {
+    expect(computeDotStatus('')).toBe('over');
+  });
+});
+
+describe('worstDotStatus', () => {
+  test('returns none for empty array', () => {
+    expect(worstDotStatus([])).toBe('none');
+  });
+
+  test('returns the single status', () => {
+    expect(worstDotStatus(['under'])).toBe('under');
+  });
+
+  test('returns over_threshold when mixed', () => {
+    expect(worstDotStatus(['under', 'over', 'over_threshold'])).toBe('over_threshold');
+  });
+
+  test('returns over when under and over', () => {
+    expect(worstDotStatus(['under', 'over'])).toBe('over');
+  });
+
+  test('returns zero over none', () => {
+    expect(worstDotStatus(['none', 'zero'])).toBe('zero');
+  });
+
+  test('returns under over zero', () => {
+    expect(worstDotStatus(['zero', 'under'])).toBe('under');
   });
 });
 

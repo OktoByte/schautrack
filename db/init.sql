@@ -96,6 +96,8 @@ CREATE TABLE IF NOT EXISTS admin_settings (
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_ai_provider TEXT DEFAULT 'openai';
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS macros_enabled JSONB DEFAULT '{}';
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS macro_goals JSONB DEFAULT '{}';
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS goal_threshold INTEGER DEFAULT 10;
+--   goal_threshold: percentage (0-100) above which a goal violation turns red instead of yellow.
 --   macro_goals JSONB shape: { "protein": 150, "protein_mode": "target", "carbs": 200, "carbs_mode": "limit", "calories_mode": "limit" }
 --   Goal values are integers (grams). Mode values are "limit" (stay under) or "target" (try to reach).
 --   Missing _mode keys fall back to defaults in src/lib/macros.js MACRO_GOAL_MODES.

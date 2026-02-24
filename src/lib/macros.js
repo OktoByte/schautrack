@@ -46,7 +46,7 @@ const getMacroModes = (user) => {
   return result;
 };
 
-const computeMacroStatus = (total, goal, mode) => {
+const computeMacroStatus = (total, goal, mode, threshold) => {
   if (goal == null || goal === 0) {
     return { statusClass: '', statusText: 'No goal set' };
   }
@@ -64,11 +64,33 @@ const computeMacroStatus = (total, goal, mode) => {
     return { statusClass: 'macro-stat--success', statusText: `${goal - total} remaining` };
   }
   const over = total - goal;
-  // Danger when over by more than 10% of goal
-  if (over * 10 > goal) {
+  // Danger when over by more than threshold% of goal
+  const pct = threshold != null ? threshold : 10;
+  if (over * 100 > goal * pct) {
     return { statusClass: 'macro-stat--danger', statusText: `${over} over` };
   }
   return { statusClass: 'macro-stat--warning', statusText: `${over} over` };
+};
+
+// Map macro status CSS class to dot status string
+const DOT_STATUS_RANK = { none: 0, zero: 1, under: 2, over: 3, over_threshold: 4 };
+
+const computeDotStatus = (statusClass) => {
+  if (statusClass === 'macro-stat--success') return 'under';
+  if (statusClass === 'macro-stat--danger') return 'over_threshold';
+  if (statusClass === 'macro-stat--warning') return 'over';
+  // Empty class = target not met → warning
+  return 'over';
+};
+
+const worstDotStatus = (statuses) => {
+  let worst = 'none';
+  for (const s of statuses) {
+    if ((DOT_STATUS_RANK[s] || 0) > (DOT_STATUS_RANK[worst] || 0)) {
+      worst = s;
+    }
+  }
+  return worst;
 };
 
 const parseMacroInput = (value) => {
@@ -124,10 +146,13 @@ module.exports = {
   MACRO_KEYS,
   MACRO_LABELS,
   MACRO_GOAL_MODES,
+  DOT_STATUS_RANK,
   getEnabledMacros,
   getMacroGoals,
   getMacroModes,
   computeMacroStatus,
+  computeDotStatus,
+  worstDotStatus,
   parseMacroInput,
   isAutoCalcCalories,
   computeCaloriesFromMacros,

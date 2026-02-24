@@ -251,7 +251,8 @@ async function ensureMacroSchema() {
     await client.query(`
       ALTER TABLE users
         ADD COLUMN IF NOT EXISTS macros_enabled JSONB DEFAULT '{}',
-        ADD COLUMN IF NOT EXISTS macro_goals JSONB DEFAULT '{}';
+        ADD COLUMN IF NOT EXISTS macro_goals JSONB DEFAULT '{}',
+        ADD COLUMN IF NOT EXISTS goal_threshold INTEGER DEFAULT 10;
     `);
 
     // Add macro nutrient columns to calorie_entries

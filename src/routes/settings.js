@@ -151,10 +151,14 @@ router.post('/settings/macros', requireLogin, csrfProtection, async (req, res) =
     }
   }
 
+  // Parse goal threshold (0-99)
+  const rawThreshold = parseMacroInput(req.body.goal_threshold);
+  const goalThreshold = rawThreshold != null ? Math.min(Math.max(rawThreshold, 0), 99) : 10;
+
   try {
     await pool.query(
-      'UPDATE users SET daily_goal = $1, macros_enabled = $2, macro_goals = $3 WHERE id = $4',
-      [calorieGoal, JSON.stringify(enabledMacros), JSON.stringify(macroGoals), req.currentUser.id]
+      'UPDATE users SET daily_goal = $1, macros_enabled = $2, macro_goals = $3, goal_threshold = $4 WHERE id = $5',
+      [calorieGoal, JSON.stringify(enabledMacros), JSON.stringify(macroGoals), goalThreshold, req.currentUser.id]
     );
 
     if (wantsJson) {

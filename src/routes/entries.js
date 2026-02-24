@@ -26,6 +26,8 @@ const {
   getMacroGoals,
   getMacroModes,
   computeMacroStatus,
+  computeDotStatus,
+  worstDotStatus,
   parseMacroInput,
   isAutoCalcCalories,
   getMacroTotalsByDate,
@@ -144,24 +146,47 @@ async function getTotalsByDate(userId, oldestDate, newestDate) {
   return totalsByDate;
 }
 
-function buildDailyStats(dayOptions, totalsByDate, dailyGoal) {
-  const goalThreshold = dailyGoal ? Math.round(dailyGoal * 1.1) : null;
+function buildDailyStats(dayOptions, totalsByDate, dailyGoal, {
+  macroTotalsByDate = null,
+  enabledMacros = [],
+  macroGoals = {},
+  macroModes = {},
+  threshold,
+} = {}) {
   return dayOptions.map((dateStr) => {
     const total = totalsByDate.get(dateStr) || 0;
-    let status = 'none';
-    let overThreshold = false;
+    const statuses = [];
+
+    // Calorie goal status
     if (dailyGoal) {
       if (total === 0) {
-        status = 'zero';
-      } else if (total <= dailyGoal) {
-        status = 'under';
-      } else if (goalThreshold && total > goalThreshold) {
-        status = 'over_threshold';
-        overThreshold = true;
+        statuses.push('zero');
       } else {
-        status = 'over';
+        const calStatus = computeMacroStatus(total, dailyGoal, macroModes.calories || 'limit', threshold);
+        statuses.push(computeDotStatus(calStatus.statusClass));
       }
     }
+
+    // Macro goal statuses
+    if (macroTotalsByDate && enabledMacros.length > 0) {
+      const dayMacros = macroTotalsByDate.get(dateStr) || {};
+      for (const key of enabledMacros) {
+        const goal = macroGoals[key] != null ? macroGoals[key] : null;
+        if (goal == null || goal === 0) continue;
+        const macroTotal = dayMacros[key] || 0;
+        const ms = computeMacroStatus(macroTotal, goal, macroModes[key] || 'limit', threshold);
+        statuses.push(computeDotStatus(ms.statusClass));
+      }
+    }
+
+    let status;
+    if (statuses.length === 0) {
+      status = 'none';
+    } else {
+      status = worstDotStatus(statuses);
+    }
+
+    const overThreshold = status === 'over_threshold';
     return { date: dateStr, total, status, overThreshold };
   });
 }
@@ -199,24 +224,34 @@ router.get('/dashboard', requireLogin, async (req, res) => {
     : newest;
 
   const totalsByDate = await getTotalsByDate(user.id, oldest, newest);
-  const dailyStats = buildDailyStats(dayOptions, totalsByDate, user.daily_goal);
-
   const todayTotal = totalsByDate.get(todayStr) || 0;
   const macroModes = getMacroModes(user);
+  const enabledMacros = getEnabledMacros(user);
+  const macroGoals = getMacroGoals(user);
+  const macroTotalsByDate = enabledMacros.length > 0 ? await getMacroTotalsByDate(user.id, oldest, newest) : new Map();
+  const todayMacroTotals = macroTotalsByDate.get(todayStr) || {};
+  const userThreshold = user.goal_threshold;
+
+  const dailyStats = buildDailyStats(dayOptions, totalsByDate, user.daily_goal, {
+    macroTotalsByDate,
+    enabledMacros,
+    macroGoals,
+    macroModes,
+    threshold: userThreshold,
+  });
 
   // Calories are enabled unless explicitly disabled (backward compat: missing key = enabled)
   const caloriesEnabled = (user.macros_enabled || {}).calories !== false;
   const autoCalcCalories = isAutoCalcCalories(user);
 
   // Compute calorie status using the unified function
-  const calorieStatus = caloriesEnabled ? computeMacroStatus(todayTotal, user.daily_goal, macroModes.calories) : { statusClass: '', statusText: '' };
-  // Keep backward-compat goalStatus/goalDelta for dot rendering
-  const goalThreshold = user.daily_goal ? Math.round(user.daily_goal * 1.1) : null;
+  const calorieStatus = caloriesEnabled ? computeMacroStatus(todayTotal, user.daily_goal, macroModes.calories, userThreshold) : { statusClass: '', statusText: '' };
+  // Keep backward-compat goalStatus/goalDelta for today panel
   const goalStatus = !user.daily_goal
     ? 'unset'
     : todayTotal <= user.daily_goal
       ? 'under'
-      : goalThreshold && todayTotal > goalThreshold
+      : computeMacroStatus(todayTotal, user.daily_goal, 'limit', userThreshold).statusClass === 'macro-stat--danger'
         ? 'over_threshold'
         : 'over';
   const goalDelta = user.daily_goal ? Math.abs(user.daily_goal - todayTotal) : null;
@@ -230,18 +265,12 @@ router.get('/dashboard', requireLogin, async (req, res) => {
     timeFormatted: entry.created_at ? formatTimeInTz(entry.created_at, userTimeZone) : '',
   }));
 
-  // Get macro totals for today
-  const enabledMacros = getEnabledMacros(user);
-  const macroGoals = getMacroGoals(user);
-  const macroTotalsByDate = enabledMacros.length > 0 ? await getMacroTotalsByDate(user.id, oldest, newest) : new Map();
-  const todayMacroTotals = macroTotalsByDate.get(todayStr) || {};
-
   // Compute per-macro statuses
   const macroStatuses = {};
   for (const key of enabledMacros) {
     const total = todayMacroTotals[key] || 0;
     const goal = macroGoals[key] != null ? macroGoals[key] : null;
-    macroStatuses[key] = computeMacroStatus(total, goal, macroModes[key]);
+    macroStatuses[key] = computeMacroStatus(total, goal, macroModes[key], userThreshold);
   }
 
   let acceptedLinks = [];
@@ -287,7 +316,7 @@ router.get('/dashboard', requireLogin, async (req, res) => {
       const linkNewest = linkDayOptions.length > 0 ? linkDayOptions[0] : newest;
 
       const totals = await getTotalsByDate(link.userId, linkOldest, linkNewest);
-      const stats = buildDailyStats(linkDayOptions, totals, link.daily_goal);
+      const stats = buildDailyStats(linkDayOptions, totals, link.daily_goal, { threshold: userThreshold });
       sharedViews.push({
         linkId: link.linkId,
         userId: link.userId,
@@ -420,40 +449,52 @@ router.get('/overview', requireLogin, requireLinkAuth, async (req, res) => {
   try {
     const dailyGoal = targetUser?.daily_goal || null;
     const totalsByDate = await getTotalsByDate(targetUserId, oldest, newest);
-    const dailyStats = buildDailyStats(dayOptions, totalsByDate, dailyGoal);
     const todayTotal = totalsByDate.get(todayStrTz) || 0;
-    const goalThreshold = dailyGoal ? Math.round(dailyGoal * 1.1) : null;
-    const goalStatus = !dailyGoal
-      ? 'unset'
-      : todayTotal <= dailyGoal
-        ? 'under'
-        : goalThreshold && todayTotal > goalThreshold
-          ? 'over_threshold'
-          : 'over';
-    const goalDelta = dailyGoal ? Math.abs(dailyGoal - todayTotal) : null;
+    const viewerThreshold = req.currentUser.goal_threshold;
 
     // Only include macro data for the viewer's own card (macro tracking is personal,
     // linked users' cards only show calorie dots/stats)
     const viewerEnabledMacros = getEnabledMacros(req.currentUser);
+    const viewerModes = getMacroModes(req.currentUser);
+    const viewerGoals = getMacroGoals(req.currentUser);
     let todayMacroTotals = null;
     let macroStatuses = null;
     let calorieStatusObj = null;
+    let macroTotalsByDate = null;
+
     if (targetUserId === req.currentUser.id) {
-      const viewerModes = getMacroModes(req.currentUser);
       const viewerCalEnabled = (req.currentUser.macros_enabled || {}).calories !== false;
-      calorieStatusObj = viewerCalEnabled ? computeMacroStatus(todayTotal, dailyGoal, viewerModes.calories) : null;
+      calorieStatusObj = viewerCalEnabled ? computeMacroStatus(todayTotal, dailyGoal, viewerModes.calories, viewerThreshold) : null;
       if (viewerEnabledMacros.length > 0) {
-        const macroTotalsByDate = await getMacroTotalsByDate(targetUserId, oldest, newest);
+        macroTotalsByDate = await getMacroTotalsByDate(targetUserId, oldest, newest);
         todayMacroTotals = macroTotalsByDate.get(todayStrTz) || {};
-        const viewerGoals = getMacroGoals(req.currentUser);
         macroStatuses = {};
         for (const key of viewerEnabledMacros) {
           const total = todayMacroTotals[key] || 0;
           const goal = viewerGoals[key] != null ? viewerGoals[key] : null;
-          macroStatuses[key] = computeMacroStatus(total, goal, viewerModes[key]);
+          macroStatuses[key] = computeMacroStatus(total, goal, viewerModes[key], viewerThreshold);
         }
       }
     }
+
+    // Build daily stats — include macro data for self, calorie-only for linked users
+    const isSelf = targetUserId === req.currentUser.id;
+    const dailyStats = buildDailyStats(dayOptions, totalsByDate, dailyGoal, isSelf ? {
+      macroTotalsByDate,
+      enabledMacros: viewerEnabledMacros,
+      macroGoals: viewerGoals,
+      macroModes: viewerModes,
+      threshold: viewerThreshold,
+    } : { threshold: viewerThreshold });
+
+    const goalStatus = !dailyGoal
+      ? 'unset'
+      : todayTotal <= dailyGoal
+        ? 'under'
+        : computeMacroStatus(todayTotal, dailyGoal, 'limit', viewerThreshold).statusClass === 'macro-stat--danger'
+          ? 'over_threshold'
+          : 'over';
+    const goalDelta = dailyGoal ? Math.abs(dailyGoal - todayTotal) : null;
 
     return res.json({
       ok: true,
