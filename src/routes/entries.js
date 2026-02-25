@@ -877,6 +877,8 @@ router.get('/settings/export', requireLogin, async (req, res) => {
       daily_goal: getCalorieGoal(user),
       macros_enabled: user.macros_enabled || {},
       macro_goals: user.macro_goals || {},
+      weight_unit: user.weight_unit || 'kg',
+      timezone: user.timezone || null,
     })},\n`);
 
     // Write weights
@@ -923,7 +925,7 @@ router.get('/settings/export', requireLogin, async (req, res) => {
   }
 });
 
-router.post('/settings/import', requireLogin, upload.single('import_file'), async (req, res) => {
+router.post('/settings/import', requireLogin, upload.single('import_file'), csrfProtection, async (req, res) => {
   if (!req.file || !req.file.buffer) {
     return res.redirect('/settings');
   }
@@ -976,8 +978,14 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
     weightToInsert.push({ date: dateStr, weight: weightVal });
   });
 
+  // Check if the file has user settings worth importing
+  const hasUserSettings = parsed.user && (
+    parsed.user.macros_enabled || parsed.user.macro_goals || goalCandidate != null ||
+    parsed.user.weight_unit || parsed.user.timezone
+  );
+
   // Validate that we have at least some valid data before deleting existing data
-  if (toInsert.length === 0 && weightToInsert.length === 0) {
+  if (toInsert.length === 0 && weightToInsert.length === 0 && !hasUserSettings) {
     req.session.importFeedback = { type: 'error', message: 'No valid entries found in import file.' };
     return res.redirect('/settings');
   }
@@ -985,8 +993,12 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query('DELETE FROM calorie_entries WHERE user_id = $1', [req.currentUser.id]);
-    await client.query('DELETE FROM weight_entries WHERE user_id = $1', [req.currentUser.id]);
+    if (toInsert.length > 0) {
+      await client.query('DELETE FROM calorie_entries WHERE user_id = $1', [req.currentUser.id]);
+    }
+    if (weightToInsert.length > 0) {
+      await client.query('DELETE FROM weight_entries WHERE user_id = $1', [req.currentUser.id]);
+    }
     // Import macro preferences if present (validate keys against known macros)
     const importedMacrosEnabled = parsed.user?.macros_enabled;
     const importedMacroGoals = parsed.user?.macro_goals;
@@ -1024,6 +1036,16 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
       ]);
     }
 
+    // Import weight_unit and timezone if present
+    const importedWeightUnit = parsed.user?.weight_unit;
+    const importedTimezone = parsed.user?.timezone;
+    if (importedWeightUnit && ['kg', 'lb'].includes(importedWeightUnit)) {
+      await client.query('UPDATE users SET weight_unit = $1 WHERE id = $2', [importedWeightUnit, req.currentUser.id]);
+    }
+    if (importedTimezone && typeof importedTimezone === 'string' && importedTimezone.length <= 50) {
+      await client.query('UPDATE users SET timezone = $1, timezone_manual = TRUE WHERE id = $2', [importedTimezone, req.currentUser.id]);
+    }
+
     for (const entry of toInsert) {
       if (entry.created_at) {
         await client.query(
@@ -1041,7 +1063,11 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), asyn
       await upsertWeightEntry(req.currentUser.id, w.date, w.weight, client.query.bind(client));
     }
     await client.query('COMMIT');
-    req.session.importFeedback = { type: 'success', message: `Imported ${toInsert.length} entries and ${weightToInsert.length} weight records.` };
+    const parts = [];
+    if (toInsert.length > 0) parts.push(`${toInsert.length} entries`);
+    if (weightToInsert.length > 0) parts.push(`${weightToInsert.length} weight records`);
+    if (hasUserSettings) parts.push('user settings');
+    req.session.importFeedback = { type: 'success', message: `Imported ${parts.join(' and ')}.` };
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     console.error('Import failed', err);

@@ -377,6 +377,7 @@
           <button type="submit" class="primary full">Export JSON</button>
         </form>
         <form id="import-form" action="/settings/import" method="POST" enctype="multipart/form-data" class="data-card stack">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <p class="muted danger-text">Import a saved export (.json). This will delete all current entries and replace them with the file.</p>
           <input class="file-input" type="file" name="import_file" accept="application/json" required hidden>
           <button type="button" class="primary full" id="import-btn">Import JSON</button>
