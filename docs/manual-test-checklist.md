@@ -63,9 +63,9 @@ Use this checklist when testing a new release before merging to main.
 
 ## Data Export/Import
 
-- [x] Export full data as JSON
-- [x] Import an export file into a fresh account
-- [x] Verify all fields round-trip correctly (macros_enabled, macro_goals, entries, etc.)
+- [ ] Export full data as JSON
+- [ ] Import an export file into a fresh account
+- [ ] Verify all fields round-trip correctly (macros_enabled, macro_goals, entries, etc.)
 
 ## Real-time (SSE)
 
@@ -74,19 +74,19 @@ Use this checklist when testing a new release before merging to main.
 
 ## Responsive / Mobile
 
-- [x] Dashboard usable on mobile viewport
+- [ ] Dashboard usable on mobile viewport
 - [x] Calorie input shows numeric keypad (`inputmode="tel"`)
-- [x] Navigation and modals work on small screens
+- [ ] Navigation and modals work on small screens
 
 ## Security
 
-- [x] Verify CSRF protection (reject forged requests)
-- [x] Verify session expires / httpOnly cookies
-- [x] Cannot edit/delete another user's entries
-- [x] Cannot access admin routes as non-admin
+- [ ] Verify CSRF protection (reject forged requests)
+- [ ] Verify session expires / httpOnly cookies
+- [ ] Cannot edit/delete another user's entries
+- [ ] Cannot access admin routes as non-admin
 
 ## Infrastructure
 
-- [x] `GET /api/health` returns 200 with DB connected
-- [x] App starts cleanly with `docker compose up`
-- [x] Schema migrations run on fresh DB without errors
+- [ ] `GET /api/health` returns 200 with DB connected
+- [ ] App starts cleanly with `docker compose up`
+- [ ] Schema migrations run on fresh DB without errors

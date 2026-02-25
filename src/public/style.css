@@ -1064,9 +1064,24 @@ a:focus-visible,
   white-space: nowrap;
 }
 
-.share-card.is-editing .share-title {
-  white-space: normal;
-  overflow: visible;
+.share-title-btn.is-editing {
+  cursor: default;
+}
+
+.share-label-input {
+  background: none;
+  border: none;
+  border-bottom: 1.5px solid var(--accent);
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  width: 100%;
+  outline: none;
+}
+
+.share-label-input.is-saving {
+  opacity: 0.5;
 }
 
 .share-card-head .chip {
@@ -1359,6 +1374,7 @@ a:focus-visible,
   cursor: pointer;
   border-radius: 8px;
   transition: background 120ms ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .hamburger:hover {
@@ -2666,6 +2682,11 @@ input[data-auto-calc-locked] {
 
 .entry-field-date {
   flex: 1.5;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.entry-field-date input {
   min-width: 0;
 }
 

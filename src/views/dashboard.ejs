@@ -596,10 +596,10 @@
 
       const teardownShareLabelEditor = () => {
         if (activeShareLabelEdit) {
-          const { form, trigger, card } = activeShareLabelEdit;
-          form.remove();
-          trigger.classList.remove('hidden');
-          card.classList.remove('is-editing');
+          const { input, trigger, card } = activeShareLabelEdit;
+          trigger.classList.remove('is-editing');
+          input.remove();
+          trigger.textContent = card.dataset.userLabel || '';
           activeShareLabelEdit = null;
         }
       };
@@ -608,7 +608,7 @@
         const shareCard = btn.closest('[data-share-block]');
         const linkId = btn.dataset.linkId;
         if (!shareCard || !linkId) return;
-        if (shareCard.querySelector('[data-inline-editing]')) return;
+        if (btn.classList.contains('is-editing')) return;
 
         if (activeInlineEdit) {
           const { form, btn: openBtn } = activeInlineEdit;
@@ -619,31 +619,24 @@
         teardownShareLabelEditor();
         teardownWeightEditor();
 
-        const form = document.createElement('form');
-        form.className = 'inline-edit';
-        form.dataset.inlineEditing = 'true';
-
         const input = document.createElement('input');
         input.type = 'text';
         input.autocomplete = 'off';
         input.maxLength = 120;
-        input.className = 'inline-edit-input';
+        input.className = 'share-label-input';
         input.placeholder = shareCard.dataset.userEmail || 'Label';
         input.value = btn.textContent.trim();
 
-        const spinner = document.createElement('span');
-        spinner.className = 'inline-edit-spinner hidden';
-
-        form.append(input, spinner);
-        btn.insertAdjacentElement('afterend', form);
-        btn.classList.add('hidden');
-        shareCard.classList.add('is-editing');
+        btn.textContent = '';
+        btn.appendChild(input);
+        btn.classList.add('is-editing');
 
         const finish = () => {
-          form.remove();
-          btn.classList.remove('hidden');
-          shareCard.classList.remove('is-editing');
-          if (activeShareLabelEdit && activeShareLabelEdit.form === form) {
+          btn.classList.remove('is-editing');
+          input.remove();
+          const label = shareCard.dataset.userLabel || input.value.trim();
+          btn.textContent = label;
+          if (activeShareLabelEdit && activeShareLabelEdit.input === input) {
             activeShareLabelEdit = null;
           }
         };
@@ -652,8 +645,7 @@
         const handleSave = async () => {
           if (saving) return;
           saving = true;
-          form.classList.add('is-saving');
-          spinner.classList.remove('hidden');
+          input.classList.add('is-saving');
           try {
             const updatedLabel = input.value.trim();
             const saved = await saveShareLabel(linkId, updatedLabel);
@@ -662,17 +654,12 @@
           } catch (err) {
             console.error('Failed to save label', err);
             saving = false;
-            form.classList.remove('is-saving');
-            spinner.classList.add('hidden');
+            input.classList.remove('is-saving');
           }
         };
 
-        form.addEventListener('submit', (evt) => {
-          evt.preventDefault();
-          handleSave();
-        });
-
         input.addEventListener('keydown', (evt) => {
+          evt.stopPropagation();
           if (evt.key === 'Escape') {
             finish();
           } else if (evt.key === 'Enter') {
@@ -683,7 +670,7 @@
 
         input.addEventListener('blur', handleSave);
 
-        activeShareLabelEdit = { form, trigger: btn, card: shareCard };
+        activeShareLabelEdit = { input, trigger: btn, card: shareCard };
         input.focus();
         input.select();
       };
@@ -1399,9 +1386,9 @@
         form.dataset.inlineEditing = 'true';
         if (isPill || type === 'name') {
           form.style.width = btnW;
-          form.style.minWidth = btnW;
-          form.style.maxWidth = btnW;
-          form.style.flex = '0 0 ' + btnW;
+          form.style.minWidth = type === 'name' ? Math.max(btn.offsetWidth, 120) + 'px' : btnW;
+          form.style.maxWidth = type === 'name' ? '' : btnW;
+          form.style.flex = '0 0 auto';
           form.style.height = btnH;
         }
 
