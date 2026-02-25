@@ -597,6 +597,7 @@
       const teardownShareLabelEditor = () => {
         if (activeShareLabelEdit) {
           const { input, trigger, card } = activeShareLabelEdit;
+          input.dataset.done = '1';
           trigger.classList.remove('is-editing');
           input.remove();
           trigger.textContent = card.dataset.userLabel || '';
@@ -631,10 +632,15 @@
         btn.appendChild(input);
         btn.classList.add('is-editing');
 
+        let done = false;
+        const isDone = () => done || input.dataset.done === '1';
         const finish = () => {
+          if (isDone()) return;
+          done = true;
+          input.dataset.done = '1';
           btn.classList.remove('is-editing');
           input.remove();
-          const label = shareCard.dataset.userLabel || input.value.trim();
+          const label = shareCard.dataset.userLabel || '';
           btn.textContent = label;
           if (activeShareLabelEdit && activeShareLabelEdit.input === input) {
             activeShareLabelEdit = null;
@@ -643,7 +649,7 @@
 
         let saving = false;
         const handleSave = async () => {
-          if (saving) return;
+          if (saving || isDone()) return;
           saving = true;
           input.classList.add('is-saving');
           try {

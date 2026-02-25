@@ -1040,42 +1040,54 @@ a:focus-visible,
   margin: 0;
   display: block;
   max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   min-height: 24px;
+  overflow: visible;
 }
 
 .share-title-btn {
   background: none;
-  border: none;
-  padding: 0;
-  margin: 0;
+  border: 1px solid transparent;
+  padding: 3px 7px;
+  margin: -4px -8px;
   color: inherit;
   font: inherit;
   cursor: pointer;
   text-align: left;
   display: block;
-  width: 100%;
+  width: calc(100% + 16px);
   min-height: 24px;
-  max-width: 100%;
+  max-width: calc(100% + 16px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border-radius: 8px;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  box-sizing: border-box;
+}
+
+.share-title-btn:hover {
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .share-title-btn.is-editing {
-  cursor: default;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  background: rgba(14, 165, 233, 0.08);
+  overflow: visible;
+  white-space: normal;
+  cursor: text;
 }
 
 .share-label-input {
   background: none;
   border: none;
-  border-bottom: 1.5px solid var(--accent);
-  padding: 0;
+  padding: 2px 0;
   margin: 0;
-  color: inherit;
+  color: var(--text);
   font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
   width: 100%;
   outline: none;
 }
