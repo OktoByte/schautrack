@@ -2581,7 +2581,7 @@ a:focus-visible,
 }
 
 .macro-row-fields select {
-  width: 80px;
+  width: 86px;
   flex-shrink: 0;
 }
 
