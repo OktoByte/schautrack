@@ -28,6 +28,7 @@
       <% for (const [key, setting] of Object.entries(settings)) { %>
         <% const isApiKey = key.includes('api_key'); %>
         <form action="/admin/settings" method="POST" class="admin-setting-row">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <input type="hidden" name="key" value="<%= key %>">
           <label class="field">
             <span><%= settingLabels[key] || key %></span>
@@ -100,6 +101,7 @@
           <div class="user-actions">
             <% if (u.id !== user.id) { %>
               <form action="/admin/users/<%= u.id %>/delete" method="POST" class="inline-form" onsubmit="return confirm('Delete user <%= u.email %>? This cannot be undone.');">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <button type="submit" class="ghost danger">Delete</button>
               </form>
             <% } %>

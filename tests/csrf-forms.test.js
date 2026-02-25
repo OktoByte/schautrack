@@ -27,12 +27,14 @@ const CSRF_PROTECTED_ACTIONS = [
   '/settings/link/request',
   '/settings/link/respond',
   '/settings/link/remove',
+  '/admin/settings',
 ];
 
 // Regex routes for POST forms with dynamic IDs (EJS-generated paths).
 const CSRF_PROTECTED_ACTION_PATTERNS = [
   /^\/entries\/.*\/delete$/,
   /^\/weight\/.*\/delete$/,
+  /^\/admin\/users\/.*\/delete$/,
 ];
 
 const viewsDir = path.join(__dirname, '..', 'src', 'views');

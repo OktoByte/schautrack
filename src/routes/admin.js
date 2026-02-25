@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool, getEffectiveSetting, setAdminSetting } = require('../db/pool');
 const { requireLogin, requireAdmin } = require('../middleware/auth');
+const { csrfProtection } = require('../middleware/csrf');
 
 const router = express.Router();
 
@@ -33,7 +34,7 @@ router.get('/admin', requireLogin, requireAdmin, async (req, res) => {
   });
 });
 
-router.post('/admin/settings', requireLogin, requireAdmin, async (req, res) => {
+router.post('/admin/settings', requireLogin, requireAdmin, csrfProtection, async (req, res) => {
   const { key, value } = req.body;
 
   const allowedKeys = {
@@ -69,7 +70,7 @@ router.post('/admin/settings', requireLogin, requireAdmin, async (req, res) => {
   res.redirect('/admin');
 });
 
-router.post('/admin/users/:id/delete', requireLogin, requireAdmin, async (req, res) => {
+router.post('/admin/users/:id/delete', requireLogin, requireAdmin, csrfProtection, async (req, res) => {
   const userId = parseInt(req.params.id, 10);
 
   if (Number.isNaN(userId)) {
