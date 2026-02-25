@@ -625,7 +625,7 @@
 
         try {
           const data = new URLSearchParams(new FormData(form));
-          const r = await fetch(form.action, {
+          const r = await fetch(form.getAttribute('action'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json', 'X-CSRF-Token': csrfToken },
             body: data
