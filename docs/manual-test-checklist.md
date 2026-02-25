@@ -44,7 +44,7 @@ Use this checklist when testing a new release before merging to main.
 - [ ] View linked user's entries (read-only)
 - [ ] Verify timestamps show in YOUR timezone, not theirs
 - [ ] Remove a link
-- [ ] Verify max 3 links enforced
+- [x] Verify max 3 links enforced
 
 ## Timezone Handling
 
@@ -61,12 +61,6 @@ Use this checklist when testing a new release before merging to main.
 - [x] Export data (JSON)
 - [x] Import data
 
-## Data Export/Import
-
-- [ ] Export full data as JSON
-- [ ] Import an export file into a fresh account
-- [ ] Verify all fields round-trip correctly (macros_enabled, macro_goals, entries, etc.)
-
 ## Real-time (SSE)
 
 - [x] Open two browser tabs, add entry in one, verify it appears in the other
@@ -74,19 +68,19 @@ Use this checklist when testing a new release before merging to main.
 
 ## Responsive / Mobile
 
-- [ ] Dashboard usable on mobile viewport
+- [x] Dashboard usable on mobile viewport
 - [x] Calorie input shows numeric keypad (`inputmode="tel"`)
-- [ ] Navigation and modals work on small screens
+- [x] Navigation and modals work on small screens
 
 ## Security
 
-- [ ] Verify CSRF protection (reject forged requests)
-- [ ] Verify session expires / httpOnly cookies
-- [ ] Cannot edit/delete another user's entries
-- [ ] Cannot access admin routes as non-admin
+- [x] Verify CSRF protection (reject forged requests)
+- [x] Verify session expires / httpOnly cookies
+- [x] Cannot edit/delete another user's entries
+- [x] Cannot access admin routes as non-admin
 
 ## Infrastructure
 
-- [ ] `GET /api/health` returns 200 with DB connected
-- [ ] App starts cleanly with `docker compose up`
-- [ ] Schema migrations run on fresh DB without errors
+- [x] `GET /api/health` returns 200 with DB connected
+- [x] App starts cleanly with `docker compose up`
+- [x] Schema migrations run on fresh DB without errors
