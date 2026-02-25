@@ -11,6 +11,16 @@ async function countAcceptedLinks(userId) {
   return parseInt(rows[0]?.count || 0, 10);
 }
 
+async function countAcceptedLinksWithClient(client, userId) {
+  const uid = toInt(userId);
+  if (uid === null) return 0;
+  const { rows } = await client.query(
+    'SELECT COUNT(*) AS count FROM account_links WHERE status = $1 AND (requester_id = $2 OR target_id = $2)',
+    ['accepted', uid]
+  );
+  return parseInt(rows[0]?.count || 0, 10);
+}
+
 async function getLinkBetween(userId, otherUserId) {
   const uid = toInt(userId);
   const oid = toInt(otherUserId);
@@ -118,6 +128,7 @@ async function getAcceptedLinkUsers(userId) {
 
 module.exports = {
   countAcceptedLinks,
+  countAcceptedLinksWithClient,
   getLinkBetween,
   getLinkRequests,
   getAcceptedLinkUsers,

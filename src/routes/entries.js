@@ -100,6 +100,12 @@ function getDateBounds(dayOptions) {
   };
 }
 
+function subtractDaysUTC(dateStr, days) {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
 function sanitizeDateRange(startStr, endStr, fallbackDays = DEFAULT_RANGE_DAYS, userTz = 'UTC') {
   const todayStr = formatDateInTz(new Date(), userTz);
   const requestedEnd = endStr && /^\d{4}-\d{2}-\d{2}$/.test(endStr.trim()) ? endStr.trim() : null;
@@ -107,11 +113,8 @@ function sanitizeDateRange(startStr, endStr, fallbackDays = DEFAULT_RANGE_DAYS, 
 
   const requestedStart = startStr && /^\d{4}-\d{2}-\d{2}$/.test(startStr.trim()) ? startStr.trim() : null;
 
-  // Calculate fallback start by subtracting days from end date
-  const endDateObj = new Date(endDateStr + 'T12:00:00');
-  const fallbackStartObj = new Date(endDateObj);
-  fallbackStartObj.setDate(endDateObj.getDate() - (fallbackDays - 1));
-  const fallbackStartStr = `${fallbackStartObj.getFullYear()}-${String(fallbackStartObj.getMonth() + 1).padStart(2, '0')}-${String(fallbackStartObj.getDate()).padStart(2, '0')}`;
+  // Calculate fallback start by subtracting days from end date (pure UTC arithmetic)
+  const fallbackStartStr = subtractDaysUTC(endDateStr, fallbackDays - 1);
 
   let startDateStr = requestedStart || fallbackStartStr;
   if (startDateStr > endDateStr) {
@@ -119,9 +122,7 @@ function sanitizeDateRange(startStr, endStr, fallbackDays = DEFAULT_RANGE_DAYS, 
   }
 
   // Calculate max lookback
-  const maxLookbackObj = new Date(endDateObj);
-  maxLookbackObj.setDate(endDateObj.getDate() - (MAX_HISTORY_DAYS - 1));
-  const maxLookbackStr = `${maxLookbackObj.getFullYear()}-${String(maxLookbackObj.getMonth() + 1).padStart(2, '0')}-${String(maxLookbackObj.getDate()).padStart(2, '0')}`;
+  const maxLookbackStr = subtractDaysUTC(endDateStr, MAX_HISTORY_DAYS - 1);
 
   if (startDateStr < maxLookbackStr) {
     startDateStr = maxLookbackStr;
@@ -1093,3 +1094,4 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), csrf
 
 module.exports = router;
 module.exports.buildDailyStats = buildDailyStats;
+module.exports.sanitizeDateRange = sanitizeDateRange;
