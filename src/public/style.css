@@ -2677,7 +2677,7 @@ input[data-auto-calc-locked] {
 }
 
 .entry-field-nutrient input {
-  text-align: center;
+  text-align: left;
   font-variant-numeric: tabular-nums;
 }
 
