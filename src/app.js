@@ -8,7 +8,6 @@ const helmet = require('helmet');
 const { pool } = require('./db/pool');
 const { attachUser } = require('./middleware/auth');
 const { addCsrfToken } = require('./middleware/csrf');
-const { loadGlobalSettings } = require('./middleware/settings');
 const { errorHandler, notFoundHandler } = require('./middleware/error');
 const { rememberClientTimezone } = require('./lib/utils');
 
@@ -24,10 +23,7 @@ const app = express();
 // Required for secure cookies behind reverse proxy (nginx, Caddy, etc.)
 app.set('trust proxy', true);
 
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-
-// Security headers via Helmet
+// Security headers via Helmet (no EJS — React SPA handles all rendering)
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -35,7 +31,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "blob:"],
-      scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for timezone detection
+      scriptSrc: ["'self'"],
     },
   },
   crossOriginEmbedderPolicy: false, // Allow file uploads
@@ -96,9 +92,6 @@ ${pages.map(p => `  <url>
   res.send(xml);
 });
 
-// Global settings and context setup
-app.use(loadGlobalSettings);
-
 // Session middleware
 // Default maxAge is short (15 min) so anonymous/bot sessions expire quickly.
 // Authenticated sessions get upgraded to 30 days on login (see routes/auth.js).
@@ -136,24 +129,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Landing page
-app.get('/', async (req, res) => {
-  if (req.currentUser) {
-    return res.redirect('/dashboard');
-  }
-  const { getEffectiveSetting } = require('./db/pool');
-  const effectiveEnableLegal = await getEffectiveSetting('enable_legal', process.env.ENABLE_LEGAL);
-  const effectiveImprintUrl = await getEffectiveSetting('imprint_url', process.env.IMPRINT_URL);
-  res.render('landing', {
-    currentUser: null,
-    activePage: 'home',
-    isAdmin: false,
-    enableLegal: effectiveEnableLegal.value === 'true',
-    imprintUrl: effectiveImprintUrl.value || '/imprint',
-    buildVersion: process.env.BUILD_VERSION || null
-  });
-});
-
 // Mount route modules
 const healthRoutes = require('./routes/health');
 const legalRoutes = require('./routes/legal');
@@ -166,7 +141,10 @@ const linksRoutes = require('./routes/links');
 const adminRoutes = require('./routes/admin');
 const settingsRoutes = require('./routes/settings');
 
+const apiRoutes = require('./routes/api');
+
 app.use('/api', healthRoutes);
+app.use('/api', apiRoutes);
 app.use('/', legalRoutes);
 app.use('/', authRoutes);
 app.use('/', entriesRoutes);
@@ -176,6 +154,20 @@ app.use('/', aiRoutes);
 app.use('/', linksRoutes);
 app.use('/', adminRoutes);
 app.use('/', settingsRoutes);
+
+// SPA fallback - serve index.html for non-API routes in production
+const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
+const fs = require('fs');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath, { maxAge: '7d', etag: true, lastModified: true }));
+  app.get('*', (req, res, next) => {
+    // Don't serve SPA for API routes or SSE
+    if (req.path.startsWith('/api/') || req.path.startsWith('/events/')) {
+      return next();
+    }
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
 
 // Error handling middleware
 app.use(errorHandler);

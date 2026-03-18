@@ -171,250 +171,48 @@ async function verifyEmailChangeToken(userId, token) {
   return { tokenId: row.id, newEmail: row.new_email };
 }
 
-// Routes
-router.get('/register', (req, res) => {
-  if (req.currentUser) {
-    return res.redirect('/dashboard');
-  }
-  // Clear any pending registration
-  delete req.session.pendingRegistration;
-  res.render('register', { error: null, email: '', requireCaptcha: false, captchaSvg: null });
-});
+// ---- SPA JSON Auth API ----
 
-router.post('/register', authLimiter, csrfProtection, async (req, res) => {
-  if (req.currentUser) {
-    return res.redirect('/dashboard');
-  }
-
-  const { step, captcha } = req.body;
-
-  // Step 1: Credentials submitted - validate and show CAPTCHA
-  if (step === 'credentials') {
-    const email = (req.body.email || '').toLowerCase().trim();
-    const { password, timezone } = req.body;
-
-    if (!email || !password) {
-      return res.render('register', {
-        error: 'Email and password are required.',
-        email,
-        requireCaptcha: false,
-        captchaSvg: null,
-      });
-    }
-
-    if (password.length < 10) {
-      return res.render('register', {
-        error: 'Password must be at least 10 characters.',
-        email,
-        requireCaptcha: false,
-        captchaSvg: null,
-      });
-    }
-
-    try {
-      const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-      if (existing.rows.length > 0) {
-        return res.render('register', {
-          error: 'Account already exists.',
-          email,
-          requireCaptcha: false,
-          captchaSvg: null,
-        });
-      }
-
-      // Store credentials in session and show CAPTCHA (hash password for security)
-      const detectedTz = timezone || getClientTimezone(req) || 'UTC';
-      const passwordHash = await argon2.hash(password);
-      req.session.pendingRegistration = { email, passwordHash, timezone: detectedTz, createdAt: Date.now() };
-
-      const newCaptcha = generateCaptcha();
-      req.session.captchaAnswer = newCaptcha.text;
-
-      return res.render('register', {
-        error: null,
-        email,
-        requireCaptcha: true,
-        captchaSvg: newCaptcha.data,
-      });
-    } catch (err) {
-      console.error('Registration error', err);
-      return res.render('register', {
-        error: 'Could not register user.',
-        email,
-        requireCaptcha: false,
-        captchaSvg: null,
-      });
-    }
-  }
-
-  // Step 2: CAPTCHA submitted - verify and create account
-  if (step === 'captcha') {
-    const pending = req.session.pendingRegistration;
-    const PENDING_REG_EXPIRY = 30 * 60 * 1000; // 30 minutes
-    if (!pending || !pending.email || !pending.passwordHash ||
-        (pending.createdAt && Date.now() - pending.createdAt > PENDING_REG_EXPIRY)) {
-      delete req.session.pendingRegistration;
-      return res.render('register', {
-        error: 'Registration session expired. Please start again.',
-        email: '',
-        requireCaptcha: false,
-        captchaSvg: null,
-      });
-    }
-
-    // Helper to render CAPTCHA step with error
-    const renderCaptchaError = (error) => {
-      const newCaptcha = generateCaptcha();
-      req.session.captchaAnswer = newCaptcha.text;
-      return res.render('register', {
-        error,
-        email: pending.email,
-        requireCaptcha: true,
-        captchaSvg: newCaptcha.data,
-      });
-    };
-
-    if (!verifyCaptcha(req.session.captchaAnswer, captcha)) {
-      return renderCaptchaError('Invalid captcha. Please try again.');
-    }
-
-    // Clear CAPTCHA after successful verification
-    delete req.session.captchaAnswer;
-
-    try {
-      // Check again that email doesn't exist (race condition protection)
-      const existing = await pool.query('SELECT id FROM users WHERE email = $1', [pending.email]);
-      if (existing.rows.length > 0) {
-        delete req.session.pendingRegistration;
-        return res.render('register', {
-          error: 'Account already exists.',
-          email: pending.email,
-          requireCaptcha: false,
-          captchaSvg: null,
-        });
-      }
-
-      // If SMTP is configured, require email verification
-      if (isSmtpConfigured()) {
-        const { rows } = await pool.query(
-          'INSERT INTO users (email, password_hash, timezone, email_verified, macros_enabled) VALUES ($1, $2, $3, FALSE, $4) RETURNING id',
-          [pending.email, pending.passwordHash, pending.timezone, JSON.stringify({ calories: true })]
-        );
-        const userId = rows[0].id;
-        const code = await createEmailVerificationToken(userId);
-        await sendVerificationEmail(pending.email, code);
-
-        // Clear pending and store email for verification page
-        delete req.session.pendingRegistration;
-        req.session.verifyEmail = pending.email;
-        req.session.verifyCodeVerified = false;
-        return res.redirect('/verify-email');
-      } else {
-        // No SMTP, auto-verify and log in
-        const { rows } = await pool.query(
-          'INSERT INTO users (email, password_hash, timezone, email_verified, macros_enabled) VALUES ($1, $2, $3, TRUE, $4) RETURNING id',
-          [pending.email, pending.passwordHash, pending.timezone, JSON.stringify({ calories: true })]
-        );
-        delete req.session.pendingRegistration;
-        req.session.userId = rows[0].id;
-        req.session.cookie.maxAge = AUTH_SESSION_MAX_AGE;
-        return res.redirect('/dashboard');
-      }
-    } catch (err) {
-      console.error('Registration error', err);
-      return renderCaptchaError('Could not register user.');
-    }
-  }
-
-  // Invalid step
-  res.redirect('/register');
-});
-
-router.get('/login', (req, res) => {
-  if (req.currentUser) {
-    return res.redirect('/dashboard');
-  }
-  // Show CAPTCHA if there have been 3+ failed attempts
-  const failedAttempts = req.session.loginFailedAttempts || 0;
-  let captchaSvg = null;
-  if (failedAttempts >= 3) {
-    const captcha = generateCaptcha();
-    req.session.captchaAnswer = captcha.text;
-    captchaSvg = captcha.data;
-  }
-  res.render('login', { error: null, requireToken: false, email: '', captchaSvg });
-});
-
-router.post('/login', authLimiter, csrfProtection, async (req, res) => {
+router.post('/api/auth/login', authLimiter, csrfProtection, async (req, res) => {
   const { email, password, token, captcha } = req.body;
   const pendingUserId = req.session.pendingUserId;
   const failedAttempts = req.session.loginFailedAttempts || 0;
 
-  // Helper to render login with CAPTCHA if needed
-  const renderLogin = (error, opts = {}) => {
-    const attempts = req.session.loginFailedAttempts || 0;
-    let captchaSvg = null;
-    if (attempts >= 3) {
-      const newCaptcha = generateCaptcha();
-      req.session.captchaAnswer = newCaptcha.text;
-      captchaSvg = newCaptcha.data;
-    }
-    return res.render('login', {
-      error,
-      requireToken: opts.requireToken || false,
-      email: opts.email || '',
-      captchaSvg,
-    });
-  };
-
-  // Helper to record a failed attempt
   const recordFailure = () => {
     req.session.loginFailedAttempts = (req.session.loginFailedAttempts || 0) + 1;
   };
 
   try {
-    // Second step: pending login waiting for TOTP only
+    // TOTP step
     if (token && pendingUserId) {
       const { getUserById } = require('../middleware/auth');
       const pendingUser = await getUserById(pendingUserId);
       if (!pendingUser || !pendingUser.totp_enabled || !pendingUser.totp_secret) {
         delete req.session.pendingUserId;
-        return renderLogin('Invalid 2FA session.');
+        return res.status(400).json({ ok: false, error: 'Invalid 2FA session.' });
       }
-
-      const ok = speakeasy.totp.verify({
-        secret: pendingUser.totp_secret,
-        encoding: 'base32',
-        token,
-        window: 1,
-      });
-
+      const ok = speakeasy.totp.verify({ secret: pendingUser.totp_secret, encoding: 'base32', token, window: 1 });
       if (!ok) {
-        return res.render('login', { error: 'Invalid 2FA code.', requireToken: true, email: pendingUser.email, captchaSvg: null });
+        return res.status(401).json({ ok: false, error: 'Invalid 2FA code.' });
       }
-
-      // Success - regenerate session to prevent fixation, then upgrade to full duration
       return req.session.regenerate((err) => {
-        if (err) {
-          console.error('Session regeneration failed', err);
-          return renderLogin('Could not log in. Please try again.');
-        }
+        if (err) return res.status(500).json({ ok: false, error: 'Session error.' });
         req.session.userId = pendingUser.id;
         req.session.cookie.maxAge = AUTH_SESSION_MAX_AGE;
-        return res.redirect('/dashboard');
+        return res.json({ ok: true });
       });
     }
 
     if (!email || !password) {
-      return renderLogin('Email and password are required.', { email: email || '' });
+      return res.status(400).json({ ok: false, error: 'Email and password are required.' });
     }
 
-    // Verify CAPTCHA if required (3+ failed attempts)
     if (failedAttempts >= 3) {
       if (!verifyCaptcha(req.session.captchaAnswer, captcha)) {
-        return renderLogin('Invalid captcha. Please try again.', { email });
+        const newCaptcha = generateCaptcha();
+        req.session.captchaAnswer = newCaptcha.text;
+        return res.status(400).json({ ok: false, error: 'Invalid captcha.', captchaSvg: newCaptcha.data, requireCaptcha: true });
       }
-      // Clear CAPTCHA after successful verification
       delete req.session.captchaAnswer;
     }
 
@@ -422,498 +220,304 @@ router.post('/login', authLimiter, csrfProtection, async (req, res) => {
     const user = rows[0];
     if (!user) {
       recordFailure();
-      return renderLogin('Invalid credentials.', { email });
+      const attempts = req.session.loginFailedAttempts || 0;
+      let captchaSvg = null;
+      if (attempts >= 3) {
+        const c = generateCaptcha();
+        req.session.captchaAnswer = c.text;
+        captchaSvg = c.data;
+      }
+      return res.status(401).json({ ok: false, error: 'Invalid credentials.', captchaSvg, requireCaptcha: attempts >= 3 });
     }
 
     const validPassword = await verifyAndMigratePassword(user.password_hash, password, user.id);
     if (!validPassword) {
       recordFailure();
-      return renderLogin('Invalid credentials.', { email });
+      const attempts = req.session.loginFailedAttempts || 0;
+      let captchaSvg = null;
+      if (attempts >= 3) {
+        const c = generateCaptcha();
+        req.session.captchaAnswer = c.text;
+        captchaSvg = c.data;
+      }
+      return res.status(401).json({ ok: false, error: 'Invalid credentials.', captchaSvg, requireCaptcha: attempts >= 3 });
     }
 
-    // Check if email is verified (only if SMTP is configured)
     if (isSmtpConfigured() && !user.email_verified) {
-      // Store email in session for verification page
       req.session.verifyEmail = user.email;
-      req.session.verifyCodeVerified = false;
-      return res.redirect('/verify-email');
+      return res.json({ ok: false, requireVerification: true });
     }
 
     if (user.totp_enabled) {
-      // Require TOTP as a second step without re-entering password
       req.session.pendingUserId = user.id;
-      return res.render('login', {
-        error: null,
-        requireToken: true,
-        email,
-        captchaSvg: null,
-      });
+      return res.json({ ok: false, requireToken: true });
     }
 
-    // Success - regenerate session to prevent fixation, then upgrade to full duration
     return req.session.regenerate((err) => {
-      if (err) {
-        console.error('Session regeneration failed', err);
-        return renderLogin('Could not log in. Please try again.', { email });
-      }
+      if (err) return res.status(500).json({ ok: false, error: 'Session error.' });
       req.session.userId = user.id;
       req.session.cookie.maxAge = AUTH_SESSION_MAX_AGE;
-      return res.redirect('/dashboard');
+      return res.json({ ok: true });
     });
   } catch (err) {
-    console.error('Login error', err);
-    renderLogin('Could not log in.', { email: email || '' });
+    console.error('Login API error', err);
+    return res.status(500).json({ ok: false, error: 'Could not log in.' });
   }
 });
 
-router.post('/logout', requireLogin, csrfProtection, (req, res) => {
-  req.session.destroy(() => res.redirect('/login'));
+router.post('/api/auth/register', authLimiter, csrfProtection, async (req, res) => {
+  const { step, email, password, timezone, captcha } = req.body;
+
+  if (step === 'credentials') {
+    const emailClean = (email || '').toLowerCase().trim();
+    if (!emailClean || !password) {
+      return res.status(400).json({ ok: false, error: 'Email and password are required.' });
+    }
+    if (password.length < 10) {
+      return res.status(400).json({ ok: false, error: 'Password must be at least 10 characters.' });
+    }
+    try {
+      const existing = await pool.query('SELECT id FROM users WHERE email = $1', [emailClean]);
+      if (existing.rows.length > 0) {
+        return res.status(409).json({ ok: false, error: 'Account already exists.' });
+      }
+      const detectedTz = timezone || getClientTimezone(req) || 'UTC';
+      const passwordHash = await argon2.hash(password);
+      req.session.pendingRegistration = { email: emailClean, passwordHash, timezone: detectedTz, createdAt: Date.now() };
+      const newCaptcha = generateCaptcha();
+      req.session.captchaAnswer = newCaptcha.text;
+      return res.json({ ok: true, requireCaptcha: true, captchaSvg: newCaptcha.data });
+    } catch (err) {
+      console.error('Registration API error', err);
+      return res.status(500).json({ ok: false, error: 'Could not register.' });
+    }
+  }
+
+  if (step === 'captcha') {
+    const pending = req.session.pendingRegistration;
+    const PENDING_REG_EXPIRY = 30 * 60 * 1000;
+    if (!pending || !pending.email || !pending.passwordHash ||
+        (pending.createdAt && Date.now() - pending.createdAt > PENDING_REG_EXPIRY)) {
+      delete req.session.pendingRegistration;
+      return res.status(400).json({ ok: false, error: 'Registration session expired.' });
+    }
+    if (!verifyCaptcha(req.session.captchaAnswer, captcha)) {
+      const newCaptcha = generateCaptcha();
+      req.session.captchaAnswer = newCaptcha.text;
+      return res.status(400).json({ ok: false, error: 'Invalid captcha.', captchaSvg: newCaptcha.data });
+    }
+    delete req.session.captchaAnswer;
+    try {
+      const existing = await pool.query('SELECT id FROM users WHERE email = $1', [pending.email]);
+      if (existing.rows.length > 0) {
+        delete req.session.pendingRegistration;
+        return res.status(409).json({ ok: false, error: 'Account already exists.' });
+      }
+      if (isSmtpConfigured()) {
+        const { rows } = await pool.query(
+          'INSERT INTO users (email, password_hash, timezone, email_verified, macros_enabled) VALUES ($1, $2, $3, FALSE, $4) RETURNING id',
+          [pending.email, pending.passwordHash, pending.timezone, JSON.stringify({ calories: true })]
+        );
+        const code = await createEmailVerificationToken(rows[0].id);
+        await sendVerificationEmail(pending.email, code);
+        delete req.session.pendingRegistration;
+        req.session.verifyEmail = pending.email;
+        return res.json({ ok: true, requireVerification: true });
+      } else {
+        const { rows } = await pool.query(
+          'INSERT INTO users (email, password_hash, timezone, email_verified, macros_enabled) VALUES ($1, $2, $3, TRUE, $4) RETURNING id',
+          [pending.email, pending.passwordHash, pending.timezone, JSON.stringify({ calories: true })]
+        );
+        delete req.session.pendingRegistration;
+        req.session.userId = rows[0].id;
+        req.session.cookie.maxAge = AUTH_SESSION_MAX_AGE;
+        return res.json({ ok: true });
+      }
+    } catch (err) {
+      console.error('Registration captcha API error', err);
+      return res.status(500).json({ ok: false, error: 'Could not register.' });
+    }
+  }
+
+  return res.status(400).json({ ok: false, error: 'Invalid step.' });
 });
 
-router.get('/forgot-password', (req, res) => {
-  if (req.currentUser) {
-    return res.redirect('/dashboard');
-  }
-  // Generate SVG CAPTCHA
-  const captcha = generateCaptcha();
-  req.session.captchaAnswer = captcha.text;
-  res.render('forgot-password', {
-    error: null,
-    success: null,
-    smtpConfigured: isSmtpConfigured(),
-    captchaSvg: captcha.data,
-    email: '',
+router.post('/api/auth/logout', requireLogin, csrfProtection, (req, res) => {
+  req.session.destroy((err) => {
+    if (err) return res.status(500).json({ ok: false });
+    res.json({ ok: true });
   });
 });
 
-router.post('/forgot-password', strictLimiter, csrfProtection, async (req, res) => {
-  if (req.currentUser) {
-    return res.redirect('/dashboard');
-  }
-
+router.post('/api/auth/forgot-password', strictLimiter, csrfProtection, async (req, res) => {
   const email = (req.body.email || '').toLowerCase().trim();
-
-  // Helper to render with new CAPTCHA (preserves email)
-  const renderWithCaptcha = (error) => {
-    const captcha = generateCaptcha();
-    req.session.captchaAnswer = captcha.text;
-    return res.render('forgot-password', {
-      error,
-      success: null,
-      smtpConfigured: isSmtpConfigured(),
-      captchaSvg: captcha.data,
-      email,
-    });
-  };
+  const captchaAnswer = (req.body.captcha || '').trim();
 
   if (!isSmtpConfigured()) {
-    return renderWithCaptcha('Password recovery is not available. Please contact support.');
+    return res.status(400).json({ ok: false, error: 'Password recovery not available.' });
   }
-
-  // Verify CAPTCHA
-  const captchaAnswer = (req.body.captcha || '').trim();
   if (!verifyCaptcha(req.session.captchaAnswer, captchaAnswer)) {
-    return renderWithCaptcha('Incorrect answer. Please try again.');
+    const c = generateCaptcha();
+    req.session.captchaAnswer = c.text;
+    return res.status(400).json({ ok: false, error: 'Invalid captcha.', captchaSvg: c.data });
   }
-
   if (!email) {
-    return renderWithCaptcha('Please enter your email address.');
+    return res.status(400).json({ ok: false, error: 'Email is required.' });
   }
 
   try {
     const { rows } = await pool.query('SELECT id, email FROM users WHERE email = $1', [email]);
     const user = rows[0];
-
     if (user) {
       const code = await createPasswordResetToken(user.id);
       const subject = 'Password Reset Code - Schautrack';
-      const text = `Your password reset code is: ${code}\n\nThis code expires in 30 minutes.\n\nIf you did not request this, you can ignore this email.`;
-      const html = `
-        <p>Your password reset code is:</p>
-        <h2 style="font-family: monospace; letter-spacing: 4px;">${code}</h2>
-        <p>This code expires in 30 minutes.</p>
-        <p>If you did not request this, you can ignore this email.</p>
-      `;
+      const text = `Your password reset code is: ${code}\n\nThis code expires in 30 minutes.`;
+      const html = `<p>Your password reset code is:</p><h2 style="font-family: monospace; letter-spacing: 4px;">${code}</h2><p>This code expires in 30 minutes.</p>`;
       await sendEmail(user.email, subject, text, html);
     }
-
-    // Clear CAPTCHA answer from session
     delete req.session.captchaAnswer;
-
-    // Store email in session for reset-password page
     req.session.resetEmail = email;
     req.session.resetCodeVerified = false;
-
-    // Redirect to reset-password page
-    res.redirect('/reset-password');
+    return res.json({ ok: true });
   } catch (err) {
-    console.error('Forgot password error', err);
-    renderWithCaptcha('Could not process request. Please try again.');
+    console.error('Forgot password API error', err);
+    return res.status(500).json({ ok: false, error: 'Could not process request.' });
   }
 });
 
-router.get('/reset-password', (req, res) => {
-  if (req.currentUser) {
-    return res.redirect('/dashboard');
-  }
+router.post('/api/auth/reset-password', csrfProtection, async (req, res) => {
   const email = req.session.resetEmail || '';
-  const codeVerified = req.session.resetCodeVerified || false;
-
-  // If no email in session, redirect to forgot-password
   if (!email) {
-    return res.redirect('/forgot-password');
+    return res.status(400).json({ ok: false, error: 'No reset session.' });
   }
 
-  res.render('reset-password', { error: null, success: null, email, codeVerified });
-});
-
-router.post('/reset-password', csrfProtection, async (req, res) => {
-  if (req.currentUser) {
-    return res.redirect('/dashboard');
-  }
-
-  const email = req.session.resetEmail || '';
-  const code = (req.body.code || '').trim();
-  const password = req.body.password || '';
-  const confirmPassword = req.body.confirm_password || '';
+  const { code, password, confirm_password } = req.body;
   const codeVerified = req.session.resetCodeVerified || false;
-
-  // If no email in session, redirect to forgot-password
-  if (!email) {
-    return res.redirect('/forgot-password');
-  }
 
   // Step 1: Verify code
   if (!codeVerified) {
-    if (!code) {
-      return res.render('reset-password', {
-        error: 'Please enter the reset code.',
-        success: null,
-        email,
-        codeVerified: false,
-      });
-    }
-
+    if (!code) return res.status(400).json({ ok: false, error: 'Code is required.' });
     try {
       const tokenResult = await verifyPasswordResetToken(email, code);
       if (!tokenResult) {
-        return res.render('reset-password', {
-          error: 'Invalid or expired code. Please request a new one.',
-          success: null,
-          email,
-          codeVerified: false,
-        });
+        return res.status(400).json({ ok: false, error: 'Invalid or expired code.' });
       }
-
-      // Code is valid - store in session and show password form
       req.session.resetCodeVerified = true;
       req.session.resetTokenId = tokenResult.tokenId;
       req.session.resetUserId = tokenResult.userId;
-      return res.render('reset-password', {
-        error: null,
-        success: null,
-        email,
-        codeVerified: true,
-      });
+      return res.json({ ok: true, codeVerified: true });
     } catch (err) {
-      console.error('Reset code verification error', err);
-      return res.render('reset-password', {
-        error: 'Could not verify code. Please try again.',
-        success: null,
-        email,
-        codeVerified: false,
-      });
+      return res.status(500).json({ ok: false, error: 'Verification failed.' });
     }
   }
 
   // Step 2: Set new password
-  if (!password) {
-    return res.render('reset-password', {
-      error: 'Password is required.',
-      success: null,
-      email,
-      codeVerified: true,
-    });
-  }
-
-  if (password !== confirmPassword) {
-    return res.render('reset-password', {
-      error: 'Passwords do not match.',
-      success: null,
-      email,
-      codeVerified: true,
-    });
-  }
-
-  if (password.length < 10) {
-    return res.render('reset-password', {
-      error: 'Password must be at least 10 characters.',
-      success: null,
-      email,
-      codeVerified: true,
-    });
-  }
+  if (!password) return res.status(400).json({ ok: false, error: 'Password is required.' });
+  if (password !== confirm_password) return res.status(400).json({ ok: false, error: 'Passwords do not match.' });
+  if (password.length < 10) return res.status(400).json({ ok: false, error: 'Password must be at least 10 characters.' });
 
   try {
     const userId = req.session.resetUserId;
     const tokenId = req.session.resetTokenId;
-
     if (!userId || !tokenId) {
-      // Session expired, start over
       delete req.session.resetEmail;
-      delete req.session.resetCodeVerified;
-      delete req.session.resetTokenId;
-      delete req.session.resetUserId;
-      return res.redirect('/forgot-password');
+      return res.status(400).json({ ok: false, error: 'Session expired.' });
     }
-
     const hash = await argon2.hash(password);
     await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, userId]);
     await markTokenUsed(tokenId);
-    await cleanExpiredTokens();
-
-    // Clear session data
     delete req.session.resetEmail;
     delete req.session.resetCodeVerified;
     delete req.session.resetTokenId;
     delete req.session.resetUserId;
-
-    res.render('reset-password', {
-      error: null,
-      success: 'Password updated successfully. You can now log in.',
-      email: '',
-      codeVerified: false,
-    });
+    return res.json({ ok: true });
   } catch (err) {
-    console.error('Reset password error', err);
-    res.render('reset-password', {
-      error: 'Could not reset password. Please try again.',
-      success: null,
-      email,
-      codeVerified: true,
-    });
+    return res.status(500).json({ ok: false, error: 'Could not reset password.' });
   }
 });
 
-// Email verification routes
-router.get('/verify-email', (req, res) => {
-  if (req.currentUser) {
-    return res.redirect('/dashboard');
-  }
+router.post('/api/auth/verify-email', csrfProtection, async (req, res) => {
   const email = req.session.verifyEmail || '';
-  const codeVerified = req.session.verifyCodeVerified || false;
-  const supportEmail = res.locals.supportEmail || null;
+  if (!email) return res.status(400).json({ ok: false, error: 'No verification session.' });
 
-  // If no email in session, redirect to login
-  if (!email) {
-    return res.redirect('/login');
-  }
-
-  res.render('verify-email', { error: null, success: null, email, codeVerified, supportEmail, verifyAttempts: req.session.verifyAttempts || 0, captchaSvg: null });
-});
-
-router.post('/verify-email', csrfProtection, async (req, res) => {
-  if (req.currentUser) {
-    return res.redirect('/dashboard');
-  }
-
-  const email = req.session.verifyEmail || '';
   const code = (req.body.code || '').trim();
-  const supportEmail = res.locals.supportEmail || null;
-
-  // If no email in session, redirect to login
-  if (!email) {
-    return res.redirect('/login');
-  }
-
-  // Rate limit: max 5 verification attempts per session
   const verifyAttempts = req.session.verifyAttempts || 0;
   if (verifyAttempts >= 5) {
-    return res.render('verify-email', {
-      error: 'Too many attempts. Please request a new code.',
-      success: null,
-      email,
-      codeVerified: false,
-      supportEmail,
-      verifyAttempts,
-      captchaSvg: null,
-    });
+    return res.status(429).json({ ok: false, error: 'Too many attempts.' });
   }
-
-  if (!code) {
-    return res.render('verify-email', {
-      error: 'Please enter the verification code.',
-      success: null,
-      email,
-      codeVerified: false,
-      supportEmail,
-      verifyAttempts,
-      captchaSvg: null,
-    });
-  }
+  if (!code) return res.status(400).json({ ok: false, error: 'Code is required.' });
 
   try {
     const tokenResult = await verifyEmailToken(email, code);
     if (!tokenResult) {
       req.session.verifyAttempts = verifyAttempts + 1;
-      return res.render('verify-email', {
-        error: 'Invalid or expired code. Please request a new one.',
-        success: null,
-        email,
-        codeVerified: false,
-        supportEmail,
-        verifyAttempts: verifyAttempts + 1,
-        captchaSvg: null,
-      });
+      return res.status(400).json({ ok: false, error: 'Invalid or expired code.' });
     }
-
-    // Mark token as used and user as verified
     await markEmailVerificationUsed(tokenResult.tokenId);
     await markUserVerified(tokenResult.userId);
-    await cleanExpiredTokens();
-
-    // Clear session data and log user in
     delete req.session.verifyEmail;
-    delete req.session.verifyCodeVerified;
     delete req.session.verifyAttempts;
-    delete req.session.resendAttempts;
-    delete req.session.lastResendAt;
-    delete req.session.resendCaptchaAnswer;
     req.session.userId = tokenResult.userId;
     req.session.cookie.maxAge = AUTH_SESSION_MAX_AGE;
-
-    return res.redirect('/dashboard');
+    return res.json({ ok: true });
   } catch (err) {
-    console.error('Email verification error', err);
-    res.render('verify-email', {
-      error: 'Could not verify email. Please try again.',
-      success: null,
-      email,
-      codeVerified: false,
-      supportEmail,
-      verifyAttempts,
-      captchaSvg: null,
-    });
+    return res.status(500).json({ ok: false, error: 'Verification failed.' });
   }
 });
 
-router.post('/verify-email/resend', csrfProtection, async (req, res) => {
-  if (req.currentUser) {
-    return res.redirect('/dashboard');
-  }
-
+router.post('/api/auth/verify-email/resend', csrfProtection, async (req, res) => {
   const email = req.session.verifyEmail || '';
-  const supportEmail = res.locals.supportEmail || null;
+  if (!email) return res.status(400).json({ ok: false, error: 'No verification session.' });
 
-  // If no email in session, redirect to login
-  if (!email) {
-    return res.redirect('/login');
-  }
-
-  // Rate limit: max 3 resend attempts per session
   const resendAttempts = req.session.resendAttempts || 0;
-  const verifyAttempts = req.session.verifyAttempts || 0;
   if (resendAttempts >= 3) {
-    return res.render('verify-email', {
-      error: 'Too many resend requests. Please wait and try again later.',
-      success: null,
-      email,
-      codeVerified: false,
-      supportEmail,
-      verifyAttempts,
-      captchaSvg: null,
-    });
+    return res.status(429).json({ ok: false, error: 'Too many resend requests.' });
   }
 
-  // After the first resend: require 5-minute cooldown and captcha
   if (resendAttempts > 0) {
     const lastResendAt = req.session.lastResendAt || 0;
     const elapsed = Date.now() - lastResendAt;
     if (elapsed < 300000) {
       const remaining = Math.ceil((300000 - elapsed) / 1000);
-      const mins = Math.floor(remaining / 60);
-      const secs = remaining % 60;
-      return res.render('verify-email', {
-        error: `Please wait ${mins}:${secs < 10 ? '0' : ''}${secs} before requesting another code.`,
-        success: null,
-        email,
-        codeVerified: false,
-        supportEmail,
-        verifyAttempts,
-        captchaSvg: null,
-      });
+      return res.status(429).json({ ok: false, error: `Please wait ${remaining}s.`, cooldown: remaining });
     }
-
     const captchaAnswer = (req.body.captcha || '').trim();
     if (!verifyCaptcha(req.session.resendCaptchaAnswer, captchaAnswer)) {
-      const captcha = generateCaptcha();
-      req.session.resendCaptchaAnswer = captcha.text;
-      return res.render('verify-email', {
-        error: captchaAnswer ? 'Incorrect captcha. Please try again.' : null,
-        success: null,
-        email,
-        codeVerified: false,
-        supportEmail,
-        verifyAttempts,
-        captchaSvg: captcha.data,
-      });
+      const c = generateCaptcha();
+      req.session.resendCaptchaAnswer = c.text;
+      return res.status(400).json({ ok: false, error: 'Invalid captcha.', captchaSvg: c.data, requireCaptcha: true });
     }
     delete req.session.resendCaptchaAnswer;
   }
 
   try {
-    // Get the user
     const { rows } = await pool.query('SELECT id, email_verified FROM users WHERE email = $1', [email]);
     const user = rows[0];
+    if (!user) return res.status(400).json({ ok: false, error: 'User not found.' });
+    if (user.email_verified) return res.json({ ok: true, alreadyVerified: true });
 
-    if (!user) {
-      delete req.session.verifyEmail;
-      return res.redirect('/login');
-    }
-
-    if (user.email_verified) {
-      delete req.session.verifyEmail;
-      return res.render('verify-email', {
-        error: null,
-        success: 'Your email is already verified. You can log in.',
-        email: '',
-        codeVerified: true,
-        supportEmail,
-        verifyAttempts: 0,
-        captchaSvg: null,
-      });
-    }
-
-    // Create new token and send email
     const code = await createEmailVerificationToken(user.id);
     await sendVerificationEmail(email, code);
-
-    // Increment resend counter, reset verify attempts, record timestamp
     req.session.resendAttempts = resendAttempts + 1;
     req.session.verifyAttempts = 0;
     req.session.lastResendAt = Date.now();
 
-    res.render('verify-email', {
-      error: null,
-      success: 'A new verification code has been sent to your email.',
-      email,
-      codeVerified: false,
-      supportEmail,
-      verifyAttempts: 0,
-      captchaSvg: null,
-    });
+    // If this was the first resend, next one will need captcha
+    if (resendAttempts === 0) {
+      const c = generateCaptcha();
+      req.session.resendCaptchaAnswer = c.text;
+      return res.json({ ok: true, nextRequiresCaptcha: true, captchaSvg: c.data });
+    }
+    return res.json({ ok: true });
   } catch (err) {
-    console.error('Resend verification error', err);
-    res.render('verify-email', {
-      error: 'Could not send verification code. Please try again later.',
-      success: null,
-      email,
-      codeVerified: false,
-      supportEmail,
-      verifyAttempts,
-      captchaSvg: null,
-    });
+    return res.status(500).json({ ok: false, error: 'Could not resend.' });
   }
+});
+
+router.get('/api/auth/captcha', (req, res) => {
+  const c = generateCaptcha();
+  req.session.captchaAnswer = c.text;
+  res.json({ svg: c.data });
 });
 
 // Account deletion
@@ -922,8 +526,7 @@ router.post('/delete', requireLogin, csrfProtection, async (req, res) => {
   const { toInt } = require('../lib/utils');
   const userId = toInt(req.currentUser?.id);
   if (userId === null) {
-    req.session.deleteFeedback = { type: 'error', message: 'Session invalid. Please log in again.' };
-    return res.redirect('/login?next=/delete');
+    return res.status(401).json({ ok: false, error: 'Session invalid. Please log in again.' });
   }
 
   try {
@@ -933,20 +536,17 @@ router.post('/delete', requireLogin, csrfProtection, async (req, res) => {
     );
     const user = rows[0];
     if (!user) {
-      req.session.deleteFeedback = { type: 'error', message: 'Account not found. Please log in again.' };
-      return res.redirect('/login?next=/delete');
+      return res.status(404).json({ ok: false, error: 'Account not found. Please log in again.' });
     }
 
     const validPassword = await verifyAndMigratePassword(user.password_hash, password, user.id);
     if (!validPassword) {
-      req.session.deleteFeedback = { type: 'error', message: 'Incorrect password.' };
-      return res.redirect('/delete');
+      return res.status(401).json({ ok: false, error: 'Incorrect password.' });
     }
 
     if (user.totp_enabled) {
       if (!token) {
-        req.session.deleteFeedback = { type: 'error', message: 'Enter your 2FA code to confirm deletion.' };
-        return res.redirect('/delete');
+        return res.status(400).json({ ok: false, error: 'Enter your 2FA code to confirm deletion.' });
       }
       const totpOk = speakeasy.totp.verify({
         secret: user.totp_secret,
@@ -955,8 +555,7 @@ router.post('/delete', requireLogin, csrfProtection, async (req, res) => {
         window: 1,
       });
       if (!totpOk) {
-        req.session.deleteFeedback = { type: 'error', message: 'Invalid 2FA code.' };
-        return res.redirect('/delete');
+        return res.status(401).json({ ok: false, error: 'Invalid 2FA code.' });
       }
     }
 
@@ -982,15 +581,11 @@ router.post('/delete', requireLogin, csrfProtection, async (req, res) => {
     }
 
     return req.session.destroy(() => {
-      res.render('delete', {
-        activePage: null,
-        deleteFeedback: { type: 'success', message: 'Your account and data were deleted. You have been signed out.' },
-      });
+      return res.json({ ok: true });
     });
   } catch (err) {
     console.error('Account deletion failed', err);
-    req.session.deleteFeedback = { type: 'error', message: 'Could not delete account. Please try again.' };
-    return res.redirect('/delete');
+    return res.status(500).json({ ok: false, error: 'Could not delete account. Please try again.' });
   }
 });
 
@@ -1000,29 +595,29 @@ router.post('/settings/email/request', strictLimiter, requireLogin, csrfProtecti
   const password = req.body.password || '';
   const totpCode = req.body.totp_code || '';
 
+  const fail = (message, status) => {
+    return res.status(status || 400).json({ ok: false, error: message });
+  };
+
   // Validate email format
   if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
-    req.session.emailFeedback = { type: 'error', message: 'Please enter a valid email address.' };
-    return res.redirect('/settings');
+    return fail('Please enter a valid email address.');
   }
 
   // Check if email is the same
   if (newEmail === req.currentUser.email.toLowerCase()) {
-    req.session.emailFeedback = { type: 'error', message: 'New email is the same as your current email.' };
-    return res.redirect('/settings');
+    return fail('New email is the same as your current email.');
   }
 
   // Check if email is already taken
   try {
     const { rows } = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1', [newEmail]);
     if (rows.length > 0) {
-      req.session.emailFeedback = { type: 'error', message: 'This email address is already in use.' };
-      return res.redirect('/settings');
+      return fail('This email address is already in use.', 409);
     }
   } catch (err) {
     console.error('Email check error', err);
-    req.session.emailFeedback = { type: 'error', message: 'Could not verify email. Please try again.' };
-    return res.redirect('/settings');
+    return fail('Could not verify email. Please try again.', 500);
   }
 
   // Verify password
@@ -1030,21 +625,18 @@ router.post('/settings/email/request', strictLimiter, requireLogin, csrfProtecti
     const { rows } = await pool.query('SELECT password_hash, totp_enabled, totp_secret FROM users WHERE id = $1', [req.currentUser.id]);
     const user = rows[0];
     if (!user) {
-      req.session.emailFeedback = { type: 'error', message: 'User not found.' };
-      return res.redirect('/settings');
+      return fail('User not found.', 404);
     }
 
     const validPassword = await verifyAndMigratePassword(user.password_hash, password, req.currentUser.id);
     if (!validPassword) {
-      req.session.emailFeedback = { type: 'error', message: 'Incorrect password.' };
-      return res.redirect('/settings');
+      return fail('Incorrect password.', 401);
     }
 
     // Verify TOTP if enabled
     if (user.totp_enabled) {
       if (!totpCode) {
-        req.session.emailFeedback = { type: 'error', message: 'Please enter your 2FA code.' };
-        return res.redirect('/settings');
+        return fail('Please enter your 2FA code.');
       }
       const totpOk = speakeasy.totp.verify({
         secret: user.totp_secret,
@@ -1053,8 +645,7 @@ router.post('/settings/email/request', strictLimiter, requireLogin, csrfProtecti
         window: 1,
       });
       if (!totpOk) {
-        req.session.emailFeedback = { type: 'error', message: 'Invalid 2FA code.' };
-        return res.redirect('/settings');
+        return fail('Invalid 2FA code.', 401);
       }
     }
 
@@ -1067,34 +658,11 @@ router.post('/settings/email/request', strictLimiter, requireLogin, csrfProtecti
     req.session.pendingEmailChangeCreatedAt = Date.now();
     req.session.emailChangeAttempts = 0;
 
-    res.redirect('/settings/email/verify');
+    return res.json({ ok: true });
   } catch (err) {
     console.error('Email change request error', err);
-    req.session.emailFeedback = { type: 'error', message: 'Could not process email change. Please try again.' };
-    res.redirect('/settings');
+    return fail('Could not process email change. Please try again.', 500);
   }
-});
-
-router.get('/settings/email/verify', requireLogin, (req, res) => {
-  const pendingEmail = req.session.pendingEmailChange;
-  const PENDING_EMAIL_EXPIRY = 30 * 60 * 1000; // 30 minutes
-  if (!pendingEmail ||
-      (req.session.pendingEmailChangeCreatedAt && Date.now() - req.session.pendingEmailChangeCreatedAt > PENDING_EMAIL_EXPIRY)) {
-    delete req.session.pendingEmailChange;
-    delete req.session.pendingEmailChangeCreatedAt;
-    delete req.session.emailChangeAttempts;
-    return res.redirect('/settings');
-  }
-
-  const feedback = req.session.emailVerifyFeedback || null;
-  delete req.session.emailVerifyFeedback;
-
-  res.render('verify-email-change', {
-    user: req.currentUser,
-    pendingEmail,
-    feedback,
-    activePage: 'settings',
-  });
 });
 
 router.post('/settings/email/verify', requireLogin, csrfProtection, async (req, res) => {
@@ -1105,14 +673,12 @@ router.post('/settings/email/verify', requireLogin, csrfProtection, async (req, 
     delete req.session.pendingEmailChange;
     delete req.session.pendingEmailChangeCreatedAt;
     delete req.session.emailChangeAttempts;
-    req.session.emailFeedback = { type: 'error', message: 'Email change request expired. Please start again.' };
-    return res.redirect('/settings');
+    return res.status(400).json({ ok: false, error: 'Email change request expired. Please start again.' });
   }
 
   const code = (req.body.code || '').trim();
   if (!code) {
-    req.session.emailVerifyFeedback = { type: 'error', message: 'Please enter the verification code.' };
-    return res.redirect('/settings/email/verify');
+    return res.status(400).json({ ok: false, error: 'Please enter the verification code.' });
   }
 
   // Rate limit attempts
@@ -1120,15 +686,13 @@ router.post('/settings/email/verify', requireLogin, csrfProtection, async (req, 
   if (req.session.emailChangeAttempts > 5) {
     delete req.session.pendingEmailChange;
     delete req.session.emailChangeAttempts;
-    req.session.emailFeedback = { type: 'error', message: 'Too many failed attempts. Please start over.' };
-    return res.redirect('/settings');
+    return res.status(429).json({ ok: false, error: 'Too many failed attempts. Please start over.' });
   }
 
   try {
     const result = await verifyEmailChangeToken(req.currentUser.id, code);
     if (!result) {
-      req.session.emailVerifyFeedback = { type: 'error', message: 'Invalid or expired verification code.' };
-      return res.redirect('/settings/email/verify');
+      return res.status(400).json({ ok: false, error: 'Invalid or expired verification code.' });
     }
 
     // Update the user's email
@@ -1140,12 +704,10 @@ router.post('/settings/email/verify', requireLogin, csrfProtection, async (req, 
     delete req.session.pendingEmailChangeCreatedAt;
     delete req.session.emailChangeAttempts;
 
-    req.session.emailFeedback = { type: 'success', message: 'Email address updated successfully.' };
-    res.redirect('/settings');
+    return res.json({ ok: true });
   } catch (err) {
     console.error('Email change verification error', err);
-    req.session.emailVerifyFeedback = { type: 'error', message: 'Could not verify code. Please try again.' };
-    res.redirect('/settings/email/verify');
+    return res.status(500).json({ ok: false, error: 'Could not verify code. Please try again.' });
   }
 });
 
@@ -1153,7 +715,7 @@ router.post('/settings/email/cancel', requireLogin, csrfProtection, (req, res) =
   delete req.session.pendingEmailChange;
   delete req.session.pendingEmailChangeCreatedAt;
   delete req.session.emailChangeAttempts;
-  res.redirect('/settings');
+  return res.json({ ok: true });
 });
 
 module.exports = router;

@@ -1,97 +1,100 @@
-const { describe, test, expect, beforeAll, afterAll } = require('@jest/globals');
+const { describe, test, expect, beforeAll } = require('@jest/globals');
 const request = require('supertest');
-const { createTestApp, extractCsrfToken, getAgentWithCsrf } = require('./setup');
+const { createTestApp } = require('./setup');
 
 const authRoutes = require('../src/routes/auth');
+const apiRoutes = require('../src/routes/api');
 
 let app;
 
 beforeAll(() => {
+  // Auth routes are mounted at '/' (they define /api/auth/* paths internally)
+  // API routes need '/api' prefix to match production mounting
+  const express = require('express');
   app = createTestApp(authRoutes);
-});
-
-// ---- Pages render correctly (no DB needed) ----
-
-describe('Auth pages', () => {
-  test('GET /register renders registration page', async () => {
-    const res = await request(app).get('/register').expect(200);
-    expect(res.text).toContain('email');
-    expect(res.text).toContain('password');
-    // Should contain a CSRF token
-    expect(extractCsrfToken(res.text)).toBeTruthy();
-  });
-
-  test('GET /login renders login page', async () => {
-    const res = await request(app).get('/login').expect(200);
-    expect(res.text).toContain('email');
-    expect(res.text).toContain('password');
-    expect(extractCsrfToken(res.text)).toBeTruthy();
-  });
-
-  test('GET /forgot-password renders forgot password page', async () => {
-    const res = await request(app).get('/forgot-password').expect(200);
-    expect(res.text).toContain('Forgot password');
-  });
-
-  test('GET /reset-password without session redirects to /forgot-password', async () => {
-    const res = await request(app).get('/reset-password').expect(302);
-    expect(res.headers.location).toBe('/forgot-password');
-  });
+  // Mount apiRoutes at /api (same as production app.js)
+  app.use('/api', apiRoutes);
 });
 
 // ---- CSRF protection works ----
 
 describe('CSRF protection', () => {
-  test('POST /login without CSRF token is rejected', async () => {
+  test('POST /api/auth/login without CSRF token is rejected', async () => {
     const res = await request(app)
-      .post('/login')
+      .post('/api/auth/login')
+      .set('Accept', 'application/json')
       .send({ email: 'a@b.com', password: 'test' });
-    // Should redirect back (CSRF failure) rather than processing the login
     expect([302, 403]).toContain(res.status);
   });
 
-  test('POST /login with wrong CSRF token is rejected', async () => {
-    const { agent } = await getAgentWithCsrf(app, '/login');
+  test('POST /api/auth/login with wrong CSRF token is rejected', async () => {
+    const agent = request.agent(app);
+    // Get a valid CSRF token from the API
+    const csrfRes = await agent.get('/api/csrf');
+    const csrfToken = csrfRes.body.token;
+    expect(csrfToken).toBeTruthy();
+
     const res = await agent
-      .post('/login')
-      .send({ email: 'a@b.com', password: 'test', _csrf: 'wrong-token' });
+      .post('/api/auth/login')
+      .set('Accept', 'application/json')
+      .set('X-CSRF-Token', 'wrong-token')
+      .send({ email: 'a@b.com', password: 'test' });
     expect([302, 403]).toContain(res.status);
+  });
+});
+
+// ---- CSRF token endpoint ----
+
+describe('CSRF token endpoint', () => {
+  test('GET /api/csrf returns a token', async () => {
+    const res = await request(app).get('/api/csrf').expect(200);
+    expect(res.body.token).toBeTruthy();
+    expect(typeof res.body.token).toBe('string');
   });
 });
 
 // ---- Form validation (requires DB for pool queries) ----
 
 const skipIfNoDb = () => {
-  // If DATABASE_URL is the dummy value we set in setup.js, there's no real DB
   if (process.env.DATABASE_URL === 'postgresql://test:test@localhost:5432/test') {
     return true;
   }
   return false;
 };
 
-describe('Registration validation', () => {
+describe('Registration validation (API)', () => {
   test('rejects registration without email', async () => {
     if (skipIfNoDb()) return;
 
-    const { agent, csrfToken } = await getAgentWithCsrf(app, '/register');
-    const res = await agent
-      .post('/register')
-      .send({ step: 'credentials', password: 'testpassword123', _csrf: csrfToken })
-      .expect(200);
+    const agent = request.agent(app);
+    const csrfRes = await agent.get('/api/csrf');
+    const csrfToken = csrfRes.body.token;
 
-    expect(res.text).toContain('Email and password are required');
+    const res = await agent
+      .post('/api/auth/register')
+      .set('Accept', 'application/json')
+      .set('X-CSRF-Token', csrfToken)
+      .send({ step: 'credentials', password: 'testpassword123' })
+      .expect(400);
+
+    expect(res.body.error).toContain('Email and password are required');
   });
 
   test('rejects short password', async () => {
     if (skipIfNoDb()) return;
 
-    const { agent, csrfToken } = await getAgentWithCsrf(app, '/register');
-    const res = await agent
-      .post('/register')
-      .send({ step: 'credentials', email: 'test@example.com', password: 'short', _csrf: csrfToken })
-      .expect(200);
+    const agent = request.agent(app);
+    const csrfRes = await agent.get('/api/csrf');
+    const csrfToken = csrfRes.body.token;
 
-    expect(res.text).toContain('Password must be at least 10 characters');
+    const res = await agent
+      .post('/api/auth/register')
+      .set('Accept', 'application/json')
+      .set('X-CSRF-Token', csrfToken)
+      .send({ step: 'credentials', email: 'test@example.com', password: 'short' })
+      .expect(400);
+
+    expect(res.body.error).toContain('Password must be at least 10 characters');
   });
 });
 
@@ -99,22 +102,18 @@ describe('Registration validation', () => {
 
 describe('Session cookie security flags', () => {
   test('session cookie has HttpOnly flag', async () => {
-    const res = await request(app).get('/login');
+    const res = await request(app).get('/api/csrf');
     const cookie = res.headers['set-cookie']?.[0] || '';
     expect(cookie.toLowerCase()).toContain('httponly');
   });
-
-  // Note: SameSite=Lax is configured in app.js but express-session only
-  // includes it in Set-Cookie headers over HTTPS, so it can't be tested here.
 });
 
 // ---- Session cookie lifetime ----
 
-describe('Session cookie maxAge upgrade', () => {
+describe('Session cookie maxAge', () => {
   test('unauthenticated session gets short-lived cookie', async () => {
-    const res = await request(app).get('/login');
+    const res = await request(app).get('/api/csrf');
     const cookie = res.headers['set-cookie']?.[0] || '';
-    // Session cookie should be set but with a short Max-Age (not 30 days)
     if (cookie.includes('Max-Age=')) {
       const maxAge = parseInt(cookie.match(/Max-Age=(\d+)/)?.[1] || '0', 10);
       // Should be 15 min (900) or less, definitely not 30 days (2592000)
@@ -125,43 +124,56 @@ describe('Session cookie maxAge upgrade', () => {
   test('login upgrades session cookie to 30 days', async () => {
     if (skipIfNoDb()) return;
 
-    const { agent, csrfToken } = await getAgentWithCsrf(app, '/login');
-    const res = await agent
-      .post('/login')
-      .send({ email: 'test@test.com', password: 'test1234', _csrf: csrfToken });
+    const agent = request.agent(app);
+    const csrfRes = await agent.get('/api/csrf');
+    const csrfToken = csrfRes.body.token;
 
-    // After successful login, cookie should be upgraded to 30 days
+    const res = await agent
+      .post('/api/auth/login')
+      .set('Accept', 'application/json')
+      .set('X-CSRF-Token', csrfToken)
+      .send({ email: 'test@test.com', password: 'test1234' });
+
     const cookie = res.headers['set-cookie']?.[0] || '';
     if (cookie.includes('Max-Age=')) {
       const maxAge = parseInt(cookie.match(/Max-Age=(\d+)/)?.[1] || '0', 10);
-      // 30 days = 2592000 seconds
       expect(maxAge).toBe(2592000);
     }
   });
 });
 
-describe('Login validation', () => {
+describe('Login validation (API)', () => {
   test('rejects login without credentials', async () => {
     if (skipIfNoDb()) return;
 
-    const { agent, csrfToken } = await getAgentWithCsrf(app, '/login');
-    const res = await agent
-      .post('/login')
-      .send({ _csrf: csrfToken })
-      .expect(200);
+    const agent = request.agent(app);
+    const csrfRes = await agent.get('/api/csrf');
+    const csrfToken = csrfRes.body.token;
 
-    expect(res.text).toContain('Email and password are required');
+    const res = await agent
+      .post('/api/auth/login')
+      .set('Accept', 'application/json')
+      .set('X-CSRF-Token', csrfToken)
+      .send({})
+      .expect(400);
+
+    expect(res.body.error).toContain('Email and password are required');
   });
 
   test('rejects invalid credentials', async () => {
     if (skipIfNoDb()) return;
 
-    const { agent, csrfToken } = await getAgentWithCsrf(app, '/login');
-    const res = await agent
-      .post('/login')
-      .send({ email: 'nonexistent@example.com', password: 'wrongpassword1', _csrf: csrfToken })
-      .expect(200);
+    const agent = request.agent(app);
+    const csrfRes = await agent.get('/api/csrf');
+    const csrfToken = csrfRes.body.token;
 
-    expect(res.text).toContain('Invalid credentials');
+    const res = await agent
+      .post('/api/auth/login')
+      .set('Accept', 'application/json')
+      .set('X-CSRF-Token', csrfToken)
+      .send({ email: 'nonexistent@example.com', password: 'wrongpassword1' })
+      .expect(401);
+
+    expect(res.body.error).toContain('Invalid credentials');
   });
 });

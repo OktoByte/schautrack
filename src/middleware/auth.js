@@ -40,6 +40,10 @@ const attachUser = async (req, res, next) => {
 
 const requireLogin = (req, res, next) => {
   if (!req.currentUser) {
+    const wantsJson = (req.headers.accept || '').includes('application/json');
+    if (wantsJson || req.path.startsWith('/api/')) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
     return res.redirect('/login');
   }
   next();
@@ -47,6 +51,10 @@ const requireLogin = (req, res, next) => {
 
 const requireAdmin = (req, res, next) => {
   if (!req.currentUser || !isAdmin(req.currentUser)) {
+    const wantsJson = (req.headers.accept || '').includes('application/json');
+    if (wantsJson || req.path.startsWith('/api/')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     return res.status(404).send('Not found');
   }
   next();

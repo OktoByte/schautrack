@@ -11,13 +11,6 @@ beforeAll(() => {
 });
 
 describe('Entries — authentication required', () => {
-  test('GET /dashboard redirects to /login', async () => {
-    await request(app)
-      .get('/dashboard')
-      .expect(302)
-      .expect('Location', '/login');
-  });
-
   test('POST /entries redirects to /login', async () => {
     await request(app)
       .post('/entries')

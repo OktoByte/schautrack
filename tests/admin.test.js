@@ -11,26 +11,19 @@ beforeAll(() => {
 });
 
 describe('Admin — authentication required', () => {
-  test('GET /admin redirects to /login when unauthenticated', async () => {
-    await request(app)
-      .get('/admin')
-      .expect(302)
-      .expect('Location', '/login');
-  });
-
-  test('POST /admin/settings redirects to /login when unauthenticated', async () => {
+  test('POST /admin/settings returns 401 when unauthenticated', async () => {
     await request(app)
       .post('/admin/settings')
+      .set('Accept', 'application/json')
       .send({ key: 'support_email', value: 'evil@example.com' })
-      .expect(302)
-      .expect('Location', '/login');
+      .expect(401);
   });
 
-  test('POST /admin/users/1/delete redirects to /login when unauthenticated', async () => {
+  test('POST /admin/users/1/delete returns 401 when unauthenticated', async () => {
     await request(app)
       .post('/admin/users/1/delete')
-      .expect(302)
-      .expect('Location', '/login');
+      .set('Accept', 'application/json')
+      .expect(401);
   });
 });
 

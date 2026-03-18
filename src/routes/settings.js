@@ -6,102 +6,12 @@ const { pool } = require('../db/pool');
 const { requireLogin } = require('../middleware/auth');
 const { csrfProtection } = require('../middleware/csrf');
 const { encryptApiKey } = require('../lib/ai');
-const { toInt } = require('../lib/utils');
 const { MACRO_KEYS, parseMacroInput } = require('../lib/macros');
-const { getLinkRequests, getAcceptedLinkUsers } = require('../lib/links');
 const { broadcastSettingsChange } = require('./sse');
 
 const router = express.Router();
 
-const renderSettings = async (req, res) => {
-  const user = req.currentUser ? { ...req.currentUser, id: toInt(req.currentUser.id) } : null;
-
-  // Check if temp secret has expired (10 minutes)
-  const TOTP_SETUP_EXPIRY = 10 * 60 * 1000; // 10 minutes
-  if (req.session.tempSecretCreatedAt && Date.now() - req.session.tempSecretCreatedAt > TOTP_SETUP_EXPIRY) {
-    delete req.session.tempSecret;
-    delete req.session.tempUrl;
-    delete req.session.tempSecretCreatedAt;
-  }
-
-  const tempSecret = req.session.tempSecret;
-  const tempUrl = req.session.tempUrl;
-  const feedback = req.session.linkFeedback || null;
-  delete req.session.linkFeedback;
-  const passwordFeedback = req.session.passwordFeedback || null;
-  delete req.session.passwordFeedback;
-  const aiFeedback = req.session.aiFeedback || null;
-  delete req.session.aiFeedback;
-  const emailFeedback = req.session.emailFeedback || null;
-  delete req.session.emailFeedback;
-  const importFeedback = req.session.importFeedback || null;
-  delete req.session.importFeedback;
-
-  let linkState = { incoming: [], outgoing: [] };
-  let acceptedLinks = [];
-
-  try {
-    linkState = await getLinkRequests(user.id);
-    acceptedLinks = await getAcceptedLinkUsers(user.id);
-  } catch (err) {
-    console.error('Failed to load link state', err);
-  }
-
-  let qrDataUrl = null;
-  if (tempUrl) {
-    try {
-      qrDataUrl = await QRCode.toDataURL(tempUrl);
-    } catch (err) {
-      console.error('QR generation error', err);
-    }
-  }
-
-  // Get all supported IANA timezones
-  const timezones = Intl.supportedValuesOf('timeZone');
-
-  // Prepare AI key info for display (masked)
-  const { decryptApiKey } = require('../lib/ai');
-  const hasAiKey = Boolean(user.ai_key);
-  let aiKeyLast4 = '';
-
-  if (hasAiKey) {
-    const decrypted = decryptApiKey(user.ai_key);
-    if (decrypted && decrypted.length >= 4) {
-      aiKeyLast4 = decrypted.slice(-4);
-    }
-  }
-
-  const MAX_LINKS = 3;
-
-  res.render('settings', {
-    user: {
-      ...user,
-      hasAiKey,
-      aiKeyLast4,
-    },
-    hasTempSecret: Boolean(tempSecret),
-    totpSecret: tempSecret || null,
-    qrDataUrl,
-    otpauthUrl: tempUrl || null,
-    activePage: 'settings',
-    incomingRequests: linkState.incoming,
-    outgoingRequests: linkState.outgoing,
-    acceptedLinks,
-    linkFeedback: feedback,
-    passwordFeedback,
-    aiFeedback,
-    emailFeedback,
-    maxLinks: MAX_LINKS,
-    availableSlots: Math.max(0, MAX_LINKS - acceptedLinks.length),
-    timezones,
-    importFeedback,
-  });
-};
-
-router.get('/settings', requireLogin, renderSettings);
-
 router.post('/settings/preferences', requireLogin, csrfProtection, async (req, res) => {
-  const wantsJson = (req.headers.accept || '').includes('application/json');
   const unitRaw = (req.body.weight_unit || '').toLowerCase();
   const weightUnit = ['kg', 'lb'].includes(unitRaw) ? unitRaw : 'kg';
 
@@ -117,17 +27,14 @@ router.post('/settings/preferences', requireLogin, csrfProtection, async (req, r
     } else {
       await pool.query('UPDATE users SET weight_unit = $1 WHERE id = $2', [weightUnit, req.currentUser.id]);
     }
-    if (wantsJson) return res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (err) {
     console.error('Failed to update preferences', err);
-    if (wantsJson) return res.status(500).json({ ok: false, error: 'Failed to save preferences' });
+    return res.status(500).json({ ok: false, error: 'Failed to save preferences' });
   }
-
-  res.redirect('/settings');
 });
 
 router.post('/settings/macros', requireLogin, csrfProtection, async (req, res) => {
-  const wantsJson = (req.headers.accept || '').includes('application/json');
 
   // Parse calorie goal (now stored in macro_goals.calories)
   const calorieGoal = parseMacroInput(req.body.calorie_goal);
@@ -196,17 +103,11 @@ router.post('/settings/macros', requireLogin, csrfProtection, async (req, res) =
       dailyGoal: macroGoals.calories || null,
     });
 
-    if (wantsJson) {
-      return res.json({ ok: true });
-    }
+    return res.json({ ok: true });
   } catch (err) {
     console.error('Failed to save macro preferences', err);
-    if (wantsJson) {
-      return res.status(500).json({ ok: false, error: 'Failed to save preferences' });
-    }
+    return res.status(500).json({ ok: false, error: 'Failed to save preferences' });
   }
-
-  res.redirect('/settings');
 });
 
 router.post('/settings/ai', requireLogin, csrfProtection, async (req, res) => {
@@ -215,12 +116,11 @@ router.post('/settings/ai', requireLogin, csrfProtection, async (req, res) => {
   if (clear_settings === 'true') {
     try {
       await pool.query('UPDATE users SET ai_key = NULL, ai_endpoint = NULL, ai_model = NULL, ai_daily_limit = NULL, preferred_ai_provider = NULL WHERE id = $1', [req.currentUser.id]);
-      req.session.aiFeedback = { type: 'success', message: 'AI settings cleared.' };
+      return res.json({ ok: true, message: 'AI settings cleared.' });
     } catch (err) {
       console.error('Failed to clear AI settings', err);
-      req.session.aiFeedback = { type: 'error', message: 'Could not clear settings.' };
+      return res.status(500).json({ ok: false, error: 'Could not clear settings.' });
     }
-    return res.redirect('/settings#ai-form');
   }
 
   const updates = [];
@@ -267,13 +167,11 @@ router.post('/settings/ai', requireLogin, csrfProtection, async (req, res) => {
       values.push(req.currentUser.id);
       await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${idx}`, values);
     }
-    req.session.aiFeedback = { type: 'success', message: 'AI settings saved.' };
+    return res.json({ ok: true, message: 'AI settings saved.' });
   } catch (err) {
     console.error('Failed to save AI settings', err);
-    req.session.aiFeedback = { type: 'error', message: 'Could not save settings.' };
+    return res.status(500).json({ ok: false, error: 'Could not save settings.' });
   }
-
-  res.redirect('/settings#ai-form');
 });
 
 router.post('/settings/password', requireLogin, csrfProtection, async (req, res) => {
@@ -281,40 +179,38 @@ router.post('/settings/password', requireLogin, csrfProtection, async (req, res)
   const newPassword = req.body.new_password || '';
   const confirmPassword = req.body.confirm_password || '';
 
+  const fail = (message, status) => {
+    return res.status(status || 400).json({ ok: false, error: message });
+  };
+
   if (!currentPassword || !newPassword) {
-    req.session.passwordFeedback = { type: 'error', message: 'Current and new password are required.' };
-    return res.redirect('/settings');
+    return fail('Current and new password are required.');
   }
 
   if (newPassword !== confirmPassword) {
-    req.session.passwordFeedback = { type: 'error', message: 'New passwords do not match.' };
-    return res.redirect('/settings');
+    return fail('New passwords do not match.');
   }
 
   if (newPassword.length < 10) {
-    req.session.passwordFeedback = { type: 'error', message: 'New password must be at least 10 characters.' };
-    return res.redirect('/settings');
+    return fail('New password must be at least 10 characters.');
   }
 
   try {
     const { rows } = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.currentUser.id]);
     const user = rows[0];
     if (!user) {
-      req.session.passwordFeedback = { type: 'error', message: 'User not found.' };
-      return res.redirect('/settings');
+      return fail('User not found.', 404);
     }
 
     const validPassword = await argon2.verify(user.password_hash, currentPassword);
     if (!validPassword) {
-      req.session.passwordFeedback = { type: 'error', message: 'Current password is incorrect.' };
-      return res.redirect('/settings');
+      return fail('Current password is incorrect.', 401);
     }
 
     if (req.currentUser.totp_enabled) {
       const totpCode = req.body.totp_code || '';
       if (!totpCode) {
-        req.session.passwordFeedback = { type: 'error', message: 'Please enter your 2FA code.' };
-        return res.redirect('/settings');
+        return fail('Please enter your 2FA code.');
       }
       const totpOk = speakeasy.totp.verify({
         secret: req.currentUser.totp_secret,
@@ -323,26 +219,21 @@ router.post('/settings/password', requireLogin, csrfProtection, async (req, res)
         window: 1,
       });
       if (!totpOk) {
-        req.session.passwordFeedback = { type: 'error', message: 'Invalid 2FA code.' };
-        return res.redirect('/settings');
+        return fail('Invalid 2FA code.', 401);
       }
     }
 
     const hash = await argon2.hash(newPassword);
     await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, req.currentUser.id]);
 
-    req.session.passwordFeedback = { type: 'success', message: 'Password updated successfully.' };
-    res.redirect('/settings');
+    return res.json({ ok: true });
   } catch (err) {
     console.error('Password change error', err);
-    req.session.passwordFeedback = { type: 'error', message: 'Could not change password. Please try again.' };
-    res.redirect('/settings');
+    return res.status(500).json({ ok: false, error: 'Could not change password. Please try again.' });
   }
 });
 
 // 2FA routes
-router.get('/2fa', requireLogin, (req, res) => res.redirect('/settings'));
-
 router.post('/2fa/setup', requireLogin, csrfProtection, async (req, res) => {
   const user = req.currentUser;
   const secret = speakeasy.generateSecret({
@@ -352,14 +243,21 @@ router.post('/2fa/setup', requireLogin, csrfProtection, async (req, res) => {
   req.session.tempSecret = secret.base32;
   req.session.tempUrl = secret.otpauth_url;
   req.session.tempSecretCreatedAt = Date.now();
-  res.redirect('/settings');
+
+  let qrDataUrl = null;
+  try {
+    qrDataUrl = await QRCode.toDataURL(secret.otpauth_url);
+  } catch (err) {
+    console.error('QR generation error', err);
+  }
+  return res.json({ ok: true, qrDataUrl, secret: secret.base32, otpauthUrl: secret.otpauth_url });
 });
 
 router.post('/2fa/cancel', requireLogin, csrfProtection, (req, res) => {
   delete req.session.tempSecret;
   delete req.session.tempUrl;
   delete req.session.tempSecretCreatedAt;
-  res.redirect('/settings');
+  return res.json({ ok: true });
 });
 
 router.post('/2fa/enable', requireLogin, csrfProtection, async (req, res) => {
@@ -367,7 +265,7 @@ router.post('/2fa/enable', requireLogin, csrfProtection, async (req, res) => {
   const secret = req.session.tempSecret;
 
   if (!secret) {
-    return res.redirect('/settings');
+    return res.status(400).json({ ok: false, error: 'No 2FA setup in progress.' });
   }
 
   const ok = speakeasy.totp.verify({
@@ -378,7 +276,7 @@ router.post('/2fa/enable', requireLogin, csrfProtection, async (req, res) => {
   });
 
   if (!ok) {
-    return res.redirect('/settings');
+    return res.status(401).json({ ok: false, error: 'Invalid 2FA code.' });
   }
 
   try {
@@ -389,11 +287,11 @@ router.post('/2fa/enable', requireLogin, csrfProtection, async (req, res) => {
     delete req.session.tempSecret;
     delete req.session.tempUrl;
     delete req.session.tempSecretCreatedAt;
+    return res.json({ ok: true });
   } catch (err) {
     console.error('Failed to enable 2FA', err);
+    return res.status(500).json({ ok: false, error: 'Failed to enable 2FA.' });
   }
-
-  res.redirect('/settings');
 });
 
 router.post('/2fa/disable', requireLogin, csrfProtection, async (req, res) => {
@@ -401,7 +299,7 @@ router.post('/2fa/disable', requireLogin, csrfProtection, async (req, res) => {
   const user = req.currentUser;
 
   if (!user.totp_enabled || !user.totp_secret) {
-    return res.redirect('/settings');
+    return res.status(400).json({ ok: false, error: '2FA is not enabled.' });
   }
 
   const ok = speakeasy.totp.verify({
@@ -412,16 +310,16 @@ router.post('/2fa/disable', requireLogin, csrfProtection, async (req, res) => {
   });
 
   if (!ok) {
-    return res.redirect('/settings');
+    return res.status(401).json({ ok: false, error: 'Invalid 2FA code.' });
   }
 
   try {
     await pool.query('UPDATE users SET totp_secret = NULL, totp_enabled = FALSE WHERE id = $1', [user.id]);
+    return res.json({ ok: true });
   } catch (err) {
     console.error('Failed to disable 2FA', err);
+    return res.status(500).json({ ok: false, error: 'Failed to disable 2FA.' });
   }
-
-  res.redirect('/settings');
 });
 
 module.exports = router;

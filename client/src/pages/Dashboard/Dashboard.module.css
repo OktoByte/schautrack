@@ -1,0 +1,25 @@
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3xl);
+  color: var(--muted);
+}
+
+.detailSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.detailHeading {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--muted);
+}

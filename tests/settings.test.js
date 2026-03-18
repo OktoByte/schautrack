@@ -89,6 +89,7 @@ describe('Password change with TOTP', () => {
 
     const testApp = express();
     testApp.use(express.urlencoded({ extended: false }));
+    testApp.use(express.json());
     // Provide a minimal session object for feedback storage
     testApp.use((req, _res, next) => {
       req.session = req.session || {};
@@ -107,15 +108,15 @@ describe('Password change with TOTP', () => {
 
     const res = await request(testApp)
       .post('/settings/password')
-      .type('form')
+      .set('Accept', 'application/json')
       .send({
         current_password: 'oldpassword1',
         new_password: 'newpassword123',
         confirm_password: 'newpassword123',
       });
 
-    expect(res.status).toBe(302);
-    expect(res.headers.location).toBe('/settings');
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
     // UPDATE should have been called (password was changed)
     expect(mockPool.query).toHaveBeenCalledTimes(2);
   });
@@ -127,15 +128,15 @@ describe('Password change with TOTP', () => {
 
     const res = await request(testApp)
       .post('/settings/password')
-      .type('form')
+      .set('Accept', 'application/json')
       .send({
         current_password: 'oldpassword1',
         new_password: 'newpassword123',
         confirm_password: 'newpassword123',
       });
 
-    expect(res.status).toBe(302);
-    expect(res.headers.location).toBe('/settings');
+    expect(res.status).toBe(400);
+    expect(res.body.ok).toBe(false);
     // Only SELECT was called — no UPDATE (password was NOT changed)
     expect(mockPool.query).toHaveBeenCalledTimes(1);
   });
@@ -147,7 +148,7 @@ describe('Password change with TOTP', () => {
 
     const res = await request(testApp)
       .post('/settings/password')
-      .type('form')
+      .set('Accept', 'application/json')
       .send({
         current_password: 'oldpassword1',
         new_password: 'newpassword123',
@@ -155,8 +156,8 @@ describe('Password change with TOTP', () => {
         totp_code: '000000',
       });
 
-    expect(res.status).toBe(302);
-    expect(res.headers.location).toBe('/settings');
+    expect(res.status).toBe(401);
+    expect(res.body.ok).toBe(false);
     // Only SELECT — no UPDATE
     expect(mockPool.query).toHaveBeenCalledTimes(1);
   });
@@ -174,7 +175,7 @@ describe('Password change with TOTP', () => {
 
     const res = await request(testApp)
       .post('/settings/password')
-      .type('form')
+      .set('Accept', 'application/json')
       .send({
         current_password: 'oldpassword1',
         new_password: 'newpassword123',
@@ -182,8 +183,8 @@ describe('Password change with TOTP', () => {
         totp_code: validToken,
       });
 
-    expect(res.status).toBe(302);
-    expect(res.headers.location).toBe('/settings');
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
     // Both SELECT and UPDATE were called — password was changed
     expect(mockPool.query).toHaveBeenCalledTimes(2);
   });

@@ -5,7 +5,6 @@ const { requireLogin } = require('../middleware/auth');
 const { requireLinkAuth } = require('../middleware/links');
 const { csrfProtection } = require('../middleware/csrf');
 const { parseAmount } = require('../lib/math-parser');
-const { getAcceptedLinkUsers } = require('../lib/links');
 const { broadcastEntryChange } = require('./sse');
 const {
   parseWeight,
@@ -16,12 +15,9 @@ const {
 } = require('../lib/utils');
 const {
   upsertWeightEntry,
-  getWeightEntry,
-  getLastWeightEntry,
 } = require('../lib/weight');
 const {
   MACRO_KEYS,
-  MACRO_LABELS,
   getEnabledMacros,
   getMacroGoals,
   getMacroModes,
@@ -195,261 +191,7 @@ function buildDailyStats(dayOptions, totalsByDate, dailyGoal, {
   });
 }
 
-// Check AI availability
-const { getEffectiveSetting } = require('../db/pool');
-const { getAIUsageToday, getAIDailyLimit } = require('../lib/ai');
-
 // Routes
-router.get('/dashboard', requireLogin, async (req, res) => {
-  const user = { ...req.currentUser, id: toInt(req.currentUser.id) };
-  const userTimeZone = getUserTimezone(req, res);
-  const serverNow = new Date();
-  const todayStrTz = formatDateInTz(serverNow, userTimeZone);
-  const requestedRange = parseInt(req.query.range, 10);
-  const requestedDays = Number.isInteger(requestedRange)
-    ? Math.min(Math.max(requestedRange, 7), MAX_HISTORY_DAYS)
-    : DEFAULT_RANGE_DAYS;
-  const ignoreCustomRange = Number.isInteger(requestedRange);
-  const startParam = ignoreCustomRange ? null : req.query.start;
-  const endParam = ignoreCustomRange ? null : req.query.end;
-  const { startDate, endDate } = sanitizeDateRange(startParam, endParam, requestedDays, userTimeZone);
-  const dayOptions = buildDayOptionsBetween(startDate, endDate);
-  if (dayOptions.length === 0) {
-    const fallbackToday = formatDateInTz(new Date(), userTimeZone);
-    dayOptions.push(fallbackToday);
-  }
-  const { oldest, newest } = getDateBounds(dayOptions);
-  const todayStr = formatDateInTz(new Date(), userTimeZone);
-  const requestedDate = (req.query.day || '').trim();
-  const selectedDate = dayOptions.includes(requestedDate)
-    ? requestedDate
-    : dayOptions.includes(todayStr)
-    ? todayStr
-    : newest;
-
-  const totalsByDate = await getTotalsByDate(user.id, oldest, newest);
-  const todayTotal = totalsByDate.get(todayStr) || 0;
-  const macroModes = getMacroModes(user);
-  const enabledMacros = getEnabledMacros(user);
-  const macroGoals = getMacroGoals(user);
-  const macroTotalsByDate = enabledMacros.length > 0 ? await getMacroTotalsByDate(user.id, oldest, newest) : new Map();
-  const todayMacroTotals = macroTotalsByDate.get(todayStr) || {};
-  const userThreshold = user.goal_threshold;
-
-  const dailyGoal = getCalorieGoal(user);
-
-  const dailyStats = buildDailyStats(dayOptions, totalsByDate, dailyGoal, {
-    macroTotalsByDate,
-    enabledMacros,
-    macroGoals,
-    macroModes,
-    threshold: userThreshold,
-  });
-
-  // Calories are enabled unless explicitly disabled (backward compat: missing key = enabled)
-  const caloriesEnabled = (user.macros_enabled || {}).calories !== false;
-  const autoCalcCalories = isAutoCalcCalories(user);
-
-  // Compute calorie status using the unified function
-  const calorieStatus = caloriesEnabled ? computeMacroStatus(todayTotal, dailyGoal, macroModes.calories, userThreshold) : { statusClass: '', statusText: '' };
-  // Keep backward-compat goalStatus/goalDelta for today panel
-  const goalStatus = !dailyGoal
-    ? 'unset'
-    : todayTotal <= dailyGoal
-      ? 'under'
-      : computeMacroStatus(todayTotal, dailyGoal, 'limit', userThreshold).statusClass === 'macro-stat--danger'
-        ? 'over_threshold'
-        : 'over';
-  const goalDelta = dailyGoal ? Math.abs(dailyGoal - todayTotal) : null;
-
-  const { rows: recentEntries } = await pool.query(
-    'SELECT id, entry_date, amount, entry_name, created_at, protein_g, carbs_g, fat_g, fiber_g, sugar_g FROM calorie_entries WHERE user_id = $1 AND entry_date = $2 ORDER BY created_at DESC',
-    [user.id, selectedDate]
-  );
-  const viewEntries = recentEntries.map((entry) => ({
-    ...entry,
-    timeFormatted: entry.created_at ? formatTimeInTz(entry.created_at, userTimeZone) : '',
-  }));
-
-  // Compute per-macro statuses
-  const macroStatuses = {};
-  for (const key of enabledMacros) {
-    const total = todayMacroTotals[key] || 0;
-    const goal = macroGoals[key] != null ? macroGoals[key] : null;
-    macroStatuses[key] = computeMacroStatus(total, goal, macroModes[key], userThreshold);
-  }
-
-  let acceptedLinks = [];
-  try {
-    acceptedLinks = await getAcceptedLinkUsers(user.id);
-  } catch (err) {
-    console.error('Failed to load linked users', err);
-  }
-
-  let weightEntry = null;
-  let lastWeightEntry = null;
-  try {
-    weightEntry = await getWeightEntry(user.id, selectedDate);
-    lastWeightEntry = await getLastWeightEntry(user.id, selectedDate);
-  } catch (err) {
-    console.error('Failed to load weight entry', err);
-  }
-  const weightTimeFormatted =
-    weightEntry && (weightEntry.updated_at || weightEntry.created_at)
-      ? formatTimeInTz(weightEntry.updated_at || weightEntry.created_at, userTimeZone)
-      : '';
-  const viewWeight = weightEntry ? { ...weightEntry, timeFormatted: weightTimeFormatted } : null;
-
-  const sharedViews = [
-    {
-      userId: user.id,
-      email: user.email,
-      label: 'You',
-      isSelf: true,
-      dailyGoal,
-      goalThreshold: userThreshold,
-      dailyStats,
-      todayStr: todayStrTz,
-    },
-  ];
-
-  for (const link of acceptedLinks) {
-    try {
-      // Get the linked user's "today" in their timezone
-      const linkTodayStr = formatDateInTz(new Date(), link.timezone);
-      // Filter out days that haven't started yet in the linked user's timezone
-      const linkDayOptions = dayOptions.filter((d) => d <= linkTodayStr);
-      const linkOldest = linkDayOptions.length > 0 ? linkDayOptions[linkDayOptions.length - 1] : oldest;
-      const linkNewest = linkDayOptions.length > 0 ? linkDayOptions[0] : newest;
-
-      const linkGoal = getCalorieGoal(link);
-      const totals = await getTotalsByDate(link.userId, linkOldest, linkNewest);
-      const linkThreshold = link.goal_threshold;
-      const linkEnabledMacros = getEnabledMacros(link);
-      const linkMacroGoals = getMacroGoals(link);
-      const linkMacroModes = getMacroModes(link);
-      const linkMacroTotals = linkEnabledMacros.length > 0
-        ? await getMacroTotalsByDate(link.userId, linkOldest, linkNewest)
-        : null;
-      const stats = buildDailyStats(linkDayOptions, totals, linkGoal, {
-        macroTotalsByDate: linkMacroTotals,
-        enabledMacros: linkEnabledMacros,
-        macroGoals: linkMacroGoals,
-        macroModes: linkMacroModes,
-        threshold: linkThreshold,
-      });
-      sharedViews.push({
-        linkId: link.linkId,
-        userId: link.userId,
-        email: link.email,
-        label: (link.label || '').trim() || link.email,
-        isSelf: false,
-        dailyGoal: linkGoal,
-        goalThreshold: linkThreshold,
-        dailyStats: stats,
-        todayStr: linkTodayStr,
-      });
-    } catch (err) {
-      console.error('Failed to build stats for linked user', err);
-    }
-  }
-
-  // Check if AI estimation is enabled (user or global API key)
-  let hasAiEnabled = false;
-  let aiUsingGlobalKey = false;
-  let aiProviderName = null;
-
-  const userProvider = user.preferred_ai_provider;
-  const [globalKey, globalProvider] = await Promise.all([
-    getEffectiveSetting('ai_key', process.env.AI_KEY),
-    getEffectiveSetting('ai_provider', process.env.AI_PROVIDER),
-  ]);
-
-  if (user.ai_key) {
-    hasAiEnabled = true;
-    aiProviderName = userProvider || globalProvider.value || 'openai';
-  } else {
-    // AI is enabled if provider is set and requirements are met
-    if (globalProvider.value) {
-      if (globalProvider.value === 'ollama') {
-        // Ollama just needs to be configured
-        hasAiEnabled = true;
-        aiUsingGlobalKey = true;
-        aiProviderName = 'ollama';
-      } else if (globalKey.value) {
-        // OpenAI/Claude need API key
-        hasAiEnabled = true;
-        aiUsingGlobalKey = true;
-        aiProviderName = globalProvider.value;
-      }
-    }
-  }
-
-  // Get AI usage info
-  let aiUsage = null;
-  if (hasAiEnabled) {
-    if (aiUsingGlobalKey) {
-      const dailyLimit = await getAIDailyLimit();
-      if (dailyLimit !== null) {
-        const usageToday = await getAIUsageToday(user.id);
-        aiUsage = {
-          used: usageToday,
-          limit: dailyLimit,
-          remaining: Math.max(0, dailyLimit - usageToday),
-        };
-      }
-    } else if (user.ai_daily_limit) {
-      const userLimit = parseInt(user.ai_daily_limit, 10);
-      if (!Number.isNaN(userLimit) && userLimit > 0) {
-        const usageToday = await getAIUsageToday(user.id);
-        aiUsage = {
-          used: usageToday,
-          limit: userLimit,
-          remaining: Math.max(0, userLimit - usageToday),
-        };
-      }
-    }
-  }
-
-  res.render('dashboard', {
-    user,
-    dailyGoal,
-    todayTotal,
-    goalStatus,
-    goalDelta,
-    dailyStats,
-    dayOptions,
-    selectedDate,
-    recentEntries: viewEntries,
-    sharedViews,
-    weightUnit: user.weight_unit || 'kg',
-    timeZone: userTimeZone,
-    todayStr: todayStrTz,
-    range: {
-      start: oldest,
-      end: newest,
-      days: dayOptions.length,
-      preset: !req.query.start && !req.query.end ? requestedDays : null,
-    },
-    weightEntry: viewWeight,
-    lastWeightEntry,
-    hasAiEnabled,
-    aiUsage,
-    aiProviderName,
-    activePage: 'dashboard',
-    // Macro tracking data
-    caloriesEnabled,
-    autoCalcCalories,
-    enabledMacros,
-    macroGoals,
-    todayMacroTotals,
-    macroLabels: MACRO_LABELS,
-    macroModes,
-    macroStatuses,
-    calorieStatus,
-  });
-});
-
 router.get('/overview', requireLogin, requireLinkAuth, async (req, res) => {
   const requestedRange = parseInt(req.query.range, 10);
   const rangeDays = Number.isInteger(requestedRange)
@@ -616,7 +358,6 @@ router.get('/entries/day', requireLogin, requireLinkAuth, async (req, res) => {
 });
 
 router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
-  const wantsJson = (req.headers.accept || '').includes('application/json');
   const userTz = getUserTimezone(req, res);
   const rawAmountInput = String(req.body.amount ?? '').trim();
   let { value: amount, ok: amountOk } = parseEntryAmount(req.body.amount);
@@ -642,10 +383,7 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
     }
   }
   if (invalidMacroInput) {
-    if (wantsJson) {
-      return res.status(400).json({ ok: false, error: `Macro values must be between 0 and ${MAX_ENTRY_MACRO}` });
-    }
-    return res.redirect('/dashboard');
+    return res.status(400).json({ ok: false, error: `Macro values must be between 0 and ${MAX_ENTRY_MACRO}` });
   }
   const hasMacroEntry = Object.keys(macroValues).length > 0;
 
@@ -664,17 +402,11 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
   }
 
   if (rawAmountInput && !amountOk) {
-    if (wantsJson) {
-      return res.status(400).json({ ok: false, error: `Calories must be between -${MAX_ENTRY_CALORIES} and ${MAX_ENTRY_CALORIES}` });
-    }
-    return res.redirect('/dashboard');
+    return res.status(400).json({ ok: false, error: `Calories must be between -${MAX_ENTRY_CALORIES} and ${MAX_ENTRY_CALORIES}` });
   }
 
   if (!hasCalorieEntry && !hasMacroEntry && !hasWeight) {
-    if (wantsJson) {
-      return res.status(400).json({ ok: false, error: 'Invalid entry data' });
-    }
-    return res.redirect('/dashboard');
+    return res.status(400).json({ ok: false, error: 'Invalid entry data' });
   }
 
   const client = await pool.connect();
@@ -706,30 +438,22 @@ router.post('/entries', requireLogin, csrfProtection, async (req, res) => {
       await broadcastEntryChange(req.currentUser.id);
     }
 
-    if (wantsJson) {
-      return res.json({ ok: true });
-    }
+    return res.json({ ok: true });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     console.error('Failed to add entry', err);
-    if (wantsJson) {
-      return res.status(500).json({ ok: false, error: 'Failed to save entry' });
-    }
+    return res.status(500).json({ ok: false, error: 'Failed to save entry' });
   } finally {
     client.release();
   }
-
-  const dayParam = entryDate && /^\d{4}-\d{2}-\d{2}$/.test(entryDate) ? `?day=${entryDate}` : '';
-  res.redirect(`/dashboard${dayParam}`);
 });
 
 router.post('/entries/:id/update', requireLogin, csrfProtection, async (req, res) => {
   const entryId = parseInt(req.params.id, 10);
-  const wantsJson = (req.headers.accept || '').includes('application/json');
   const tz = getUserTimezone(req, res);
 
   if (Number.isNaN(entryId)) {
-    return wantsJson ? res.status(400).json({ ok: false, error: 'Invalid entry id' }) : res.redirect('/dashboard');
+    return res.status(400).json({ ok: false, error: 'Invalid entry id' });
   }
 
   const updates = [];
@@ -749,9 +473,7 @@ router.post('/entries/:id/update', requireLogin, csrfProtection, async (req, res
   if (req.body.amount !== undefined && !autoCalc) {
     const { value: amount, ok } = parseEntryAmount(req.body.amount);
     if (!ok || amount === 0) {
-      return wantsJson
-        ? res.status(400).json({ ok: false, error: `Calories must be between -${MAX_ENTRY_CALORIES} and ${MAX_ENTRY_CALORIES}` })
-        : res.redirect('/dashboard');
+      return res.status(400).json({ ok: false, error: `Calories must be between -${MAX_ENTRY_CALORIES} and ${MAX_ENTRY_CALORIES}` });
     }
     updates.push(`amount = $${idx}`);
     values.push(amount);
@@ -764,9 +486,7 @@ router.post('/entries/:id/update', requireLogin, csrfProtection, async (req, res
     if (req.body[fieldName] !== undefined) {
       const parsed = parseEntryMacroValue(req.body[fieldName]);
       if (!parsed.ok) {
-        return wantsJson
-          ? res.status(400).json({ ok: false, error: `Macro values must be between 0 and ${MAX_ENTRY_MACRO}` })
-          : res.redirect('/dashboard');
+        return res.status(400).json({ ok: false, error: `Macro values must be between 0 and ${MAX_ENTRY_MACRO}` });
       }
       updates.push(`${fieldName} = $${idx}`);
       values.push(parsed.value); // null clears the value
@@ -775,9 +495,7 @@ router.post('/entries/:id/update', requireLogin, csrfProtection, async (req, res
   }
 
   if (updates.length === 0) {
-    return wantsJson
-      ? res.status(400).json({ ok: false, error: 'No updates provided' })
-      : res.redirect('/dashboard');
+    return res.status(400).json({ ok: false, error: 'No updates provided' });
   }
 
   try {
@@ -787,7 +505,7 @@ router.post('/entries/:id/update', requireLogin, csrfProtection, async (req, res
     );
 
     if (rows.length === 0) {
-      return wantsJson ? res.status(404).json({ ok: false, error: 'Entry not found' }) : res.redirect('/dashboard');
+      return res.status(404).json({ ok: false, error: 'Entry not found' });
     }
 
     const updated = rows[0];
@@ -824,24 +542,17 @@ router.post('/entries/:id/update', requireLogin, csrfProtection, async (req, res
 
     await broadcastEntryChange(req.currentUser.id);
 
-    if (wantsJson) {
-      return res.json({ ok: true, entry: payload });
-    }
+    return res.json({ ok: true, entry: payload });
   } catch (err) {
     console.error('Failed to update entry', err);
-    if (wantsJson) {
-      return res.status(500).json({ ok: false, error: 'Update failed' });
-    }
+    return res.status(500).json({ ok: false, error: 'Update failed' });
   }
-
-  return res.redirect('/dashboard');
 });
 
 router.post('/entries/:id/delete', requireLogin, csrfProtection, async (req, res) => {
   const entryId = parseInt(req.params.id, 10);
-  const wantsJson = (req.headers.accept || '').includes('application/json');
   if (Number.isNaN(entryId)) {
-    return wantsJson ? res.status(400).json({ ok: false }) : res.redirect('/dashboard');
+    return res.status(400).json({ ok: false, error: 'Invalid entry id' });
   }
 
   try {
@@ -850,17 +561,11 @@ router.post('/entries/:id/delete', requireLogin, csrfProtection, async (req, res
       req.currentUser.id,
     ]);
     await broadcastEntryChange(req.currentUser.id);
+    return res.json({ ok: true });
   } catch (err) {
     console.error('Failed to delete entry', err);
-    if (wantsJson) {
-      return res.status(500).json({ ok: false });
-    }
+    return res.status(500).json({ ok: false, error: 'Failed to delete entry' });
   }
-
-  if (wantsJson) {
-    return res.json({ ok: true });
-  }
-  res.redirect('/dashboard');
 });
 
 // Import/Export
@@ -940,7 +645,7 @@ router.get('/settings/export', requireLogin, async (req, res) => {
 
 router.post('/settings/import', requireLogin, upload.single('import_file'), csrfProtection, async (req, res) => {
   if (!req.file || !req.file.buffer) {
-    return res.redirect('/settings');
+    return res.status(400).json({ ok: false, error: 'No file uploaded.' });
   }
 
   let parsed;
@@ -948,7 +653,7 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), csrf
     const raw = req.file.buffer.toString('utf8');
     parsed = JSON.parse(raw);
   } catch (err) {
-    return res.redirect('/settings');
+    return res.status(400).json({ ok: false, error: 'Invalid JSON file.' });
   }
 
   // Support old exports (daily_goal at top level or in user object) and new (macro_goals.calories)
@@ -999,8 +704,7 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), csrf
 
   // Validate that we have at least some valid data before deleting existing data
   if (toInsert.length === 0 && weightToInsert.length === 0 && !hasUserSettings) {
-    req.session.importFeedback = { type: 'error', message: 'No valid entries found in import file.' };
-    return res.redirect('/settings');
+    return res.status(400).json({ ok: false, error: 'No valid entries found in import file.' });
   }
 
   const client = await pool.connect();
@@ -1080,16 +784,14 @@ router.post('/settings/import', requireLogin, upload.single('import_file'), csrf
     if (toInsert.length > 0) parts.push(`${toInsert.length} entries`);
     if (weightToInsert.length > 0) parts.push(`${weightToInsert.length} weight records`);
     if (hasUserSettings) parts.push('user settings');
-    req.session.importFeedback = { type: 'success', message: `Imported ${parts.join(' and ')}.` };
+    return res.json({ ok: true, message: `Imported ${parts.join(' and ')}.` });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     console.error('Import failed', err);
-    req.session.importFeedback = { type: 'error', message: 'Import failed — the file may contain invalid data. Your existing entries were not changed.' };
+    return res.status(500).json({ ok: false, error: 'Import failed — the file may contain invalid data. Your existing entries were not changed.' });
   } finally {
     client.release();
   }
-
-  res.redirect('/settings');
 });
 
 module.exports = router;

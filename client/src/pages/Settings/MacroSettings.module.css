@@ -1,0 +1,75 @@
+.heading {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: var(--space-lg);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.macroRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.875rem;
+  cursor: pointer;
+  min-width: 120px;
+}
+
+.toggle input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+.goalInput {
+  background: var(--bg-1);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: var(--space-xs) var(--space-sm);
+  font: inherit;
+  font-size: 0.85rem;
+  width: 80px;
+  outline: none;
+}
+
+.goalInput:focus {
+  border-color: var(--accent);
+}
+
+.modeSelect {
+  background: var(--bg-1);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: var(--space-xs) var(--space-sm);
+  font: inherit;
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.thresholdRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.thresholdLabel {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.thresholdUnit {
+  font-size: 0.875rem;
+  color: var(--muted);
+}

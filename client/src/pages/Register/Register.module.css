@@ -1,0 +1,41 @@
+.page {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-3xl) 0;
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+}
+
+.heading {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: var(--space-xl);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.captchaBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.captchaBlock > div:first-child {
+  background: white;
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  display: flex;
+  justify-content: center;
+}
+
+.links {
+  margin-top: var(--space-xl);
+  font-size: 0.875rem;
+}

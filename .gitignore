@@ -6,4 +6,6 @@ npm-debug.log
 .vscode
 .claude
 IMPROVEMENTS.md
+client/dist
+client/node_modules
 

@@ -1,0 +1,29 @@
+.card {
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-sm);
+  padding: var(--space-md) var(--space-lg);
+  transition: border-color var(--transition);
+}
+
+.cardActive {
+  border-color: var(--accent);
+}
+
+.head {
+  margin-bottom: var(--space-md);
+}
+
+.label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.dotRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: var(--space-lg) var(--space-sm);
+  row-gap: 36px;
+}
