@@ -15,9 +15,15 @@ const {
 } = require('../lib/utils');
 const {
   upsertWeightEntry,
+  getWeightEntry,
+  getLastWeightEntry,
 } = require('../lib/weight');
+const { getAcceptedLinkUsers } = require('../lib/links');
+const { getEffectiveSetting } = require('../db/pool');
+const { getAIUsageToday, getAIDailyLimit } = require('../lib/ai');
 const {
   MACRO_KEYS,
+  MACRO_LABELS,
   getEnabledMacros,
   getMacroGoals,
   getMacroModes,
@@ -192,6 +198,187 @@ function buildDailyStats(dayOptions, totalsByDate, dailyGoal, {
 }
 
 // Routes
+
+router.get('/api/dashboard', requireLogin, async (req, res) => {
+  try {
+    const user = { ...req.currentUser, id: toInt(req.currentUser.id) };
+    const userTimeZone = getUserTimezone(req, res);
+    const todayStrTz = formatDateInTz(new Date(), userTimeZone);
+    const requestedRange = parseInt(req.query.range, 10);
+    const requestedDays = Number.isInteger(requestedRange)
+      ? Math.min(Math.max(requestedRange, 7), MAX_HISTORY_DAYS)
+      : DEFAULT_RANGE_DAYS;
+    const ignoreCustomRange = Number.isInteger(requestedRange);
+    const startParam = ignoreCustomRange ? null : req.query.start;
+    const endParam = ignoreCustomRange ? null : req.query.end;
+    const { startDate, endDate } = sanitizeDateRange(startParam, endParam, requestedDays, userTimeZone);
+    const dayOptions = buildDayOptionsBetween(startDate, endDate);
+    if (dayOptions.length === 0) {
+      dayOptions.push(formatDateInTz(new Date(), userTimeZone));
+    }
+    const { oldest, newest } = getDateBounds(dayOptions);
+    const todayStr = formatDateInTz(new Date(), userTimeZone);
+    const requestedDate = (req.query.day || '').trim();
+    const selectedDate = dayOptions.includes(requestedDate)
+      ? requestedDate
+      : dayOptions.includes(todayStr) ? todayStr : newest;
+
+    const totalsByDate = await getTotalsByDate(user.id, oldest, newest);
+    const todayTotal = totalsByDate.get(todayStr) || 0;
+    const macroModes = getMacroModes(user);
+    const enabledMacros = getEnabledMacros(user);
+    const macroGoals = getMacroGoals(user);
+    const macroTotalsByDate = enabledMacros.length > 0
+      ? await getMacroTotalsByDate(user.id, oldest, newest) : new Map();
+    const todayMacroTotals = macroTotalsByDate.get(todayStr) || {};
+    const userThreshold = user.goal_threshold;
+    const dailyGoal = getCalorieGoal(user);
+
+    const dailyStats = buildDailyStats(dayOptions, totalsByDate, dailyGoal, {
+      macroTotalsByDate, enabledMacros, macroGoals, macroModes, threshold: userThreshold,
+    });
+
+    const caloriesEnabled = (user.macros_enabled || {}).calories !== false;
+    const autoCalcCalories = isAutoCalcCalories(user);
+    const calorieStatus = caloriesEnabled
+      ? computeMacroStatus(todayTotal, dailyGoal, macroModes.calories, userThreshold)
+      : { statusClass: '', statusText: '' };
+    const goalStatus = !dailyGoal ? 'unset'
+      : todayTotal <= dailyGoal ? 'under'
+      : computeMacroStatus(todayTotal, dailyGoal, 'limit', userThreshold).statusClass === 'macro-stat--danger'
+        ? 'over_threshold' : 'over';
+    const goalDelta = dailyGoal ? Math.abs(dailyGoal - todayTotal) : null;
+
+    const { rows: recentEntries } = await pool.query(
+      'SELECT id, entry_date, amount, entry_name, created_at, protein_g, carbs_g, fat_g, fiber_g, sugar_g FROM calorie_entries WHERE user_id = $1 AND entry_date = $2 ORDER BY created_at DESC',
+      [user.id, selectedDate]
+    );
+    const viewEntries = recentEntries.map((entry) => {
+      const macros = {};
+      for (const key of enabledMacros) { macros[key] = entry[`${key}_g`]; }
+      return {
+        id: entry.id, date: entry.entry_date,
+        time: entry.created_at ? formatTimeInTz(entry.created_at, userTimeZone) : '',
+        amount: entry.amount, name: entry.entry_name || null,
+        macros: Object.keys(macros).length > 0 ? macros : null,
+      };
+    });
+
+    const macroStatuses = {};
+    for (const key of enabledMacros) {
+      const total = todayMacroTotals[key] || 0;
+      const goal = macroGoals[key] != null ? macroGoals[key] : null;
+      macroStatuses[key] = computeMacroStatus(total, goal, macroModes[key], userThreshold);
+    }
+
+    let acceptedLinks = [];
+    try { acceptedLinks = await getAcceptedLinkUsers(user.id); } catch (err) {
+      console.error('Failed to load linked users', err);
+    }
+
+    let weightEntry = null;
+    let lastWeightEntry = null;
+    try {
+      weightEntry = await getWeightEntry(user.id, selectedDate);
+      lastWeightEntry = await getLastWeightEntry(user.id, selectedDate);
+    } catch (err) { console.error('Failed to load weight entry', err); }
+    const weightTimeFormatted = weightEntry && (weightEntry.updated_at || weightEntry.created_at)
+      ? formatTimeInTz(weightEntry.updated_at || weightEntry.created_at, userTimeZone) : '';
+    const viewWeight = weightEntry ? { ...weightEntry, timeFormatted: weightTimeFormatted } : null;
+
+    const sharedViews = [{
+      userId: user.id, email: user.email, label: 'You', isSelf: true,
+      dailyGoal, goalThreshold: userThreshold, dailyStats, todayStr: todayStrTz,
+    }];
+
+    for (const link of acceptedLinks) {
+      try {
+        const linkTodayStr = formatDateInTz(new Date(), link.timezone);
+        const linkDayOptions = dayOptions.filter((d) => d <= linkTodayStr);
+        const linkOldest = linkDayOptions.length > 0 ? linkDayOptions[linkDayOptions.length - 1] : oldest;
+        const linkNewest = linkDayOptions.length > 0 ? linkDayOptions[0] : newest;
+        const linkGoal = getCalorieGoal(link);
+        const totals = await getTotalsByDate(link.userId, linkOldest, linkNewest);
+        const linkThreshold = link.goal_threshold;
+        const linkEnabledMacros = getEnabledMacros(link);
+        const linkMacroGoals = getMacroGoals(link);
+        const linkMacroModes = getMacroModes(link);
+        const linkMacroTotals = linkEnabledMacros.length > 0
+          ? await getMacroTotalsByDate(link.userId, linkOldest, linkNewest) : null;
+        const stats = buildDailyStats(linkDayOptions, totals, linkGoal, {
+          macroTotalsByDate: linkMacroTotals, enabledMacros: linkEnabledMacros,
+          macroGoals: linkMacroGoals, macroModes: linkMacroModes, threshold: linkThreshold,
+        });
+        sharedViews.push({
+          linkId: link.linkId, userId: link.userId, email: link.email,
+          label: (link.label || '').trim() || link.email, isSelf: false,
+          dailyGoal: linkGoal, goalThreshold: linkThreshold, dailyStats: stats, todayStr: linkTodayStr,
+        });
+      } catch (err) { console.error('Failed to build stats for linked user', err); }
+    }
+
+    let hasAiEnabled = false;
+    let aiUsingGlobalKey = false;
+    let aiProviderName = null;
+    const userProvider = user.preferred_ai_provider;
+    const [globalKey, globalProvider] = await Promise.all([
+      getEffectiveSetting('ai_key', process.env.AI_KEY),
+      getEffectiveSetting('ai_provider', process.env.AI_PROVIDER),
+    ]);
+    if (user.ai_key) {
+      hasAiEnabled = true;
+      aiProviderName = userProvider || globalProvider.value || 'openai';
+    } else if (globalProvider.value) {
+      if (globalProvider.value === 'ollama') {
+        hasAiEnabled = true; aiUsingGlobalKey = true; aiProviderName = 'ollama';
+      } else if (globalKey.value) {
+        hasAiEnabled = true; aiUsingGlobalKey = true; aiProviderName = globalProvider.value;
+      }
+    }
+
+    let aiUsage = null;
+    if (hasAiEnabled) {
+      if (aiUsingGlobalKey) {
+        const dailyLimit = await getAIDailyLimit();
+        if (dailyLimit !== null) {
+          const usageToday = await getAIUsageToday(user.id);
+          aiUsage = { used: usageToday, limit: dailyLimit, remaining: Math.max(0, dailyLimit - usageToday) };
+        }
+      } else if (user.ai_daily_limit) {
+        const userLimit = parseInt(user.ai_daily_limit, 10);
+        if (!Number.isNaN(userLimit) && userLimit > 0) {
+          const usageToday = await getAIUsageToday(user.id);
+          aiUsage = { used: usageToday, limit: userLimit, remaining: Math.max(0, userLimit - usageToday) };
+        }
+      }
+    }
+
+    res.json({
+      user: {
+        id: user.id, email: user.email, timezone: user.timezone || 'UTC',
+        weightUnit: user.weight_unit || 'kg', dailyGoal: user.daily_goal,
+        totpEnabled: user.totp_enabled || false, macrosEnabled: user.macros_enabled || {},
+        macroGoals: user.macro_goals || {}, goalThreshold: userThreshold,
+        preferredAiProvider: user.preferred_ai_provider || null,
+        hasAiKey: Boolean(user.ai_key), aiModel: user.ai_model || null,
+        aiDailyLimit: user.ai_daily_limit || null,
+      },
+      dailyGoal, todayTotal, goalStatus, goalDelta, dailyStats, dayOptions, selectedDate,
+      recentEntries: viewEntries, sharedViews,
+      weightUnit: user.weight_unit || 'kg', timeZone: userTimeZone, todayStr: todayStrTz,
+      range: { start: oldest, end: newest, days: dayOptions.length,
+        preset: !req.query.start && !req.query.end ? requestedDays : null },
+      weightEntry: viewWeight, lastWeightEntry,
+      hasAiEnabled, aiUsage, aiProviderName,
+      caloriesEnabled, autoCalcCalories, enabledMacros, macroGoals,
+      todayMacroTotals, macroLabels: MACRO_LABELS, macroModes, macroStatuses, calorieStatus,
+    });
+  } catch (err) {
+    console.error('Dashboard API error', err);
+    res.status(500).json({ ok: false, error: 'Failed to load dashboard' });
+  }
+});
+
 router.get('/overview', requireLogin, requireLinkAuth, async (req, res) => {
   const requestedRange = parseInt(req.query.range, 10);
   const rangeDays = Number.isInteger(requestedRange)

@@ -1,0 +1,359 @@
+import { useState, useRef, useCallback, useEffect } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { estimateCalories } from '@/api/ai';
+import { MACRO_LABELS } from '@/lib/macros';
+import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/utils';
+
+interface Props {
+  isOpen: boolean;
+  onClose: () => void;
+  onResult: (result: { calories: number; name: string; macros?: Record<string, number> }) => void;
+  enabledMacros: string[];
+}
+
+type Mode = 'camera' | 'upload';
+type Phase = 'capture' | 'loading' | 'result' | 'error';
+
+function resizeImage(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const maxSize = 1024;
+      let { width, height } = img;
+      if (width > maxSize || height > maxSize) {
+        if (width > height) {
+          height = Math.round(height * maxSize / width);
+          width = maxSize;
+        } else {
+          width = Math.round(width * maxSize / height);
+          height = maxSize;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('No canvas context')); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')); };
+    img.src = url;
+  });
+}
+
+function captureFrame(video: HTMLVideoElement): string {
+  const canvas = document.createElement('canvas');
+  const maxSize = 1024;
+  let { videoWidth: width, videoHeight: height } = video;
+  if (width > maxSize || height > maxSize) {
+    if (width > height) {
+      height = Math.round(height * maxSize / width);
+      width = maxSize;
+    } else {
+      width = Math.round(width * maxSize / height);
+      height = maxSize;
+    }
+  }
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  ctx.drawImage(video, 0, 0, width, height);
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
+
+export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros }: Props) {
+  const [mode, setMode] = useState<Mode>('upload');
+  const [phase, setPhase] = useState<Phase>('capture');
+  const [imageData, setImageData] = useState<string | null>(null);
+  const [context, setContext] = useState('');
+  const [result, setResult] = useState<{
+    description?: string;
+    calories?: number;
+    confidence?: string;
+    macros?: Record<string, number>;
+  } | null>(null);
+  const [errorMsg, setErrorMsg] = useState('');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    stopCamera();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1024 }, height: { ideal: 768 } },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch {
+      setErrorMsg('Could not access camera. Try uploading instead.');
+      setMode('upload');
+    }
+  }, [stopCamera]);
+
+  useEffect(() => {
+    if (isOpen && mode === 'camera' && phase === 'capture' && !imageData) {
+      startCamera();
+    }
+    return () => {
+      if (mode === 'camera') stopCamera();
+    };
+  }, [isOpen, mode, phase, imageData, startCamera, stopCamera]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      stopCamera();
+      setPhase('capture');
+      setImageData(null);
+      setContext('');
+      setResult(null);
+      setErrorMsg('');
+    }
+  }, [isOpen, stopCamera]);
+
+  const handleCapture = () => {
+    if (!videoRef.current) return;
+    const data = captureFrame(videoRef.current);
+    if (data) {
+      setImageData(data);
+      stopCamera();
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = await resizeImage(file);
+      setImageData(data);
+    } catch {
+      setErrorMsg('Failed to process image.');
+    }
+  };
+
+  const handleEstimate = async () => {
+    if (!imageData) return;
+    setPhase('loading');
+    setErrorMsg('');
+    try {
+      const res = await estimateCalories({ image: imageData, context: context || undefined });
+      if (res.ok && res.calories != null) {
+        // Auto-fill the entry form and close
+        onResult({
+          calories: res.calories!,
+          name: res.food || '',
+          macros: res.macros,
+        });
+        return;
+      } else {
+        setErrorMsg(res.error || 'Estimation failed.');
+        setPhase('error');
+      }
+    } catch {
+      setErrorMsg('Estimation failed. Please try again.');
+      setPhase('error');
+    }
+  };
+
+  const handleRetry = () => {
+    setPhase('capture');
+    setImageData(null);
+    setResult(null);
+    setErrorMsg('');
+    if (mode === 'camera') startCamera();
+  };
+
+  const handleAddEntry = () => {
+    if (!result || result.calories == null) return;
+    onResult({
+      calories: result.calories,
+      name: result.description || '',
+      macros: result.macros,
+    });
+  };
+
+  const handleModeSwitch = (newMode: Mode) => {
+    if (newMode === mode) return;
+    stopCamera();
+    setMode(newMode);
+    setImageData(null);
+    setPhase('capture');
+    setErrorMsg('');
+  };
+
+  return (
+    <Dialog.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 mx-4 rounded-xl border border-border bg-card">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <Dialog.Title className="text-sm font-semibold text-foreground">AI Calorie Estimate</Dialog.Title>
+            <Dialog.Close className="bg-transparent border-0 p-0 text-xl text-muted-foreground hover:text-foreground cursor-pointer leading-none">
+              &times;
+            </Dialog.Close>
+          </div>
+
+          <div className="p-4 flex flex-col gap-3">
+            {/* Mode tabs */}
+            {phase === 'capture' && !imageData && (
+              <div className="flex gap-1 rounded-lg bg-muted p-1">
+                <button
+                  type="button"
+                  className={cn(
+                    'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer',
+                    mode === 'camera'
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  onClick={() => handleModeSwitch('camera')}
+                >
+                  Camera
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer',
+                    mode === 'upload'
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  onClick={() => handleModeSwitch('upload')}
+                >
+                  Upload
+                </button>
+              </div>
+            )}
+
+            {/* Preview area */}
+            {phase === 'capture' && (
+              <>
+                <div className="relative rounded-lg overflow-hidden bg-black/30 min-h-[200px] flex items-center justify-center [&_video]:w-full [&_video]:block [&_img]:w-full [&_img]:block [&_img]:rounded-lg">
+                  {mode === 'camera' && !imageData && (
+                    <>
+                      <video ref={videoRef} autoPlay playsInline muted />
+                      <button
+                        type="button"
+                        className="absolute bottom-3 left-1/2 -translate-x-1/2 size-12 rounded-full border-4 border-white bg-white/20 hover:bg-white/40 cursor-pointer transition-colors"
+                        onClick={handleCapture}
+                        aria-label="Capture photo"
+                      />
+                    </>
+                  )}
+                  {mode === 'upload' && !imageData && (
+                    <div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
+                      <p className="text-sm">Select an image of your food</p>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="text-sm file:mr-2 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white file:cursor-pointer"
+                        onChange={handleFileChange}
+                      />
+                    </div>
+                  )}
+                  {imageData && (
+                    <img src={imageData} alt="Food preview" />
+                  )}
+                </div>
+
+                {imageData && (
+                  <>
+                    <input
+                      type="text"
+                      className="rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring"
+                      value={context}
+                      onChange={(e) => setContext(e.target.value)}
+                      placeholder="Describe the food (optional)"
+                      maxLength={200}
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleEstimate}>Estimate</Button>
+                      <Button size="sm" variant="ghost" onClick={handleRetry}>Retake</Button>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Loading */}
+            {phase === 'loading' && (
+              <div className="flex flex-col items-center gap-3 py-8">
+                <div className="size-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                <span className="text-sm text-muted-foreground">Analyzing food...</span>
+              </div>
+            )}
+
+            {/* Result */}
+            {phase === 'result' && result && (
+              <>
+                {imageData && (
+                  <div className="rounded-lg overflow-hidden [&_img]:w-full [&_img]:block">
+                    <img src={imageData} alt="Food" />
+                  </div>
+                )}
+                <div className="flex flex-col items-center gap-1 py-2">
+                  {result.description && (
+                    <div className="text-base font-semibold text-foreground">{result.description}</div>
+                  )}
+                  <div className="text-2xl font-bold text-primary tabular-nums">{result.calories} cal</div>
+                  {result.confidence && (
+                    <div className="text-xs text-muted-foreground">Confidence: {result.confidence}</div>
+                  )}
+                  {result.macros && Object.keys(result.macros).length > 0 && (
+                    <div className="flex gap-4 mt-2">
+                      {enabledMacros.map((key) => {
+                        const val = result.macros?.[key];
+                        if (val == null) return null;
+                        const label = MACRO_LABELS[key as keyof typeof MACRO_LABELS];
+                        return (
+                          <div key={key} className="flex flex-col items-center">
+                            <span className="text-sm font-semibold tabular-nums">{val}g</span>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label?.short || key}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 justify-center">
+                  <Button size="sm" onClick={handleAddEntry}>Add Entry</Button>
+                  <Button size="sm" variant="ghost" onClick={handleRetry}>Retry</Button>
+                </div>
+              </>
+            )}
+
+            {/* Error */}
+            {phase === 'error' && (
+              <>
+                <div className="text-center text-sm text-destructive py-4">{errorMsg}</div>
+                <div className="flex gap-2 justify-center">
+                  <Button size="sm" onClick={handleRetry}>Retry</Button>
+                  <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
+                </div>
+              </>
+            )}
+
+            {/* Inline error during capture */}
+            {phase === 'capture' && errorMsg && (
+              <div className="text-center text-sm text-destructive">{errorMsg}</div>
+            )}
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}

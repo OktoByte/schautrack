@@ -32,14 +32,13 @@ describe('Admin — CSRF protection', () => {
     const res = await request(app)
       .post('/admin/settings')
       .send({ key: 'support_email', value: 'test@example.com' });
-    // Unauthenticated users get redirected to /login before CSRF even fires,
-    // but the request should NOT succeed (302 to /login or 403)
-    expect([302, 403]).toContain(res.status);
+    // Unauthenticated users get 401 before CSRF fires, or 403 if CSRF fires first
+    expect([401, 403]).toContain(res.status);
   });
 
   test('POST /admin/users/1/delete without CSRF token is rejected', async () => {
     const res = await request(app)
       .post('/admin/users/1/delete');
-    expect([302, 403]).toContain(res.status);
+    expect([401, 403]).toContain(res.status);
   });
 });

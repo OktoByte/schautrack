@@ -23,7 +23,7 @@ export async function api<T = unknown>(
   if (options.method && options.method !== 'GET') {
     const token = await getCsrfToken();
     headers.set('X-CSRF-Token', token);
-    if (options.body && typeof options.body === 'string') {
+    if (options.body && typeof options.body === 'string' && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
     }
   }

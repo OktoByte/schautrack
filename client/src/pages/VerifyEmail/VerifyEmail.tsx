@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router';
 import { verifyEmail, resendVerification } from '@/api/auth';
 import { useAuthStore } from '@/stores/authStore';
 import { ApiError } from '@/api/client';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Card from '@/components/ui/Card';
-import Alert from '@/components/ui/Alert';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Card } from '@/components/ui/Card';
+import { Alert } from '@/components/ui/Alert';
 
 export default function VerifyEmail() {
   const [code, setCode] = useState('');
@@ -46,19 +46,19 @@ export default function VerifyEmail() {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}>
-      <Card style={{ width: '100%', maxWidth: 400 }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: 24 }}>Verify Email</h2>
-        <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: 24 }}>
+    <div className="flex justify-center py-12">
+      <Card className="w-full max-w-sm">
+        <h2 className="mb-6 text-xl font-semibold">Verify Email</h2>
+        <p className="mb-6 text-sm text-muted-foreground">
           Enter the verification code sent to your email.
         </p>
-        {error && <Alert type="error" message={error} />}
-        {success && <Alert type="success" message={success} />}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {error && <Alert type="error" message={error} className="mb-4" />}
+        {success && <Alert type="success" message={success} className="mb-4" />}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Input label="Verification Code" value={code} onChange={(e) => setCode(e.target.value)} required autoComplete="off" />
           <Button type="submit" loading={loading}>Verify</Button>
         </form>
-        <div style={{ marginTop: 16 }}>
+        <div className="mt-4">
           <Button variant="ghost" size="sm" onClick={handleResend} loading={resending}>Resend Code</Button>
         </div>
       </Card>

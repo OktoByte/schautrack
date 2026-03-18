@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import type { LinkRequest, AcceptedLink } from '@/types';
 import { requestLink, respondToLink, removeLink, updateLinkLabel } from '@/api/links';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Card from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Card } from '@/components/ui/Card';
 
 interface Props {
   incomingRequests: LinkRequest[];
@@ -40,14 +40,14 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
 
   return (
     <Card>
-      <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: 16 }}>Account Links</h3>
+      <h3 className="text-base font-semibold mb-4">Account Links</h3>
 
       {incomingRequests.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <h4 style={{ fontSize: '0.8rem', color: 'var(--muted)', marginBottom: 8, textTransform: 'uppercase' }}>Incoming</h4>
+        <div className="mb-4">
+          <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Incoming</h4>
           {incomingRequests.map((req) => (
-            <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: '0.875rem' }}>
-              <span style={{ flex: 1 }}>{req.email}</span>
+            <div key={req.id} className="flex items-center gap-2 mb-2 text-sm">
+              <span className="flex-1">{req.email}</span>
               <Button size="sm" onClick={() => handleRespond(req.id, 'accept')}>Accept</Button>
               <Button size="sm" variant="ghost" onClick={() => handleRespond(req.id, 'decline')}>Decline</Button>
             </div>
@@ -56,11 +56,11 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
       )}
 
       {outgoingRequests.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <h4 style={{ fontSize: '0.8rem', color: 'var(--muted)', marginBottom: 8, textTransform: 'uppercase' }}>Pending</h4>
+        <div className="mb-4">
+          <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Pending</h4>
           {outgoingRequests.map((req) => (
-            <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: '0.875rem' }}>
-              <span style={{ flex: 1 }}>{req.email}</span>
+            <div key={req.id} className="flex items-center gap-2 mb-2 text-sm">
+              <span className="flex-1">{req.email}</span>
               <Button size="sm" variant="ghost" onClick={() => handleRemove(req.id)}>Cancel</Button>
             </div>
           ))}
@@ -68,8 +68,8 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
       )}
 
       {acceptedLinks.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <h4 style={{ fontSize: '0.8rem', color: 'var(--muted)', marginBottom: 8, textTransform: 'uppercase' }}>Linked</h4>
+        <div className="mb-4">
+          <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Linked</h4>
           {acceptedLinks.map((link) => (
             <LinkRow key={link.linkId} link={link} onRemove={() => handleRemove(link.linkId)} />
           ))}
@@ -77,7 +77,7 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
       )}
 
       {availableSlots > 0 && (
-        <form onSubmit={handleRequest} style={{ display: 'flex', gap: 8, alignItems: 'end' }}>
+        <form onSubmit={handleRequest} className="flex gap-2 items-end">
           <Input label="Link by email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           <Button type="submit" size="sm" loading={loading}>Send</Button>
         </form>
@@ -96,7 +96,7 @@ function LinkRow({ link, onRemove }: { link: AcceptedLink; onRemove: () => void 
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: '0.875rem' }}>
+    <div className="flex items-center gap-2 mb-2 text-sm">
       {editing ? (
         <input
           value={label}
@@ -104,14 +104,14 @@ function LinkRow({ link, onRemove }: { link: AcceptedLink; onRemove: () => void 
           onBlur={saveLabel}
           onKeyDown={(e) => e.key === 'Enter' && saveLabel()}
           autoFocus
-          style={{ background: 'var(--bg-1)', border: '1px solid var(--accent)', borderRadius: 4, color: 'var(--text)', padding: '2px 6px', font: 'inherit', fontSize: '0.875rem', flex: 1 }}
+          className="flex-1 rounded border border-ring bg-muted/50 px-2 py-0.5 text-sm text-foreground outline-none"
         />
       ) : (
-        <button type="button" onClick={() => setEditing(true)} style={{ background: 'none', border: 'none', color: 'var(--text)', font: 'inherit', cursor: 'pointer', flex: 1, textAlign: 'left' }}>
+        <button type="button" onClick={() => setEditing(true)} className="flex-1 bg-transparent border-none text-foreground cursor-pointer text-left text-sm">
           {link.label || link.email}
         </button>
       )}
-      <Button size="sm" variant="danger" onClick={onRemove}>Remove</Button>
+      <Button size="sm" variant="destructive" onClick={onRemove}>Remove</Button>
     </div>
   );
 }

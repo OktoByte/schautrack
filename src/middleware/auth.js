@@ -21,41 +21,28 @@ const isAdmin = (user) => {
 const attachUser = async (req, res, next) => {
   if (!req.session.userId) {
     req.currentUser = null;
-    res.locals.currentUser = null;
-    res.locals.isAdmin = false;
     return next();
   }
 
   try {
-    const user = await getUserById(req.session.userId);
-    req.currentUser = user || null;
-    res.locals.currentUser = user || null;
-    res.locals.isAdmin = adminEmail && user && user.email.toLowerCase() === adminEmail.toLowerCase();
+    req.currentUser = await getUserById(req.session.userId) || null;
   } catch (err) {
     console.error('Failed to load user from session', err);
-    res.locals.isAdmin = false;
+    req.currentUser = null;
   }
   next();
 };
 
 const requireLogin = (req, res, next) => {
   if (!req.currentUser) {
-    const wantsJson = (req.headers.accept || '').includes('application/json');
-    if (wantsJson || req.path.startsWith('/api/')) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    return res.redirect('/login');
+    return res.status(401).json({ error: 'Authentication required' });
   }
   next();
 };
 
 const requireAdmin = (req, res, next) => {
   if (!req.currentUser || !isAdmin(req.currentUser)) {
-    const wantsJson = (req.headers.accept || '').includes('application/json');
-    if (wantsJson || req.path.startsWith('/api/')) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    return res.status(404).send('Not found');
+    return res.status(403).json({ error: 'Forbidden' });
   }
   next();
 };

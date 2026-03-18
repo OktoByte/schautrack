@@ -14,6 +14,7 @@ import Privacy from '@/pages/Legal/Privacy';
 import Terms from '@/pages/Legal/Terms';
 import Imprint from '@/pages/Legal/Imprint';
 import DeleteAccount from '@/pages/Delete/DeleteAccount';
+import VerifyEmailChange from '@/pages/VerifyEmailChange/VerifyEmailChange';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuthStore();
@@ -43,6 +44,7 @@ export default function AppRouter() {
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
         <Route path="/delete" element={<ProtectedRoute><DeleteAccount /></ProtectedRoute>} />
+        <Route path="/settings/email/verify" element={<ProtectedRoute><VerifyEmailChange /></ProtectedRoute>} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/imprint" element={<Imprint />} />

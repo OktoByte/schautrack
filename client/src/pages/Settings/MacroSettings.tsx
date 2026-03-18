@@ -2,11 +2,24 @@ import { useState } from 'react';
 import type { User } from '@/types';
 import { saveMacros } from '@/api/settings';
 import { MACRO_LABELS } from '@/lib/macros';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
-import styles from './MacroSettings.module.css';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { cn } from '@/lib/utils';
+import { useToastStore } from '@/stores/toastStore';
 
 const MACRO_KEYS = ['protein', 'carbs', 'fat', 'fiber', 'sugar'];
+
+const inputClass = 'w-20 rounded-lg border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
+const selectClass = 'rounded-lg border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
+
+const MACRO_STYLES: Record<string, { label: string; border: string; bg: string }> = {
+  calories: { label: 'text-macro-kcal', border: 'border-l-macro-kcal', bg: 'bg-macro-kcal/[0.04]' },
+  protein:  { label: 'text-macro-protein', border: 'border-l-macro-protein', bg: 'bg-macro-protein/[0.04]' },
+  carbs:    { label: 'text-macro-carbs', border: 'border-l-macro-carbs', bg: 'bg-macro-carbs/[0.04]' },
+  fat:      { label: 'text-macro-fat', border: 'border-l-macro-fat', bg: 'bg-macro-fat/[0.04]' },
+  fiber:    { label: 'text-macro-fiber', border: 'border-l-macro-fiber', bg: 'bg-macro-fiber/[0.04]' },
+  sugar:    { label: 'text-macro-sugar', border: 'border-l-macro-sugar', bg: 'bg-macro-sugar/[0.04]' },
+};
 
 interface Props {
   user: User;
@@ -32,6 +45,7 @@ export default function MacroSettings({ user, onSave }: Props) {
   });
   const [threshold, setThreshold] = useState(String(user.goalThreshold ?? 10));
   const [loading, setLoading] = useState(false);
+  const addToast = useToastStore((s) => s.addToast);
 
   const canAutoCalc = enabled.calories && enabled.protein && enabled.carbs && enabled.fat;
 
@@ -56,62 +70,91 @@ export default function MacroSettings({ user, onSave }: Props) {
     try {
       await saveMacros(data);
       onSave();
+      addToast('success', 'Goals saved');
     } catch { /* ignore */ }
     setLoading(false);
   };
 
+  const allKeys = ['calories', ...MACRO_KEYS];
+
   return (
     <Card>
-      <h3 className={styles.heading}>Nutrition Goals</h3>
-      <form onSubmit={handleSubmit} className={styles.form}>
-        <div className={styles.macroRow}>
-          <label className={styles.toggle}>
-            <input type="checkbox" checked={enabled.calories} onChange={(e) => setEnabled({ ...enabled, calories: e.target.checked })} />
-            <span>Calories</span>
-          </label>
-          {enabled.calories && (
-            <>
-              <input className={styles.goalInput} type="number" value={goals.calories} onChange={(e) => setGoals({ ...goals, calories: e.target.value })} placeholder="Goal" />
-              <select className={styles.modeSelect} value={modes.calories} onChange={(e) => setModes({ ...modes, calories: e.target.value })}>
-                <option value="limit">Limit</option>
-                <option value="target">Target</option>
-              </select>
-            </>
-          )}
-        </div>
+      <h3 className="text-sm font-semibold mb-3">Nutrition Goals</h3>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-px">
+        {allKeys.map((key) => {
+          const label = key === 'calories' ? 'Calories' : (MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.label || key);
+          const unit = key === 'calories' ? 'kcal' : 'g';
+          const isChecked = enabled[key] || false;
+          const style = MACRO_STYLES[key];
 
-        {MACRO_KEYS.map((key) => (
-          <div key={key} className={styles.macroRow}>
-            <label className={styles.toggle}>
-              <input type="checkbox" checked={enabled[key] || false} onChange={(e) => setEnabled({ ...enabled, [key]: e.target.checked })} />
-              <span>{MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.label || key}</span>
-            </label>
-            {enabled[key] && (
-              <>
-                <input className={styles.goalInput} type="number" value={goals[key]} onChange={(e) => setGoals({ ...goals, [key]: e.target.value })} placeholder="Goal (g)" />
-                <select className={styles.modeSelect} value={modes[key]} onChange={(e) => setModes({ ...modes, [key]: e.target.value })}>
+          return (
+            <div
+              key={key}
+              className={cn(
+                'flex flex-wrap items-center gap-3 border-l-3 rounded-r-lg px-3 py-2.5 transition-opacity',
+                style?.border,
+                isChecked ? style?.bg : 'bg-transparent opacity-50',
+              )}
+            >
+              <label className="flex items-center gap-2.5 cursor-pointer min-w-[110px] shrink-0">
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={(e) => setEnabled({ ...enabled, [key]: e.target.checked })}
+                />
+                <span className={cn('text-sm font-medium', style?.label)}>{label}</span>
+              </label>
+              <div className={cn('flex items-center gap-2 ml-auto max-sm:ml-0 max-sm:w-full', !isChecked && 'pointer-events-none')}>
+                <span className="relative flex items-center">
+                  <input
+                    className={`${inputClass} pr-9`}
+                    type="number"
+                    value={goals[key]}
+                    onChange={(e) => setGoals({ ...goals, [key]: e.target.value })}
+                    placeholder="Goal"
+                    tabIndex={isChecked ? 0 : -1}
+                  />
+                  <span className={cn('absolute right-2.5 text-[10px] tracking-wide opacity-60 pointer-events-none', style?.label)}>{unit}</span>
+                </span>
+                <select
+                  className={selectClass}
+                  value={modes[key]}
+                  onChange={(e) => setModes({ ...modes, [key]: e.target.value })}
+                  tabIndex={isChecked ? 0 : -1}
+                >
                   <option value="limit">Limit</option>
                   <option value="target">Target</option>
                 </select>
-              </>
-            )}
-          </div>
-        ))}
+              </div>
+            </div>
+          );
+        })}
 
         {canAutoCalc && (
-          <label className={styles.toggle}>
-            <input type="checkbox" checked={enabled.auto_calc_calories} onChange={(e) => setEnabled({ ...enabled, auto_calc_calories: e.target.checked })} />
-            <span>Auto-calculate calories from macros</span>
-          </label>
+          <div className="flex items-center gap-3 border-l-3 border-l-primary/40 rounded-r-lg px-3 py-2.5 bg-primary/[0.04]">
+            <label className="flex items-center gap-2.5 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={enabled.auto_calc_calories}
+                onChange={(e) => setEnabled({ ...enabled, auto_calc_calories: e.target.checked })}
+              />
+              <span className="text-primary font-medium">Auto-calculate calories</span>
+            </label>
+            <span className="text-xs text-muted-foreground ml-auto">P×4 + C×4 + F×9</span>
+          </div>
         )}
 
-        <div className={styles.thresholdRow}>
-          <label className={styles.thresholdLabel}>Goal threshold</label>
-          <input className={styles.goalInput} type="number" min="0" max="99" value={threshold} onChange={(e) => setThreshold(e.target.value)} />
-          <span className={styles.thresholdUnit}>%</span>
+        <div className="flex items-center gap-3 border-l-3 border-l-warning/40 rounded-r-lg px-3 py-2.5 bg-warning/[0.04] mt-px">
+          <span className="text-sm font-medium text-warning">Threshold</span>
+          <div className="flex items-center gap-2 ml-auto">
+            <input className={inputClass} type="number" min="0" max="99" value={threshold} onChange={(e) => setThreshold(e.target.value)} />
+            <span className="text-sm text-muted-foreground">%</span>
+          </div>
         </div>
 
-        <Button type="submit" size="sm" loading={loading}>Save</Button>
+        <div className="mt-3">
+          <Button type="submit" size="sm" loading={loading}>Save Goals</Button>
+        </div>
       </form>
     </Card>
   );

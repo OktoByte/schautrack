@@ -11,26 +11,23 @@ beforeAll(() => {
 });
 
 describe('Weight — authentication required', () => {
-  test('GET /weight/day redirects to /login', async () => {
+  test('GET /weight/day returns 401 when unauthenticated', async () => {
     await request(app)
       .get('/weight/day?date=2024-01-01')
-      .expect(302)
-      .expect('Location', '/login');
+      .expect(401);
   });
 
-  test('POST /weight/upsert redirects to /login', async () => {
+  test('POST /weight/upsert returns 401 when unauthenticated', async () => {
     await request(app)
       .post('/weight/upsert')
       .send({ weight: '70.5', date: '2024-01-01' })
-      .expect(302)
-      .expect('Location', '/login');
+      .expect(401);
   });
 
-  test('POST /weight/:id/delete redirects to /login', async () => {
+  test('POST /weight/:id/delete returns 401 when unauthenticated', async () => {
     await request(app)
       .post('/weight/1/delete')
-      .expect(302)
-      .expect('Location', '/login');
+      .expect(401);
   });
 });
 

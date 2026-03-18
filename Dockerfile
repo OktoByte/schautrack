@@ -1,4 +1,17 @@
-FROM node:24-alpine AS builder
+FROM node:24-alpine AS client-builder
+
+WORKDIR /app/client
+
+COPY client/package*.json ./
+
+RUN npm ci && \
+    npm cache clean --force
+
+COPY client/ ./
+
+RUN npm run build
+
+FROM node:24-alpine AS server-builder
 
 WORKDIR /app
 
@@ -15,11 +28,14 @@ RUN apk add --no-cache dumb-init
 WORKDIR /app
 
 # Copy only production dependencies from builder
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=server-builder /app/node_modules ./node_modules
 
-# Copy all application files (everything is in src now)
+# Copy application files
 COPY --chown=node:node src ./src
 COPY --chown=node:node package.json ./
+
+# Copy built React client
+COPY --from=client-builder --chown=node:node /app/client/dist ./client/dist
 
 ARG BUILD_VERSION=dev
 ENV BUILD_VERSION=$BUILD_VERSION \

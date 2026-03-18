@@ -113,7 +113,7 @@ router.get('/settings', requireLogin, async (req, res) => {
 });
 
 // GET /api/admin - Returns admin page data
-router.get('/admin', requireAdmin, async (req, res) => {
+router.get('/admin', requireLogin, requireAdmin, async (req, res) => {
   const { getEffectiveSetting } = require('../db/pool');
 
   const { rows: users } = await pool.query(

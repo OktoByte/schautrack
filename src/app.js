@@ -95,7 +95,6 @@ ${pages.map(p => `  <url>
 // Session middleware
 // Default maxAge is short (15 min) so anonymous/bot sessions expire quickly.
 // Authenticated sessions get upgraded to 30 days on login (see routes/auth.js).
-const SESSION_MAX_AGE = 1000 * 60 * 60 * 24 * 30; // 30 days
 const ANON_MAX_AGE = 1000 * 60 * 15; // 15 minutes
 
 app.use(
@@ -160,9 +159,9 @@ const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
 const fs = require('fs');
 if (fs.existsSync(clientDistPath)) {
   app.use(express.static(clientDistPath, { maxAge: '7d', etag: true, lastModified: true }));
-  app.get('*', (req, res, next) => {
-    // Don't serve SPA for API routes or SSE
-    if (req.path.startsWith('/api/') || req.path.startsWith('/events/')) {
+  app.use((req, res, next) => {
+    // Don't serve SPA for API routes, SSE, or non-GET requests
+    if (req.method !== 'GET' || req.path.startsWith('/api/') || req.path.startsWith('/events/')) {
       return next();
     }
     res.sendFile(path.join(clientDistPath, 'index.html'));

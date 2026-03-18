@@ -6,7 +6,7 @@ const { csrfProtection } = require('../middleware/csrf');
 const router = express.Router();
 
 router.post('/admin/settings', requireLogin, requireAdmin, csrfProtection, async (req, res) => {
-  const { key, value } = req.body;
+  const { key, value, settings } = req.body;
 
   const allowedKeys = {
     support_email: 'SUPPORT_EMAIL',
@@ -20,6 +20,29 @@ router.post('/admin/settings', requireLogin, requireAdmin, csrfProtection, async
     ai_daily_limit: 'AI_DAILY_LIMIT',
   };
 
+  // Batch mode: { settings: { key1: val1, key2: val2 } }
+  if (settings && typeof settings === 'object') {
+    for (const [k, v] of Object.entries(settings)) {
+      if (!allowedKeys[k]) {
+        return res.status(400).json({ ok: false, error: `Invalid setting key: ${k}` });
+      }
+      const envValue = process.env[allowedKeys[k]];
+      if (envValue !== undefined && envValue !== null && envValue !== '') {
+        return res.status(400).json({ ok: false, error: `Setting '${k}' is controlled by environment variable.` });
+      }
+    }
+    try {
+      for (const [k, v] of Object.entries(settings)) {
+        await setAdminSetting(k, v);
+      }
+      return res.json({ ok: true, message: 'Settings updated.' });
+    } catch (err) {
+      console.error('Failed to update admin settings', err);
+      return res.status(500).json({ ok: false, error: 'Failed to update settings.' });
+    }
+  }
+
+  // Single mode: { key, value }
   if (!allowedKeys[key]) {
     return res.status(400).json({ ok: false, error: 'Invalid setting key.' });
   }

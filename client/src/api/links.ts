@@ -8,9 +8,9 @@ export function requestLink(email: string) {
 }
 
 export function respondToLink(linkId: number, action: 'accept' | 'decline') {
-  return api<{ ok: boolean }>(`/settings/link/respond?action=${action}`, {
+  return api<{ ok: boolean }>('/settings/link/respond', {
     method: 'POST',
-    body: JSON.stringify({ link_id: linkId }),
+    body: JSON.stringify({ request_id: linkId, action }),
   });
 }
 

@@ -1,4 +1,4 @@
-import styles from './DayDot.module.css';
+import { cn } from '@/lib/utils';
 
 interface Props {
   date: string;
@@ -8,19 +8,25 @@ interface Props {
   onClick: () => void;
 }
 
-const statusClasses: Record<string, string> = {
-  under: styles.under,
-  over: styles.over,
-  over_threshold: styles.overThreshold,
-  zero: styles.zero,
-  none: styles.none,
+const STATUS_COLORS: Record<string, string> = {
+  under: 'bg-success',
+  over: 'bg-warning',
+  over_threshold: 'bg-destructive',
+  zero: 'bg-white/[0.06]',
+  none: 'bg-white/[0.03]',
 };
 
 export default function DayDot({ date, status, isToday, isSelected, onClick }: Props) {
   return (
     <button
       type="button"
-      className={`${styles.dot} ${statusClasses[status] || styles.none} ${isToday ? styles.today : ''} ${isSelected ? styles.selected : ''}`}
+      className={cn(
+        'size-[22px] rounded-lg cursor-pointer transition-all border-0 p-0 shrink-0',
+        STATUS_COLORS[status] || 'bg-white/[0.03]',
+        isToday && 'ring-2 ring-primary ring-offset-1 ring-offset-card',
+        isSelected && 'ring-2 ring-foreground ring-offset-1 ring-offset-card scale-110',
+        !isToday && !isSelected && 'hover:scale-110'
+      )}
       onClick={onClick}
       title={date}
       aria-label={`${date}: ${status}`}

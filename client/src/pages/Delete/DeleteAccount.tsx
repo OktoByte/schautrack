@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { api, ApiError } from '@/api/client';
 import { useAuthStore } from '@/stores/authStore';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Card from '@/components/ui/Card';
-import Alert from '@/components/ui/Alert';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Card } from '@/components/ui/Card';
+import { Alert } from '@/components/ui/Alert';
 
 export default function DeleteAccount() {
   const [password, setPassword] = useState('');
@@ -36,21 +36,21 @@ export default function DeleteAccount() {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}>
-      <Card style={{ width: '100%', maxWidth: 400 }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: 8, color: 'var(--danger)' }}>Delete Account</h2>
-        <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: 24 }}>
+    <div className="flex justify-center py-12">
+      <Card className="w-full max-w-sm">
+        <h2 className="mb-2 text-xl font-semibold text-destructive">Delete Account</h2>
+        <p className="mb-6 text-sm text-muted-foreground">
           This will permanently delete your account and all data. This cannot be undone.
         </p>
-        {error && <Alert type="error" message={error} />}
-        {success && <Alert type="success" message={success} />}
+        {error && <Alert type="error" message={error} className="mb-4" />}
+        {success && <Alert type="success" message={success} className="mb-4" />}
         {!success && (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             {user?.totpEnabled && (
               <Input label="2FA Code" value={token} onChange={(e) => setToken(e.target.value)} inputMode="numeric" />
             )}
-            <Button type="submit" variant="danger" loading={loading}>Delete My Account</Button>
+            <Button type="submit" variant="destructive" loading={loading}>Delete My Account</Button>
           </form>
         )}
       </Card>

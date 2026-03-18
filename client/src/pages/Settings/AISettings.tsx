@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import type { User } from '@/types';
 import { saveAiSettings } from '@/api/settings';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Card from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Card } from '@/components/ui/Card';
+
+const selectClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
 
 interface Props {
   user: User;
@@ -39,21 +41,23 @@ export default function AISettings({ user, onSave }: Props) {
 
   return (
     <Card>
-      <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: 16 }}>AI Settings</h3>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <select value={provider} onChange={(e) => setProvider(e.target.value)}
-          style={{ background: 'var(--bg-1)', border: '1px solid var(--stroke)', borderRadius: 6, color: 'var(--text)', padding: '6px 8px', font: 'inherit' }}>
-          <option value="">Default</option>
-          <option value="openai">OpenAI</option>
-          <option value="claude">Claude</option>
-          <option value="ollama">Ollama</option>
-        </select>
+      <h3 className="text-sm font-semibold mb-3">AI Settings</h3>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Provider</label>
+          <select value={provider} onChange={(e) => setProvider(e.target.value)} className={selectClass}>
+            <option value="">Default</option>
+            <option value="openai">OpenAI</option>
+            <option value="claude">Claude</option>
+            <option value="ollama">Ollama</option>
+          </select>
+        </div>
         <Input label="API Key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
           placeholder={user.hasAiKey ? `\u2022\u2022\u2022\u2022${user.aiKeyLast4}` : 'Enter API key'} />
         <Input label="Model (optional)" value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. gpt-4o" />
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="flex gap-2">
           <Button type="submit" size="sm" loading={loading}>Save</Button>
-          <Button type="button" variant="ghost" size="sm" onClick={handleClear}>Clear</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={handleClear}>Clear All</Button>
         </div>
       </form>
     </Card>

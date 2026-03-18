@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
@@ -32,6 +33,7 @@ export default defineConfig({
       '/settings/email': 'http://localhost:3000',
       '/2fa': 'http://localhost:3000',
       '/admin': 'http://localhost:3000',
+      '/delete': 'http://localhost:3000',
       '/imprint/address.svg': 'http://localhost:3000',
       '/imprint/email.svg': 'http://localhost:3000',
     },

@@ -3,7 +3,16 @@ import type { Entry } from '@/types';
 import { updateEntry, deleteEntry } from '@/api/entries';
 import { useQueryClient } from '@tanstack/react-query';
 import { MACRO_LABELS } from '@/lib/macros';
-import styles from './EntryList.module.css';
+import { cn } from '@/lib/utils';
+import { useToastStore } from '@/stores/toastStore';
+
+const HEADER_COLORS: Record<string, string> = {
+  protein: 'text-macro-protein',
+  carbs: 'text-macro-carbs',
+  fat: 'text-macro-fat',
+  fiber: 'text-macro-fiber',
+  sugar: 'text-macro-sugar',
+};
 
 interface Props {
   entries: Entry[];
@@ -17,21 +26,22 @@ export default function EntryList({ entries, canEdit, enabledMacros, caloriesEna
   const queryClient = useQueryClient();
 
   if (entries.length === 0) {
-    return <p className={styles.empty}>No entries for this day.</p>;
+    return <p className="text-center text-sm text-muted-foreground py-4">No entries for this day.</p>;
   }
 
   return (
-    <div className={styles.list}>
-      <div className={styles.header}>
-        <span className={styles.headerCell}>Time</span>
-        {caloriesEnabled && <span className={styles.headerCell}>Cal</span>}
+    <div className="overflow-x-auto">
+      <div className="min-w-[420px]">
+      <div className="flex gap-2 px-3 py-2 bg-white/[0.02] border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+        <span className="flex-1">Time</span>
+        {caloriesEnabled && <span className="flex-1 text-macro-kcal">Cal</span>}
         {enabledMacros.map((key) => (
-          <span key={key} className={styles.headerCell}>
+          <span key={key} className={cn('flex-1', HEADER_COLORS[key] || '')}>
             {MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.short || key}
           </span>
         ))}
-        <span className={styles.headerCell}>Name</span>
-        {canEdit && <span className={styles.headerCell} />}
+        <span className="flex-[2]">Name</span>
+        {canEdit && <span className="w-6" />}
       </div>
 
       {entries.map((entry) => (
@@ -48,6 +58,7 @@ export default function EntryList({ entries, canEdit, enabledMacros, caloriesEna
           }}
         />
       ))}
+      </div>
     </div>
   );
 }
@@ -87,10 +98,13 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
     setEditing(null);
   };
 
+  const addToast = useToastStore((s) => s.addToast);
+
   const handleDelete = async () => {
     try {
       await deleteEntry(entry.id);
       onUpdate();
+      addToast('success', 'Entry deleted');
     } catch { /* ignore */ }
   };
 
@@ -100,15 +114,15 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
   };
 
   return (
-    <div className={styles.row}>
-      <span className={styles.cell}>{entry.time}</span>
+    <div className="flex items-center gap-2 px-3 py-2 border-b border-border text-sm last:border-b-0">
+      <span className="flex-1">{entry.time}</span>
 
       {caloriesEnabled && (
-        <span className={styles.cell}>
+        <span className="flex-1">
           {canEdit && !autoCalcCalories && editing === 'amount' ? (
-            <input className={styles.editInput} value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus inputMode="tel" />
+            <input className="bg-muted/50 border border-ring rounded px-1.5 py-0.5 text-sm text-foreground outline-none w-full" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus inputMode="tel" />
           ) : (
-            <button type="button" className={styles.editBtn} onClick={() => canEdit && !autoCalcCalories && handleEdit('amount', entry.amount)} disabled={!canEdit || autoCalcCalories}>
+            <button type="button" className={cn('bg-transparent border-0 p-0 text-sm text-foreground cursor-pointer', (!canEdit || autoCalcCalories) && 'cursor-default')} onClick={() => canEdit && !autoCalcCalories && handleEdit('amount', entry.amount)} disabled={!canEdit || autoCalcCalories}>
               {entry.amount}
             </button>
           )}
@@ -118,11 +132,11 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
       {enabledMacros.map((key) => {
         const val = entry.macros?.[key];
         return (
-          <span key={key} className={styles.cell}>
+          <span key={key} className="flex-1">
             {canEdit && editing === key ? (
-              <input className={styles.editInput} value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus inputMode="numeric" />
+              <input className="bg-muted/50 border border-ring rounded px-1.5 py-0.5 text-sm text-foreground outline-none w-full" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus inputMode="numeric" />
             ) : (
-              <button type="button" className={styles.editBtn} onClick={() => canEdit && handleEdit(key, val ?? null)} disabled={!canEdit}>
+              <button type="button" className={cn('bg-transparent border-0 p-0 text-sm text-foreground cursor-pointer', !canEdit && 'cursor-default')} onClick={() => canEdit && handleEdit(key, val ?? null)} disabled={!canEdit}>
                 {val != null ? val : '-'}
               </button>
             )}
@@ -130,19 +144,19 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
         );
       })}
 
-      <span className={`${styles.cell} ${styles.nameCell}`}>
+      <span className="flex-[2] truncate">
         {canEdit && editing === 'name' ? (
-          <input className={styles.editInput} value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus />
+          <input className="bg-muted/50 border border-ring rounded px-1.5 py-0.5 text-sm text-foreground outline-none w-full" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus />
         ) : (
-          <button type="button" className={`${styles.editBtn} ${styles.nameBtn}`} onClick={() => canEdit && handleEdit('name', entry.name)} disabled={!canEdit}>
+          <button type="button" className={cn('bg-transparent border-0 p-0 text-sm text-foreground cursor-pointer text-left truncate w-full', !canEdit && 'cursor-default')} onClick={() => canEdit && handleEdit('name', entry.name)} disabled={!canEdit}>
             {entry.name || '\u2014'}
           </button>
         )}
       </span>
 
       {canEdit && (
-        <span className={styles.cell}>
-          <button type="button" className={styles.deleteBtn} onClick={handleDelete} title="Delete">&times;</button>
+        <span className="w-6 flex-shrink-0">
+          <button type="button" className="bg-transparent border-0 p-0 text-muted-foreground hover:text-destructive text-lg cursor-pointer" onClick={handleDelete} title="Delete">&times;</button>
         </span>
       )}
     </div>

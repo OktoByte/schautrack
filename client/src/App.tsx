@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { useSSE } from '@/hooks/useSSE';
+import Toaster from '@/components/ui/Toaster';
 import AppRouter from './router';
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
   return (
     <>
       {user && <SSEProvider />}
+      <Toaster />
       {isInitialized ? <AppRouter /> : <LoadingScreen />}
     </>
   );
@@ -26,10 +28,10 @@ function SSEProvider() {
 
 function LoadingScreen() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#070d1a', color: '#e5e7eb' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>Schautrack</div>
-        <div style={{ marginTop: '0.5rem', color: '#9ca3af' }}>Loading...</div>
+    <div className="flex h-screen items-center justify-center bg-background text-foreground">
+      <div className="text-center">
+        <div className="text-2xl font-semibold">Schautrack</div>
+        <div className="mt-2 text-muted-foreground">Loading...</div>
       </div>
     </div>
   );

@@ -1,13 +1,13 @@
-import Card from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 
 export default function Imprint() {
   return (
-    <div style={{ maxWidth: 700, margin: '0 auto', padding: '48px 0' }}>
+    <div className="mx-auto max-w-2xl py-12">
       <Card>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: 24 }}>Imprint</h1>
-        <div style={{ color: 'var(--muted)', lineHeight: 1.8, fontSize: '0.9rem' }}>
-          <img src="/imprint/address.svg" alt="Address" style={{ maxWidth: '100%', marginBottom: 16 }} />
-          <img src="/imprint/email.svg" alt="Email" style={{ maxWidth: '100%' }} />
+        <h1 className="mb-6 text-2xl font-semibold">Imprint</h1>
+        <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+          <img src="/imprint/address.svg" alt="Address" className="max-w-full" />
+          <img src="/imprint/email.svg" alt="Email" className="max-w-full" />
         </div>
       </Card>
     </div>

@@ -17,37 +17,65 @@ This document contains important context and decisions for Claude Code when work
 
 ```
 schautrack/
-├── src/
+├── client/                # React 19 SPA (Vite + TypeScript)
+│   ├── src/
+│   │   ├── api/           # API client layer (fetch wrappers)
+│   │   ├── components/    # Shared components (Layout, ui)
+│   │   ├── pages/         # Page components (Dashboard, Settings, etc.)
+│   │   ├── hooks/         # Custom hooks (useAuth, useSSE)
+│   │   ├── stores/        # Zustand stores (auth, dashboard)
+│   │   ├── types/         # TypeScript types
+│   │   ├── lib/           # Shared utilities (macros, mathParser)
+│   │   ├── styles/        # CSS variables and global styles
+│   │   ├── App.tsx
+│   │   ├── router.tsx
+│   │   └── main.tsx
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── tsconfig.json
+├── src/                   # Express backend (JSON API only)
 │   ├── server.js          # Main application server
-│   ├── views/             # EJS templates
-│   │   ├── dashboard.ejs
-│   │   ├── settings.ejs
-│   │   ├── partials/
-│   │   └── ...
-│   └── public/            # Static assets
-│       ├── style.css
-│       ├── logo.png
-│       └── ...
+│   ├── app.js             # Express app setup + SPA fallback
+│   ├── routes/            # API route handlers
+│   │   ├── api.js         # /api/csrf, /api/me, /api/settings, /api/admin
+│   │   ├── auth.js        # /api/auth/* (login, register, etc.)
+│   │   ├── entries.js     # /entries, /overview
+│   │   ├── settings.js    # /settings/macros, /settings/preferences, etc.
+│   │   ├── sse.js         # /events/entries (SSE)
+│   │   ├── weight.js      # /weight/*
+│   │   ├── ai.js          # /api/ai/estimate
+│   │   ├── links.js       # /settings/link/*
+│   │   ├── admin.js       # /admin/*
+│   │   └── legal.js       # /imprint/*.svg
+│   ├── middleware/
+│   ├── lib/
+│   └── public/            # Static assets (logo, favicons)
 ├── db/
 │   └── init.sql           # Database schema
-├── scripts/               # Build and deployment scripts
-├── Dockerfile             # Optimized multi-stage build
+├── Dockerfile             # 3-stage build (client, server, final)
 ├── compose.yml            # Production Docker Compose
 ├── compose.dev.yml        # Local development setup
 └── package.json
 ```
 
-**Important:** All application code lives in `src/`. Views and public assets were moved here to simplify the Docker build.
-
 ## Technology Stack
 
-- **Runtime:** Node.js 22 (Alpine Linux)
-- **Framework:** Express.js
+### Frontend
+- **Framework:** React 19 + TypeScript
+- **Build:** Vite 6
+- **Routing:** React Router v7
+- **Data Fetching:** TanStack Query v5
+- **State:** Zustand v5
+- **Styling:** CSS Modules with CSS custom properties
+
+### Backend
+- **Runtime:** Node.js 24 (Alpine Linux)
+- **Framework:** Express.js 5
 - **Database:** PostgreSQL 18
-- **Template Engine:** EJS
 - **Session Store:** PostgreSQL (connect-pg-simple)
-- **Authentication:** bcrypt + optional TOTP (speakeasy)
+- **Authentication:** argon2/bcrypt + optional TOTP (speakeasy)
 - **Real-time:** Server-Sent Events (SSE)
+- **API:** JSON-only (no server-side rendering)
 
 ## Design Decisions
 
@@ -214,9 +242,9 @@ const displayTz = targetUser?.timezone || 'UTC';
 
 ### Adding a New Feature
 1. Update database schema in `db/init.sql` if needed
-2. Add route handler in `src/server.js`
-3. Create/update EJS view in `src/views/`
-4. Add styles to `src/public/style.css`
+2. Add JSON API route handler in `src/routes/`
+3. Create/update React components in `client/src/`
+4. Add styles via CSS Modules (`.module.css` files)
 5. **Write tests** for any new or changed logic (see Testing below)
 6. Test locally with `docker compose up -d --build`
 7. Push to staging for integration testing

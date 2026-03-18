@@ -46,21 +46,16 @@ router.get('/weight/day', requireLogin, requireLinkAuth, async (req, res) => {
 });
 
 router.post('/weight/upsert', requireLogin, csrfProtection, async (req, res) => {
-  const wantsJson = (req.headers.accept || '').includes('application/json');
   const userTz = getUserTimezone(req, res);
   const dateStr = (req.body.entry_date || req.body.date || '').trim() || formatDateInTz(new Date(), userTz);
   const { ok, value: weight } = parseWeight(req.body.weight);
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    return wantsJson
-      ? res.status(400).json({ ok: false, error: 'Invalid date' })
-      : res.redirect('/dashboard');
+    return res.status(400).json({ ok: false, error: 'Invalid date' });
   }
 
   if (!ok || weight === null) {
-    return wantsJson
-      ? res.status(400).json({ ok: false, error: 'Invalid weight' })
-      : res.redirect('/dashboard');
+    return res.status(400).json({ ok: false, error: 'Invalid weight' });
   }
 
   const today = new Date();
@@ -69,31 +64,22 @@ router.post('/weight/upsert', requireLogin, csrfProtection, async (req, res) => 
   const oldestStr = formatDateInTz(oldest, userTz);
   const todayStr = formatDateInTz(today, userTz);
   if (dateStr < oldestStr || dateStr > todayStr) {
-    return wantsJson
-      ? res.status(400).json({ ok: false, error: 'Date outside supported range' })
-      : res.redirect('/dashboard');
+    return res.status(400).json({ ok: false, error: 'Date outside supported range' });
   }
 
   try {
     const entry = await upsertWeightEntry(req.currentUser.id, dateStr, weight);
-    if (wantsJson) {
-      return res.json({ ok: true, entry });
-    }
+    return res.json({ ok: true, entry });
   } catch (err) {
     console.error('Failed to upsert weight entry', err);
-    if (wantsJson) {
-      return res.status(500).json({ ok: false, error: 'Could not save weight' });
-    }
+    return res.status(500).json({ ok: false, error: 'Could not save weight' });
   }
-
-  return res.redirect('/dashboard');
 });
 
 router.post('/weight/:id/delete', requireLogin, csrfProtection, async (req, res) => {
   const weightId = parseInt(req.params.id, 10);
-  const wantsJson = (req.headers.accept || '').includes('application/json');
   if (Number.isNaN(weightId)) {
-    return wantsJson ? res.status(400).json({ ok: false }) : res.redirect('/dashboard');
+    return res.status(400).json({ ok: false });
   }
 
   try {
@@ -101,18 +87,11 @@ router.post('/weight/:id/delete', requireLogin, csrfProtection, async (req, res)
       weightId,
       req.currentUser.id,
     ]);
-    // Note: Weight changes don't broadcast like calorie entries
+    return res.json({ ok: true });
   } catch (err) {
     console.error('Failed to delete weight entry', err);
-    if (wantsJson) {
-      return res.status(500).json({ ok: false });
-    }
+    return res.status(500).json({ ok: false });
   }
-
-  if (wantsJson) {
-    return res.json({ ok: true });
-  }
-  res.redirect('/dashboard');
 });
 
 module.exports = router;

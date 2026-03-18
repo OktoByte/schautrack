@@ -4,7 +4,7 @@ import type { WeightEntry } from '@/types';
 export function getWeightDay(date: string, userId?: number) {
   const qs = new URLSearchParams({ date });
   if (userId) qs.set('user', String(userId));
-  return api<{ ok: boolean; entry: WeightEntry | null; lastEntry: WeightEntry | null }>(`/weight/day?${qs}`, {
+  return api<{ ok: boolean; entry: WeightEntry | null; lastWeight: WeightEntry | null }>(`/weight/day?${qs}`, {
     headers: { Accept: 'application/json' },
   });
 }

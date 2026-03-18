@@ -9,7 +9,6 @@ import EntryForm from './EntryForm';
 import Timeline from './Timeline';
 import EntryList from './EntryList';
 import WeightRow from './WeightRow';
-import styles from './Dashboard.module.css';
 
 export default function Dashboard() {
   const { user, isLoading: authLoading } = useRequireAuth();
@@ -52,11 +51,11 @@ export default function Dashboard() {
   });
 
   if (authLoading || isLoading || !dashboard) {
-    return <div className={styles.loading}>Loading...</div>;
+    return <div className="flex items-center justify-center py-12"><div className="size-6 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>;
   }
 
   return (
-    <div className={styles.dashboard}>
+    <div className="flex flex-col gap-4">
       <TodayPanel
         dailyGoal={dashboard.dailyGoal}
         todayTotal={dashboard.todayTotal}
@@ -71,7 +70,6 @@ export default function Dashboard() {
 
       {canEdit && (
         <EntryForm
-          user={dashboard.user}
           selectedDate={selectedDate}
           caloriesEnabled={dashboard.caloriesEnabled}
           autoCalcCalories={dashboard.autoCalcCalories}
@@ -92,10 +90,12 @@ export default function Dashboard() {
         todayStr={dashboard.todayStr}
       />
 
-      <div className={styles.detailSection}>
-        <h3 className={styles.detailHeading}>
-          {selectedDate} &mdash; {currentLabel}
-        </h3>
+      <div className="rounded-lg border border-border bg-card  overflow-hidden">
+        <div className="px-4 py-3 border-b border-border">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            {selectedDate} &mdash; {currentLabel}
+          </h3>
+        </div>
 
         <EntryList
           entries={dayData?.entries || []}
@@ -107,7 +107,7 @@ export default function Dashboard() {
 
         <WeightRow
           weightEntry={weightData?.entry || null}
-          lastWeightEntry={weightData?.lastEntry || null}
+          lastWeightEntry={weightData?.lastWeight || null}
           weightUnit={dashboard.weightUnit}
           canEdit={canEdit}
           selectedDate={selectedDate}

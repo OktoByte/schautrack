@@ -3,11 +3,10 @@ import { Link, useNavigate } from 'react-router';
 import { register } from '@/api/auth';
 import { useAuthStore } from '@/stores/authStore';
 import { ApiError } from '@/api/client';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Card from '@/components/ui/Card';
-import Alert from '@/components/ui/Alert';
-import styles from './Register.module.css';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Card } from '@/components/ui/Card';
+import { Alert } from '@/components/ui/Alert';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -24,7 +23,6 @@ export default function Register() {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       const result = await register({
         step,
@@ -33,83 +31,36 @@ export default function Register() {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         captcha: step === 'captcha' ? captcha : undefined,
       });
-
-      if (result.requireCaptcha && result.captchaSvg) {
-        setCaptchaSvg(result.captchaSvg);
-        setStep('captcha');
-        setCaptcha('');
-        setLoading(false);
-        return;
-      }
-
-      if (result.requireVerification) {
-        navigate('/verify-email');
-        return;
-      }
-
-      if (result.ok) {
-        await fetchUser();
-        navigate('/dashboard');
-      }
+      if (result.requireCaptcha && result.captchaSvg) { setCaptchaSvg(result.captchaSvg); setStep('captcha'); setCaptcha(''); setLoading(false); return; }
+      if (result.requireVerification) { navigate('/verify-email'); return; }
+      if (result.ok) { await fetchUser(); navigate('/dashboard'); }
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-        if (err.data.captchaSvg) setCaptchaSvg(err.data.captchaSvg as string);
-      } else {
-        setError('Could not register.');
-      }
+      if (err instanceof ApiError) { setError(err.message); if (err.data.captchaSvg) setCaptchaSvg(err.data.captchaSvg as string); }
+      else { setError('Could not register.'); }
       setLoading(false);
     }
   };
 
   return (
-    <div className={styles.page}>
-      <Card className={styles.card}>
-        <h2 className={styles.heading}>Create Account</h2>
-
-        {error && <Alert type="error" message={error} />}
-
-        <form onSubmit={handleSubmit} className={styles.form}>
+    <div className="flex justify-center py-12">
+      <Card className="w-full max-w-sm">
+        <h2 className="mb-6 text-xl font-semibold">Create Account</h2>
+        {error && <Alert type="error" message={error} className="mb-4" />}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {step === 'credentials' ? (
             <>
-              <Input
-                label="Email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-              />
-              <Input
-                label="Password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="new-password"
-                minLength={10}
-                placeholder="Minimum 10 characters"
-              />
+              <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+              <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" minLength={10} placeholder="Minimum 10 characters" />
             </>
           ) : (
-            <div className={styles.captchaBlock}>
-              <div dangerouslySetInnerHTML={{ __html: captchaSvg }} />
-              <Input
-                label="Captcha"
-                value={captcha}
-                onChange={(e) => setCaptcha(e.target.value)}
-                required
-                autoComplete="off"
-              />
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-center rounded-md bg-muted/50 p-2 invert [&_svg]:max-w-full" dangerouslySetInnerHTML={{ __html: captchaSvg }} />
+              <Input label="Captcha" value={captcha} onChange={(e) => setCaptcha(e.target.value)} required autoComplete="off" />
             </div>
           )}
-
-          <Button type="submit" loading={loading}>
-            {step === 'credentials' ? 'Continue' : 'Create Account'}
-          </Button>
+          <Button type="submit" loading={loading}>{step === 'credentials' ? 'Continue' : 'Create Account'}</Button>
         </form>
-
-        <div className={styles.links}>
+        <div className="mt-6 text-sm">
           <Link to="/login">Already have an account?</Link>
         </div>
       </Card>

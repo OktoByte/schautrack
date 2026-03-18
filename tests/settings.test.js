@@ -11,28 +11,25 @@ beforeAll(() => {
 });
 
 describe('Settings — authentication required', () => {
-  test('POST /settings/macros redirects to /login', async () => {
+  test('POST /settings/macros returns 401 when unauthenticated', async () => {
     await request(app)
       .post('/settings/macros')
       .send({ calorie_goal: '2000' })
-      .expect(302)
-      .expect('Location', '/login');
+      .expect(401);
   });
 
-  test('POST /settings/preferences redirects to /login', async () => {
+  test('POST /settings/preferences returns 401 when unauthenticated', async () => {
     await request(app)
       .post('/settings/preferences')
       .send({ weight_unit: 'kg' })
-      .expect(302)
-      .expect('Location', '/login');
+      .expect(401);
   });
 
-  test('POST /settings/ai redirects to /login', async () => {
+  test('POST /settings/ai returns 401 when unauthenticated', async () => {
     await request(app)
       .post('/settings/ai')
       .send({ ai_key: 'test' })
-      .expect(302)
-      .expect('Location', '/login');
+      .expect(401);
   });
 });
 

@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { forgotPassword, getCaptcha } from '@/api/auth';
 import { ApiError } from '@/api/client';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Card from '@/components/ui/Card';
-import Alert from '@/components/ui/Alert';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Card } from '@/components/ui/Card';
+import { Alert } from '@/components/ui/Alert';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -40,15 +40,15 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}>
-      <Card style={{ width: '100%', maxWidth: 400 }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: 24 }}>Forgot Password</h2>
-        {error && <Alert type="error" message={error} />}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="flex justify-center py-12">
+      <Card className="w-full max-w-sm">
+        <h2 className="mb-6 text-xl font-semibold">Forgot Password</h2>
+        {error && <Alert type="error" message={error} className="mb-4" />}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           {captchaSvg && (
-            <div>
-              <div style={{ background: 'white', borderRadius: 6, padding: 8, display: 'flex', justifyContent: 'center' }}
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-center rounded-md bg-muted/50 p-2 invert [&_svg]:max-w-full"
                 dangerouslySetInnerHTML={{ __html: captchaSvg }} />
               <Input label="Captcha" value={captcha} onChange={(e) => setCaptcha(e.target.value)} required autoComplete="off" />
             </div>

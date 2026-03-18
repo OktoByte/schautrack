@@ -6,14 +6,9 @@ export function getSettings() {
 }
 
 export function saveMacros(data: Record<string, string | boolean | number>) {
-  const formData = new URLSearchParams();
-  for (const [key, val] of Object.entries(data)) {
-    formData.set(key, String(val));
-  }
   return api<{ ok: boolean }>('/settings/macros', {
     method: 'POST',
-    body: formData.toString(),
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: JSON.stringify(data),
   });
 }
 
@@ -81,13 +76,15 @@ export function exportData() {
   window.location.href = '/settings/export';
 }
 
-export function importData(file: File, csrfToken: string) {
+export async function importData(file: File, csrfToken: string): Promise<{ ok: boolean; message?: string; error?: string }> {
   const formData = new FormData();
   formData.append('import_file', file);
   formData.append('_csrf', csrfToken);
-  return fetch('/settings/import', {
+  const res = await fetch('/settings/import', {
     method: 'POST',
     body: formData,
     credentials: 'same-origin',
+    headers: { 'X-CSRF-Token': csrfToken, Accept: 'application/json' },
   });
+  return res.json();
 }

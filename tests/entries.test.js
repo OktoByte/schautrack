@@ -11,40 +11,35 @@ beforeAll(() => {
 });
 
 describe('Entries — authentication required', () => {
-  test('POST /entries redirects to /login', async () => {
+  test('POST /entries returns 401 when unauthenticated', async () => {
     await request(app)
       .post('/entries')
       .send({ amount: '100' })
-      .expect(302)
-      .expect('Location', '/login');
+      .expect(401);
   });
 
-  test('GET /overview redirects to /login', async () => {
+  test('GET /overview returns 401 when unauthenticated', async () => {
     await request(app)
       .get('/overview')
-      .expect(302)
-      .expect('Location', '/login');
+      .expect(401);
   });
 
-  test('GET /entries/day redirects to /login', async () => {
+  test('GET /entries/day returns 401 when unauthenticated', async () => {
     await request(app)
       .get('/entries/day?date=2024-01-01')
-      .expect(302)
-      .expect('Location', '/login');
+      .expect(401);
   });
 
-  test('GET /settings/export redirects to /login', async () => {
+  test('GET /settings/export returns 401 when unauthenticated', async () => {
     await request(app)
       .get('/settings/export')
-      .expect(302)
-      .expect('Location', '/login');
+      .expect(401);
   });
 
-  test('POST /settings/import redirects to /login', async () => {
+  test('POST /settings/import returns 401 when unauthenticated', async () => {
     await request(app)
       .post('/settings/import')
-      .expect(302)
-      .expect('Location', '/login');
+      .expect(401);
   });
 
 });

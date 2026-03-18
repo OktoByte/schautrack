@@ -8,7 +8,7 @@ export function getAdminData() {
 export function saveAdminSettings(data: Record<string, string>) {
   return api<{ ok: boolean }>('/admin/settings', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({ settings: data }),
   });
 }
 

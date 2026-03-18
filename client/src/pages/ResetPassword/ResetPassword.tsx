@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { resetPassword } from '@/api/auth';
 import { ApiError } from '@/api/client';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Card from '@/components/ui/Card';
-import Alert from '@/components/ui/Alert';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Card } from '@/components/ui/Card';
+import { Alert } from '@/components/ui/Alert';
 
 export default function ResetPassword() {
   const [code, setCode] = useState('');
@@ -40,13 +40,13 @@ export default function ResetPassword() {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}>
-      <Card style={{ width: '100%', maxWidth: 400 }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: 24 }}>Reset Password</h2>
-        {error && <Alert type="error" message={error} />}
-        {success && <Alert type="success" message={success} />}
+    <div className="flex justify-center py-12">
+      <Card className="w-full max-w-sm">
+        <h2 className="mb-6 text-xl font-semibold">Reset Password</h2>
+        {error && <Alert type="error" message={error} className="mb-4" />}
+        {success && <Alert type="success" message={success} className="mb-4" />}
         {!success && (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {!codeVerified ? (
               <Input label="Reset Code" value={code} onChange={(e) => setCode(e.target.value)} required autoComplete="off" />
             ) : (
@@ -58,7 +58,7 @@ export default function ResetPassword() {
             <Button type="submit" loading={loading}>{codeVerified ? 'Reset Password' : 'Verify Code'}</Button>
           </form>
         )}
-        <div style={{ marginTop: 24, fontSize: '0.875rem' }}>
+        <div className="mt-6 text-sm">
           <Link to="/login">Back to login</Link>
         </div>
       </Card>

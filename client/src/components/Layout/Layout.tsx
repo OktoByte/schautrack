@@ -1,13 +1,12 @@
 import { Outlet } from 'react-router';
 import Header from './Header';
 import Footer from './Footer';
-import styles from './Layout.module.css';
 
 export default function Layout() {
   return (
-    <div className={styles.shell}>
+    <div className="flex min-h-screen flex-col">
       <Header />
-      <main className={styles.main}>
+      <main className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6">
         <Outlet />
       </main>
       <Footer />
