@@ -86,6 +86,17 @@ func (w *deferredSaveWriter) Unwrap() http.ResponseWriter {
 	return w.ResponseWriter
 }
 
+// Flush ensures the session is saved before flushing headers to the client.
+// Without this, code that type-asserts to http.Flusher (e.g. SSE handlers)
+// would flush response headers before the session cookie is set, potentially
+// causing the browser to miss a Set-Cookie header on concurrent responses.
+func (w *deferredSaveWriter) Flush() {
+	w.saveOnce()
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
 // GetSession retrieves the session from the request context.
 func GetSession(r *http.Request) *Session {
 	sess, _ := r.Context().Value(sessionContextKey).(*Session)

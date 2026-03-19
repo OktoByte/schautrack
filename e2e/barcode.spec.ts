@@ -2,8 +2,7 @@ import { test, expect } from './fixtures/auth';
 import { login } from './fixtures/auth';
 
 test.describe('Barcode Lookup', () => {
-  test.fixme('manual barcode lookup populates entry form', async ({ page }) => {
-    // FIXME: Barcode lookup returns "Lookup failed" — Go backend auth issue on GET /api/barcode
+  test('manual barcode lookup populates entry form', async ({ page }) => {
     await login(page);
 
     // Click the barcode button
