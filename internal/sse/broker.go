@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -158,7 +158,7 @@ func (b *Broker) getTargets(sourceUserID int) []int {
 	defer cancel()
 	links, err := service.GetAcceptedLinkUsers(ctx, b.pool, sourceUserID)
 	if err != nil {
-		log.Printf("Failed to load linked users for broadcast: %v", err)
+		slog.Error("failed to load linked users for broadcast", "error", err)
 		return targets
 	}
 	for _, link := range links {

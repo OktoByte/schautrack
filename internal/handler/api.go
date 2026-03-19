@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -251,11 +252,17 @@ func AdminData(pool *pgxpool.Pool, settingsCache *database.SettingsCache, adminE
 func CleanExpiredTokens(pool *pgxpool.Pool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	pool.Exec(ctx, "DELETE FROM password_reset_tokens WHERE expires_at < NOW() OR used = TRUE")
-	pool.Exec(ctx, "DELETE FROM email_verification_tokens WHERE expires_at < NOW() OR used = TRUE")
-	pool.Exec(ctx, `
+	if _, err := pool.Exec(ctx, "DELETE FROM password_reset_tokens WHERE expires_at < NOW() OR used = TRUE"); err != nil {
+		slog.Error("failed to clean expired password reset tokens", "error", err)
+	}
+	if _, err := pool.Exec(ctx, "DELETE FROM email_verification_tokens WHERE expires_at < NOW() OR used = TRUE"); err != nil {
+		slog.Error("failed to clean expired email verification tokens", "error", err)
+	}
+	if _, err := pool.Exec(ctx, `
 		DELETE FROM users
 		WHERE email_verified = FALSE
 			AND id NOT IN (SELECT DISTINCT user_id FROM email_verification_tokens WHERE used = FALSE)
-	`)
+	`); err != nil {
+		slog.Error("failed to clean unverified users", "error", err)
+	}
 }

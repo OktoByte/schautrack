@@ -449,11 +449,14 @@ func (h *LinksHandler) LinkRequest(w http.ResponseWriter, r *http.Request) {
 	// Check existing link
 	var existingStatus *string
 	var existingRequesterID *int
-	h.Pool.QueryRow(r.Context(), `
+	if err := h.Pool.QueryRow(r.Context(), `
 		SELECT status, requester_id FROM account_links
 		WHERE LEAST(requester_id, target_id) = LEAST($1, $2)
 			AND GREATEST(requester_id, target_id) = GREATEST($1, $2) LIMIT 1`,
-		user.ID, targetID).Scan(&existingStatus, &existingRequesterID)
+		user.ID, targetID).Scan(&existingStatus, &existingRequesterID); err != nil {
+		// pgx.ErrNoRows is expected when no link exists — only log unexpected errors
+		existingStatus = nil
+	}
 
 	if existingStatus != nil {
 		if *existingStatus == "accepted" {
@@ -535,14 +538,20 @@ func (h *LinksHandler) LinkRespond(w http.ResponseWriter, r *http.Request) {
 
 		// Check link limits within transaction
 		var myCount, reqCount int
-		tx.QueryRow(r.Context(),
-			"SELECT COUNT(*) FROM account_links WHERE status = 'accepted' AND (requester_id = $1 OR target_id = $1)", user.ID).Scan(&myCount)
+		if err := tx.QueryRow(r.Context(),
+			"SELECT COUNT(*) FROM account_links WHERE status = 'accepted' AND (requester_id = $1 OR target_id = $1)", user.ID).Scan(&myCount); err != nil {
+			ErrorJSON(w, http.StatusInternalServerError, "Could not check link limits.")
+			return
+		}
 		if myCount >= MaxLinks {
 			JSON(w, http.StatusConflict, map[string]any{"ok": false, "message": fmt.Sprintf("You already have %d linked accounts.", MaxLinks)})
 			return
 		}
-		tx.QueryRow(r.Context(),
-			"SELECT COUNT(*) FROM account_links WHERE status = 'accepted' AND (requester_id = $1 OR target_id = $1)", requesterID).Scan(&reqCount)
+		if err := tx.QueryRow(r.Context(),
+			"SELECT COUNT(*) FROM account_links WHERE status = 'accepted' AND (requester_id = $1 OR target_id = $1)", requesterID).Scan(&reqCount); err != nil {
+			ErrorJSON(w, http.StatusInternalServerError, "Could not check link limits.")
+			return
+		}
 		if reqCount >= MaxLinks {
 			JSON(w, http.StatusConflict, map[string]any{"ok": false, "message": "The requester is already at the link limit."})
 			return

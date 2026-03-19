@@ -91,7 +91,9 @@ func (h *TodosHandler) Create(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetCurrentUser(r)
 
 	var count int
-	h.Pool.QueryRow(r.Context(), "SELECT COUNT(*)::int FROM todos WHERE user_id = $1 AND archived = FALSE", user.ID).Scan(&count)
+	if err := h.Pool.QueryRow(r.Context(), "SELECT COUNT(*)::int FROM todos WHERE user_id = $1 AND archived = FALSE", user.ID).Scan(&count); err != nil {
+		slog.Error("failed to count todos", "error", err)
+	}
 	if count >= service.MaxTodos {
 		ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Maximum %d todos allowed", service.MaxTodos))
 		return
@@ -238,7 +240,9 @@ func (h *TodosHandler) DayTodos(w http.ResponseWriter, r *http.Request) {
 	targetUserID := targetUser.ID
 
 	var todosEnabled bool
-	h.Pool.QueryRow(r.Context(), "SELECT todos_enabled FROM users WHERE id = $1", targetUserID).Scan(&todosEnabled)
+	if err := h.Pool.QueryRow(r.Context(), "SELECT todos_enabled FROM users WHERE id = $1", targetUserID).Scan(&todosEnabled); err != nil {
+		slog.Error("failed to check todos_enabled", "error", err)
+	}
 	if !todosEnabled {
 		JSON(w, http.StatusOK, map[string]any{"ok": true, "todos": []any{}, "enabled": false})
 		return
@@ -379,7 +383,9 @@ func (h *TodosHandler) Toggle(w http.ResponseWriter, r *http.Request) {
 
 	// Verify ownership
 	var exists bool
-	h.Pool.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM todos WHERE id = $1 AND user_id = $2 AND archived = FALSE)", todoID, user.ID).Scan(&exists)
+	if err := h.Pool.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM todos WHERE id = $1 AND user_id = $2 AND archived = FALSE)", todoID, user.ID).Scan(&exists); err != nil {
+		slog.Error("failed to verify todo ownership", "error", err)
+	}
 	if !exists {
 		ErrorJSON(w, http.StatusNotFound, "Todo not found")
 		return

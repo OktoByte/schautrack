@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -261,7 +260,7 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 			emailClean, hash, timezone, `{"calories": true}`,
 		).Scan(&userID)
 		if err != nil {
-			log.Printf("Registration error: %v", err)
+			slog.Error("registration failed", "error", err)
 			ErrorJSON(w, http.StatusInternalServerError, "Could not register.")
 			return
 		}
@@ -282,7 +281,7 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 			emailClean, hash, timezone, `{"calories": true}`,
 		).Scan(&userID)
 		if err != nil {
-			log.Printf("Registration error: %v", err)
+			slog.Error("registration failed", "error", err)
 			ErrorJSON(w, http.StatusInternalServerError, "Could not register.")
 			return
 		}

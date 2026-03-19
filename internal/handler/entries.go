@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"math"
 	"net/http"
 	"regexp"
@@ -885,8 +885,11 @@ func (h *EntriesHandler) Import(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	for _, w := range weightToInsert {
-		service.UpsertWeightEntry(r.Context(), tx, user.ID, w.date, w.weight)
+	for _, we := range weightToInsert {
+		if _, err := service.UpsertWeightEntry(r.Context(), tx, user.ID, we.date, we.weight); err != nil {
+			ErrorJSON(w, http.StatusInternalServerError, "Import failed.")
+			return
+		}
 	}
 
 	if err := tx.Commit(r.Context()); err != nil {
@@ -1093,7 +1096,7 @@ func getEntriesForDate(r *http.Request, pool *pgxpool.Pool, userID int, dateStr 
 		"SELECT id, entry_date, amount, entry_name, created_at, protein_g, carbs_g, fat_g, fiber_g, sugar_g FROM calorie_entries WHERE user_id = $1 AND entry_date = $2 ORDER BY created_at DESC",
 		userID, dateStr)
 	if err != nil {
-		log.Printf("Failed to fetch entries: %v", err)
+		slog.Error("failed to fetch entries", "error", err)
 		return []map[string]any{}
 	}
 	defer rows.Close()
