@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS calorie_entries (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   entry_date DATE NOT NULL DEFAULT CURRENT_DATE,
-  amount INTEGER NOT NULL,
+  amount INTEGER NOT NULL CHECK (amount >= -9999 AND amount <= 9999),
   entry_name TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -129,8 +129,8 @@ CREATE INDEX IF NOT EXISTS todo_completions_user_date_idx ON todo_completions (u
 --   Goal values are integers (grams, or kcal for calories). Mode values are "limit" (stay under) or "target" (try to reach).
 --   Note: calorie goal was migrated from the legacy daily_goal column into macro_goals.calories.
 --   Missing _mode keys fall back to defaults in internal/service/macros.go MacroGoalModes.
--- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS protein_g INTEGER;
--- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS carbs_g INTEGER;
--- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS fat_g INTEGER;
--- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS fiber_g INTEGER;
--- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS sugar_g INTEGER;
+-- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS protein_g INTEGER CHECK (protein_g >= 0 AND protein_g <= 999);
+-- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS carbs_g INTEGER CHECK (carbs_g >= 0 AND carbs_g <= 999);
+-- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS fat_g INTEGER CHECK (fat_g >= 0 AND fat_g <= 999);
+-- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS fiber_g INTEGER CHECK (fiber_g >= 0 AND fiber_g <= 999);
+-- ALTER TABLE calorie_entries ADD COLUMN IF NOT EXISTS sugar_g INTEGER CHECK (sugar_g >= 0 AND sugar_g <= 999);

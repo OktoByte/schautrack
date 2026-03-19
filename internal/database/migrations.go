@@ -132,7 +132,11 @@ func ensureCalorieEntriesSchema(ctx context.Context, pool *pgxpool.Pool) error {
 			ALTER TABLE calorie_entries
 				ADD COLUMN IF NOT EXISTS entry_name TEXT,
 				ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
-			CREATE INDEX IF NOT EXISTS calorie_entries_user_date_idx ON calorie_entries (user_id, entry_date)`)
+			CREATE INDEX IF NOT EXISTS calorie_entries_user_date_idx ON calorie_entries (user_id, entry_date);
+			DO $$ BEGIN
+				ALTER TABLE calorie_entries ADD CONSTRAINT calorie_entries_amount_range CHECK (amount >= -9999 AND amount <= 9999);
+			EXCEPTION WHEN duplicate_object THEN NULL;
+			END $$`)
 		return err
 	})
 }
@@ -269,7 +273,29 @@ func ensureMacroSchema(ctx context.Context, pool *pgxpool.Pool) error {
 				ADD COLUMN IF NOT EXISTS fat_g INTEGER,
 				ADD COLUMN IF NOT EXISTS fiber_g INTEGER,
 				ADD COLUMN IF NOT EXISTS sugar_g INTEGER`)
-		return err
+		if err != nil {
+			return err
+		}
+
+		// Add CHECK constraints for macro columns (idempotent: skip if already exists)
+		macroChecks := []struct{ name, col string }{
+			{"calorie_entries_protein_g_range", "protein_g"},
+			{"calorie_entries_carbs_g_range", "carbs_g"},
+			{"calorie_entries_fat_g_range", "fat_g"},
+			{"calorie_entries_fiber_g_range", "fiber_g"},
+			{"calorie_entries_sugar_g_range", "sugar_g"},
+		}
+		for _, c := range macroChecks {
+			_, err = tx.Exec(ctx, fmt.Sprintf(`
+				DO $$ BEGIN
+					ALTER TABLE calorie_entries ADD CONSTRAINT %s CHECK (%s >= 0 AND %s <= 999);
+				EXCEPTION WHEN duplicate_object THEN NULL;
+				END $$`, c.name, c.col, c.col))
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }
 
