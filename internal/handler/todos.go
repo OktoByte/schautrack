@@ -434,10 +434,14 @@ func (h *TodosHandler) Reorder(w http.ResponseWriter, r *http.Request) {
 		}
 		if _, err := tx.Exec(r.Context(), "UPDATE todos SET sort_order = $1 WHERE id = $2 AND user_id = $3", i, int(id), user.ID); err != nil {
 			slog.Error("failed to update todo sort order", "error", err)
+			ErrorJSON(w, http.StatusInternalServerError, "Failed to reorder todos")
+			return
 		}
 	}
 	if err := tx.Commit(r.Context()); err != nil {
 		slog.Error("failed to commit todo reorder", "error", err)
+		ErrorJSON(w, http.StatusInternalServerError, "Failed to reorder todos")
+		return
 	}
 
 	h.Broker.BroadcastTodoChange(user.ID)

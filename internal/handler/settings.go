@@ -55,10 +55,14 @@ func (h *SettingsHandler) Preferences(w http.ResponseWriter, r *http.Request) {
 	if tz != "" {
 		if _, err := h.Pool.Exec(r.Context(), "UPDATE users SET weight_unit = $1, timezone = $2, timezone_manual = TRUE WHERE id = $3", unit, tz, user.ID); err != nil {
 			slog.Error("failed to update user preferences", "error", err)
+			ErrorJSON(w, http.StatusInternalServerError, "Could not save preferences.")
+			return
 		}
 	} else {
 		if _, err := h.Pool.Exec(r.Context(), "UPDATE users SET weight_unit = $1 WHERE id = $2", unit, user.ID); err != nil {
 			slog.Error("failed to update user preferences", "error", err)
+			ErrorJSON(w, http.StatusInternalServerError, "Could not save preferences.")
+			return
 		}
 	}
 	OkJSON(w)
@@ -117,6 +121,8 @@ func (h *SettingsHandler) Macros(w http.ResponseWriter, r *http.Request) {
 		"UPDATE users SET macros_enabled = $1, macro_goals = $2, goal_threshold = $3 WHERE id = $4",
 		enabledJSON, goalsJSON, goalThreshold, user.ID); err != nil {
 		slog.Error("failed to update macro settings", "error", err)
+		ErrorJSON(w, http.StatusInternalServerError, "Could not save macro settings.")
+		return
 	}
 
 	// Broadcast
@@ -166,6 +172,8 @@ func (h *SettingsHandler) AISettings(w http.ResponseWriter, r *http.Request) {
 			"UPDATE users SET ai_key = NULL, ai_key_last4 = NULL, ai_endpoint = NULL, ai_model = NULL, ai_daily_limit = NULL, preferred_ai_provider = NULL WHERE id = $1",
 			user.ID); err != nil {
 			slog.Error("failed to clear AI settings", "error", err)
+			ErrorJSON(w, http.StatusInternalServerError, "Could not clear AI settings.")
+			return
 		}
 		JSON(w, http.StatusOK, map[string]any{"ok": true, "message": "AI settings cleared."})
 		return
@@ -238,6 +246,8 @@ func (h *SettingsHandler) AISettings(w http.ResponseWriter, r *http.Request) {
 	values = append(values, user.ID)
 	if _, err := h.Pool.Exec(r.Context(), fmt.Sprintf("UPDATE users SET %s WHERE id = $%d", strings.Join(updates, ", "), idx), values...); err != nil {
 		slog.Error("failed to save AI settings", "error", err)
+		ErrorJSON(w, http.StatusInternalServerError, "Could not save AI settings.")
+		return
 	}
 	JSON(w, http.StatusOK, map[string]any{"ok": true, "message": "AI settings saved."})
 }

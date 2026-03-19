@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -264,11 +265,13 @@ func GetAIUsageToday(ctx context.Context, pool *pgxpool.Pool, userID int) (int, 
 }
 
 func IncrementAIUsage(ctx context.Context, pool *pgxpool.Pool, userID int) {
-	pool.Exec(ctx, `
+	if _, err := pool.Exec(ctx, `
 		INSERT INTO ai_usage (user_id, usage_date, request_count)
 		VALUES ($1, CURRENT_DATE, 1)
 		ON CONFLICT (user_id, usage_date) DO UPDATE SET request_count = ai_usage.request_count + 1`,
-		userID)
+		userID); err != nil {
+		slog.Error("failed to increment AI usage", "error", err, "userID", userID)
+	}
 }
 
 func hexDecode(s string) ([]byte, error) {

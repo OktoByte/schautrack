@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
@@ -200,7 +201,9 @@ func (s *Store) Regenerate(r *http.Request, sess *Session) (*Session, error) {
 	}
 
 	// Delete old session from DB
-	s.pool.Exec(r.Context(), `DELETE FROM "session" WHERE sid = $1`, oldID)
+	if _, err := s.pool.Exec(r.Context(), `DELETE FROM "session" WHERE sid = $1`, oldID); err != nil {
+		slog.Error("failed to delete old session during regeneration", "error", err, "sid", oldID)
+	}
 
 	return newSess, nil
 }
@@ -233,7 +236,9 @@ func (s *Store) pruneLoop() {
 	defer ticker.Stop()
 	for range ticker.C {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		s.pool.Exec(ctx, `DELETE FROM "session" WHERE expire < NOW()`)
+		if _, err := s.pool.Exec(ctx, `DELETE FROM "session" WHERE expire < NOW()`); err != nil {
+			slog.Error("failed to prune expired sessions", "error", err)
+		}
 		cancel()
 	}
 }

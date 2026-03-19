@@ -27,8 +27,12 @@ func Barcode(cfg *config.Config) http.HandlerFunc {
 		}
 
 		client := &http.Client{Timeout: 10 * time.Second}
-		req, _ := http.NewRequestWithContext(r.Context(), "GET",
+		req, err := http.NewRequestWithContext(r.Context(), "GET",
 			fmt.Sprintf("https://world.openfoodfacts.org/api/v2/product/%s?fields=product_name,nutriments,serving_quantity,serving_size", code), nil)
+		if err != nil {
+			ErrorJSON(w, http.StatusInternalServerError, "Failed to create request.")
+			return
+		}
 		req.Header.Set("User-Agent", userAgent)
 
 		resp, err := client.Do(req)

@@ -580,8 +580,12 @@ func (h *EntriesHandler) Export(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var macrosEnabled, macroGoalsRaw any
-	json.Unmarshal(user.MacrosEnabled, &macrosEnabled)
-	json.Unmarshal(user.MacroGoals, &macroGoalsRaw)
+	if err := json.Unmarshal(user.MacrosEnabled, &macrosEnabled); err != nil {
+		slog.Error("failed to unmarshal macros_enabled in export", "error", err)
+	}
+	if err := json.Unmarshal(user.MacroGoals, &macroGoalsRaw); err != nil {
+		slog.Error("failed to unmarshal macro_goals in export", "error", err)
+	}
 	if macrosEnabled == nil {
 		macrosEnabled = map[string]any{}
 	}
@@ -606,7 +610,10 @@ func (h *EntriesHandler) Export(w http.ResponseWriter, r *http.Request) {
 	for weights.Next() {
 		var date string
 		var weight float64
-		weights.Scan(&date, &weight)
+		if err := weights.Scan(&date, &weight); err != nil {
+			slog.Error("failed to scan weight row in export", "error", err)
+			continue
+		}
 		if !first {
 			fmt.Fprint(w, ",")
 		}
@@ -625,7 +632,10 @@ func (h *EntriesHandler) Export(w http.ResponseWriter, r *http.Request) {
 		var name *string
 		var createdAt *time.Time
 		var proteinG, carbsG, fatG, fiberG, sugarG *int
-		entries.Scan(&date, &amount, &name, &createdAt, &proteinG, &carbsG, &fatG, &fiberG, &sugarG)
+		if err := entries.Scan(&date, &amount, &name, &createdAt, &proteinG, &carbsG, &fatG, &fiberG, &sugarG); err != nil {
+			slog.Error("failed to scan entry row in export", "error", err)
+			continue
+		}
 		if !first {
 			fmt.Fprint(w, ",")
 		}
