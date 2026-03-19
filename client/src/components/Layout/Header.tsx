@@ -38,8 +38,8 @@ export default function Header() {
 
             <nav className={cn(
               'flex items-center gap-1',
-              'max-md:fixed max-md:right-[-280px] max-md:top-0 max-md:z-[101] max-md:h-screen max-md:w-[280px] max-md:flex-col max-md:items-stretch max-md:border-l max-md:border-border max-md:bg-background max-md:pt-16 max-md:transition-[right] max-md:duration-250',
-              menuOpen && 'max-md:right-0'
+              'max-md:fixed max-md:right-0 max-md:top-0 max-md:z-[101] max-md:h-screen max-md:w-[280px] max-md:translate-x-full max-md:flex-col max-md:items-stretch max-md:border-l max-md:border-border max-md:bg-background max-md:pt-16 max-md:transition-transform max-md:duration-250',
+              menuOpen && 'max-md:translate-x-0'
             )}>
               {isAdmin && (
                 <Link to="/admin" onClick={() => setMenuOpen(false)}
