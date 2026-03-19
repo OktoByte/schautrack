@@ -12,10 +12,12 @@ import (
 
 	"schautrack/internal/middleware"
 	"schautrack/internal/service"
+	"schautrack/internal/sse"
 )
 
 type WeightHandler struct {
-	Pool *pgxpool.Pool
+	Pool   *pgxpool.Pool
+	Broker *sse.Broker
 }
 
 // WeightDay handles GET /weight/day
@@ -95,6 +97,9 @@ func (h *WeightHandler) WeightUpsert(w http.ResponseWriter, r *http.Request) {
 		ErrorJSON(w, http.StatusInternalServerError, "Could not save weight")
 		return
 	}
+	if h.Broker != nil {
+		h.Broker.BroadcastEntryChange(user.ID)
+	}
 	JSON(w, http.StatusOK, map[string]any{"ok": true, "entry": entry})
 }
 
@@ -109,6 +114,9 @@ func (h *WeightHandler) WeightDelete(w http.ResponseWriter, r *http.Request) {
 	if _, err := h.Pool.Exec(r.Context(), "DELETE FROM weight_entries WHERE id = $1 AND user_id = $2", weightID, user.ID); err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Failed to delete weight entry")
 		return
+	}
+	if h.Broker != nil {
+		h.Broker.BroadcastEntryChange(user.ID)
 	}
 	OkJSON(w)
 }
