@@ -1,16 +1,15 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { User } from '@/types';
 import { saveMacros } from '@/api/settings';
 import { MACRO_LABELS } from '@/lib/macros';
-import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { cn } from '@/lib/utils';
-import { useToastStore } from '@/stores/toastStore';
+import { useAutosave } from '@/hooks/useAutosave';
 
 const MACRO_KEYS = ['protein', 'carbs', 'fat', 'fiber', 'sugar'];
 
-const inputClass = 'w-20 rounded-lg border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
-const selectClass = 'rounded-lg border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
+const inputClass = 'w-20 rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
+const selectClass = 'rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
 
 const MACRO_STYLES: Record<string, { label: string; border: string; bg: string }> = {
   calories: { label: 'text-macro-kcal', border: 'border-l-macro-kcal', bg: 'bg-macro-kcal/[0.04]' },
@@ -44,43 +43,37 @@ export default function MacroSettings({ user, onSave }: Props) {
     ...Object.fromEntries(MACRO_KEYS.map((k) => [k, macroGoals[`${k}_mode`] || ''])),
   });
   const [threshold, setThreshold] = useState(String(user.goalThreshold ?? 10));
-  const [loading, setLoading] = useState(false);
-  const addToast = useToastStore((s) => s.addToast);
 
   const canAutoCalc = enabled.calories && enabled.protein && enabled.carbs && enabled.fat;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  // Build the save payload from current state
+  const data = useMemo(() => ({ enabled, goals, modes, threshold, canAutoCalc }), [enabled, goals, modes, threshold, canAutoCalc]);
 
-    const data: Record<string, string | boolean | number> = {
-      calorie_goal: goals.calories || '0',
-      calories_enabled: enabled.calories ? 'on' : '',
-      calories_mode: modes.calories,
-      auto_calc_calories: enabled.auto_calc_calories && canAutoCalc ? 'on' : '',
-      goal_threshold: threshold,
+  const saveFn = useCallback(async (d: typeof data) => {
+    const payload: Record<string, string | boolean | number> = {
+      calorie_goal: d.goals.calories || '0',
+      calories_enabled: d.enabled.calories ? 'on' : '',
+      calories_mode: d.modes.calories,
+      auto_calc_calories: d.enabled.auto_calc_calories && d.canAutoCalc ? 'on' : '',
+      goal_threshold: d.threshold,
     };
-
     for (const key of MACRO_KEYS) {
-      data[`${key}_enabled`] = enabled[key] ? 'on' : '';
-      data[`${key}_goal`] = goals[key] || '0';
-      if (modes[key]) data[`${key}_mode`] = modes[key];
+      payload[`${key}_enabled`] = d.enabled[key] ? 'on' : '';
+      payload[`${key}_goal`] = d.goals[key] || '0';
+      if (d.modes[key]) payload[`${key}_mode`] = d.modes[key];
     }
+    await saveMacros(payload);
+    onSave();
+  }, [onSave]);
 
-    try {
-      await saveMacros(data);
-      onSave();
-      addToast('success', 'Goals saved');
-    } catch { /* ignore */ }
-    setLoading(false);
-  };
+  useAutosave(data, saveFn, { delay: 1000 });
 
   const allKeys = ['calories', ...MACRO_KEYS];
 
   return (
     <Card>
       <h3 className="text-sm font-semibold mb-3">Nutrition Goals</h3>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-px">
+      <div className="flex flex-col gap-px">
         {allKeys.map((key) => {
           const label = key === 'calories' ? 'Calories' : (MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.label || key);
           const unit = key === 'calories' ? 'kcal' : 'g';
@@ -91,7 +84,7 @@ export default function MacroSettings({ user, onSave }: Props) {
             <div
               key={key}
               className={cn(
-                'flex flex-wrap items-center gap-3 border-l-3 rounded-r-lg px-3 py-2.5 transition-opacity',
+                'flex items-center gap-3 border-l-3 rounded-r-lg px-3 py-2.5 transition-opacity',
                 style?.border,
                 isChecked ? style?.bg : 'bg-transparent opacity-50',
               )}
@@ -104,7 +97,7 @@ export default function MacroSettings({ user, onSave }: Props) {
                 />
                 <span className={cn('text-sm font-medium', style?.label)}>{label}</span>
               </label>
-              <div className={cn('flex items-center gap-2 ml-auto max-sm:ml-0 max-sm:w-full', !isChecked && 'pointer-events-none')}>
+              <div className={cn('flex items-center gap-2 ml-auto', !isChecked && 'pointer-events-none')}>
                 <span className="relative flex items-center">
                   <input
                     className={`${inputClass} pr-9`}
@@ -151,11 +144,7 @@ export default function MacroSettings({ user, onSave }: Props) {
             <span className="text-sm text-muted-foreground">%</span>
           </div>
         </div>
-
-        <div className="mt-3">
-          <Button type="submit" size="sm" loading={loading}>Save Goals</Button>
-        </div>
-      </form>
+      </div>
     </Card>
   );
 }

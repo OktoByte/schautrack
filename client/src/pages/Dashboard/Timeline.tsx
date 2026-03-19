@@ -39,7 +39,7 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
   const active = rangePreset || range.preset;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="rounded-xl border-2 border-border bg-card p-4">
       {/* Range selector */}
       <div className="flex flex-wrap gap-1.5 mb-4">
         {RANGE_PRESETS.map((days) => (
@@ -47,7 +47,7 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
             key={days}
             type="button"
             className={cn(
-              'rounded-lg px-3 py-2 min-h-[36px] text-xs font-bold border transition-colors cursor-pointer',
+              'rounded-md px-3 py-1.5 text-xs font-bold border transition-colors cursor-pointer',
               active === days
                 ? 'bg-primary/15 border-primary/60 text-primary'
                 : 'bg-surface border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
@@ -60,7 +60,7 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
         <button
           type="button"
           className={cn(
-            'rounded-lg px-3 py-2 min-h-[36px] text-xs font-bold border transition-colors cursor-pointer',
+            'rounded-md px-3 py-1.5 text-xs font-bold border transition-colors cursor-pointer',
             (isCustomActive || showCustom)
               ? 'bg-primary/15 border-primary/60 text-primary'
               : 'bg-surface border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
@@ -73,17 +73,17 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
 
       {/* Custom range inputs */}
       {showCustom && (
-        <div className="flex flex-wrap items-center gap-2 mb-4 p-3 rounded-lg bg-surface border border-border">
+        <div className="flex flex-wrap items-center gap-2 mb-4 p-3 rounded-md bg-surface border border-border">
           <input
             type="date"
-            className="rounded-lg border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring"
+            className="rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring"
             value={customStart}
             onChange={(e) => setCustomStart(e.target.value)}
           />
           <span className="text-xs text-muted-foreground font-medium">to</span>
           <input
             type="date"
-            className="rounded-lg border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring"
+            className="rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring"
             value={customEnd}
             onChange={(e) => setCustomEnd(e.target.value)}
           />

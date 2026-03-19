@@ -33,9 +33,9 @@ const BAR_COLORS: Record<string, string> = {
 };
 
 function statusClasses(statusClass: string) {
-  if (statusClass === 'macro-stat--success') return { chip: 'bg-success/10 border-success/35', value: 'text-green-300', bar: 'bg-gradient-to-r from-green-600 to-green-500' };
-  if (statusClass === 'macro-stat--warning') return { chip: 'bg-warning/10 border-warning/35', value: 'text-yellow-300', bar: 'bg-gradient-to-r from-amber-500 to-amber-400' };
-  if (statusClass === 'macro-stat--danger') return { chip: 'bg-destructive/10 border-destructive/35', value: 'text-red-300', bar: 'bg-gradient-to-r from-red-500 to-orange-500' };
+  if (statusClass === 'macro-stat--success') return { chip: 'bg-success/10 border-success/35', value: 'text-green-300', bar: 'bg-green-500' };
+  if (statusClass === 'macro-stat--warning') return { chip: 'bg-warning/10 border-warning/35', value: 'text-yellow-300', bar: 'bg-amber-500' };
+  if (statusClass === 'macro-stat--danger') return { chip: 'bg-destructive/10 border-destructive/35', value: 'text-red-300', bar: 'bg-red-500' };
   return { chip: 'bg-surface border-white/6', value: '', bar: '' };
 }
 
@@ -52,7 +52,7 @@ export default function TodayPanel({
   }
 
   return (
-    <section className="rounded-lg border border-border bg-card p-4">
+    <section className="rounded-xl border-2 border-border bg-card p-4">
       <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
         {caloriesEnabled && (
           <MacroChip
@@ -102,7 +102,7 @@ function MacroChip({ macroKey, label, total, goal, unit, status }: {
 
   return (
     <div className={cn('rounded-xl border p-3 transition-colors', sc.chip)}>
-      <div className={cn('text-[11px] font-bold uppercase tracking-wider mb-1', LABEL_COLORS[macroKey] || 'text-primary')}>
+      <div className={cn('text-xs font-bold uppercase tracking-wider mb-1', LABEL_COLORS[macroKey] || 'text-primary')}>
         {label}
       </div>
       <div className={cn('text-xl font-bold tabular-nums leading-tight', hasStatus && sc.value)}>
@@ -110,14 +110,14 @@ function MacroChip({ macroKey, label, total, goal, unit, status }: {
         {goal != null && <span className="text-muted-foreground font-normal text-[0.65em]"> / {goal} {unit}</span>}
       </div>
       {pct != null && (
-        <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
+        <div className="mt-2 h-2 rounded-full bg-white/10 overflow-hidden">
           <div
             className={cn('h-full rounded-full transition-[width] duration-300', hasStatus ? sc.bar : (BAR_COLORS[macroKey] || 'bg-primary'))}
             style={{ width: `${pct}%` }}
           />
         </div>
       )}
-      <div className="mt-2 text-[13px] text-muted-foreground">{status.statusText}</div>
+      <div className="mt-2 text-sm text-muted-foreground">{status.statusText}</div>
     </div>
   );
 }

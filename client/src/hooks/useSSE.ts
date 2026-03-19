@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 export function useSSE() {
   const queryClient = useQueryClient();
   const sourceRef = useRef<EventSource | null>(null);
+  const retryDelayRef = useRef(2000);
 
   useEffect(() => {
     if (!window.EventSource) return;
@@ -33,10 +34,22 @@ export function useSSE() {
         queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       });
 
+      source.addEventListener('todo-change', () => {
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['todos'] });
+        queryClient.invalidateQueries({ queryKey: ['todos-day'] });
+      });
+
+      source.onopen = () => {
+        retryDelayRef.current = 2000;
+      };
+
       source.onerror = () => {
         source.close();
         sourceRef.current = null;
-        setTimeout(connect, 2000);
+        const delay = retryDelayRef.current;
+        retryDelayRef.current = Math.min(delay * 2, 30000);
+        setTimeout(connect, delay);
       };
     };
 

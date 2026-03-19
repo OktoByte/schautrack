@@ -36,7 +36,7 @@ export default function Login() {
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
-        if (err.data.captchaSvg) setCaptchaSvg(err.data.captchaSvg as string);
+        if (typeof err.data.captchaSvg === 'string') setCaptchaSvg(err.data.captchaSvg);
         if (err.data.requireCaptcha) setCaptcha('');
       } else { setError('Could not log in.'); }
       setLoading(false);
@@ -55,7 +55,9 @@ export default function Login() {
               <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
               {captchaSvg && (
                 <div className="flex flex-col gap-2">
-                  <div className="flex justify-center rounded-md bg-muted/50 p-2 invert [&_svg]:max-w-full" dangerouslySetInnerHTML={{ __html: captchaSvg }} />
+                  <div className="flex justify-center rounded-md bg-muted/50 p-2 invert [&_img]:max-w-full">
+                    <img src={`data:image/svg+xml;base64,${btoa(captchaSvg)}`} alt="Captcha" />
+                  </div>
                   <Input label="Captcha" value={captcha} onChange={(e) => setCaptcha(e.target.value)} required autoComplete="off" />
                 </div>
               )}

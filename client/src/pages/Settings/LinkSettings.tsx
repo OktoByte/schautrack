@@ -4,6 +4,7 @@ import { requestLink, respondToLink, removeLink, updateLinkLabel } from '@/api/l
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
+import { useToastStore } from '@/stores/toastStore';
 
 interface Props {
   incomingRequests: LinkRequest[];
@@ -16,6 +17,7 @@ interface Props {
 export default function LinkSettings({ incomingRequests, outgoingRequests, acceptedLinks, availableSlots, onUpdate }: Props) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const addToast = useToastStore((s) => s.addToast);
 
   const handleRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,18 +26,28 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
       await requestLink(email);
       setEmail('');
       onUpdate();
-    } catch { /* ignore */ }
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Failed to send link request');
+    }
     setLoading(false);
   };
 
   const handleRespond = async (linkId: number, action: 'accept' | 'decline') => {
-    await respondToLink(linkId, action);
-    onUpdate();
+    try {
+      await respondToLink(linkId, action);
+      onUpdate();
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Failed to respond to link');
+    }
   };
 
   const handleRemove = async (linkId: number) => {
-    await removeLink(linkId);
-    onUpdate();
+    try {
+      await removeLink(linkId);
+      onUpdate();
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Failed to remove link');
+    }
   };
 
   return (
@@ -90,8 +102,14 @@ function LinkRow({ link, onRemove }: { link: AcceptedLink; onRemove: () => void 
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(link.label || '');
 
+  const addToast = useToastStore((s) => s.addToast);
+
   const saveLabel = async () => {
-    await updateLinkLabel(link.linkId, label);
+    try {
+      await updateLinkLabel(link.linkId, label);
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Failed to update label');
+    }
     setEditing(false);
   };
 

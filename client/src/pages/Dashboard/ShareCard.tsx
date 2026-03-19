@@ -42,7 +42,7 @@ export default function ShareCard({ view, todayStr, onDotClick }: Props) {
 
   return (
     <div className={cn(
-      'rounded-lg border bg-card p-3 transition-colors',
+      'rounded-xl border-2 bg-card p-4 transition-colors',
       isActive ? 'border-primary' : 'border-border'
     )}>
       <div className="mb-2">
@@ -69,7 +69,7 @@ export default function ShareCard({ view, todayStr, onDotClick }: Props) {
           </span>
         )}
       </div>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(18px,32px))] justify-between gap-x-3 gap-y-8 py-4 px-1">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(18px,32px))] justify-between gap-x-3 gap-y-5 py-4 px-1">
         {view.dailyStats.map((stat) => (
           <DayDot
             key={stat.date}

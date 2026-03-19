@@ -19,8 +19,11 @@ export default function Header() {
     <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1100px] items-center justify-between px-4 py-3">
         <Link to={user ? '/dashboard' : '/'} className="flex items-center gap-2 text-foreground no-underline">
-          <img src="/logo.png" alt="" width={28} height={28} className="rounded-md" />
-          <span className="text-lg font-semibold tracking-tight">Schautrack</span>
+          <img src="/logo.png" alt="" width={32} height={32} className="rounded-md" />
+          <div className="flex flex-col leading-none">
+            <span className="text-xl font-semibold tracking-tight">Schautrack</span>
+            <span className="text-xs text-muted-foreground">Every day counts</span>
+          </div>
         </Link>
 
         {user && (

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { WeightEntry } from '@/types';
 import { upsertWeight, deleteWeight } from '@/api/weight';
 import { useToastStore } from '@/stores/toastStore';
+import { Button } from '@/components/ui/Button';
 
 interface Props {
   weightEntry: WeightEntry | null;
@@ -18,21 +19,31 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
   const [value, setValue] = useState('');
   const [loading, setLoading] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const entry = weightEntry || lastWeightEntry;
   const isLastKnown = !weightEntry && !!lastWeightEntry;
 
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
   const handleSave = async () => {
     const num = parseFloat(value);
-    if (!num || num <= 0) return;
+    if (!num || num <= 0) { setEditing(false); setValue(''); return; }
     setLoading(true);
     try {
       await upsertWeight({ date: selectedDate, weight: num });
       queryClient.invalidateQueries({ queryKey: ['weight'] });
-      addToast('success', 'Weight saved');
+      addToast('success', 'Weight tracked');
       setEditing(false);
       setValue('');
-    } catch { /* ignore */ }
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Failed to save weight');
+    }
     setLoading(false);
   };
 
@@ -42,7 +53,9 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
     try {
       await deleteWeight(weightEntry.id);
       queryClient.invalidateQueries({ queryKey: ['weight'] });
-    } catch { /* ignore */ }
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Failed to delete weight');
+    }
     setLoading(false);
   };
 
@@ -59,66 +72,75 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
   if (!entry && !canEdit) return null;
 
   return (
-    <div className="flex items-center gap-2 border-t border-border px-3 py-2 text-sm">
-      <span className="flex-1 text-muted-foreground text-xs">
-        {isLastKnown ? 'Last' : 'Weight'}
-      </span>
-
+    <div className="border-t-2 border-border px-4 py-3">
       {editing ? (
-        <>
-          <input
-            className="w-16 bg-muted/50 border border-ring rounded-md px-2 py-0.5 text-sm text-foreground outline-none tabular-nums"
-            type="text"
-            inputMode="decimal"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="0.0"
-            autoFocus
-          />
-          <span className="text-xs text-muted-foreground">{weightUnit}</span>
-          {loading ? (
-            <span className="size-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          ) : (
-            <>
-              <button type="button" className="bg-transparent border-0 p-0 text-xs text-primary cursor-pointer font-medium" onClick={handleSave}>Save</button>
-              <button type="button" className="bg-transparent border-0 p-0 text-xs text-muted-foreground cursor-pointer" onClick={() => { setEditing(false); setValue(''); }}>&times;</button>
-            </>
-          )}
-        </>
-      ) : entry ? (
-        <>
+        <form
+          className="flex items-center gap-2"
+          onSubmit={(e) => { e.preventDefault(); handleSave(); }}
+        >
+          <label htmlFor="weight-input" className="text-sm text-muted-foreground shrink-0">Weight</label>
+          <div className="relative">
+            <input
+              id="weight-input"
+              ref={inputRef}
+              className="w-24 rounded-md border border-input bg-muted/50 px-3 py-1.5 pr-8 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring tabular-nums"
+              type="text"
+              inputMode="decimal"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="0.0"
+              aria-label={`Weight in ${weightUnit}`}
+            />
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">{weightUnit}</span>
+          </div>
+          <Button type="submit" size="sm" loading={loading}>Track</Button>
           <button
             type="button"
-            className="bg-transparent border-0 p-0 tabular-nums text-foreground cursor-pointer hover:text-primary transition-colors text-sm"
-            onClick={canEdit ? startEdit : undefined}
-            disabled={!canEdit}
+            className="bg-transparent border-0 p-0 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+            onClick={() => { setEditing(false); setValue(''); }}
           >
-            {Number(entry.weight).toFixed(1)}
+            Cancel
           </button>
-          <span className="text-xs text-muted-foreground">{weightUnit}</span>
-          {isLastKnown && entry.entry_date && (
-            <span className="text-xs text-muted-foreground ml-1">{entry.entry_date}</span>
-          )}
-          {canEdit && weightEntry && (
+        </form>
+      ) : (
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">Weight</span>
+          {entry ? (
+            <>
+              <button
+                type="button"
+                className={`bg-transparent border-0 p-0 text-lg font-semibold tabular-nums cursor-pointer hover:text-primary transition-colors ${isLastKnown ? 'text-muted-foreground' : 'text-green-400'}`}
+                onClick={canEdit ? startEdit : undefined}
+                disabled={!canEdit}
+              >
+                {Number(entry.weight).toFixed(1)}
+              </button>
+              <span className="text-sm text-muted-foreground">{weightUnit}</span>
+              {isLastKnown && entry.entry_date && (
+                <span className="text-xs text-muted-foreground/60">{entry.entry_date}</span>
+              )}
+              {canEdit && weightEntry && (
+                <button
+                  type="button"
+                  className="bg-transparent border-0 p-0 ml-auto text-muted-foreground/60 hover:text-destructive cursor-pointer transition-colors text-lg leading-none"
+                  onClick={handleDelete}
+                  title="Delete"
+                >
+                  &times;
+                </button>
+              )}
+            </>
+          ) : (
             <button
               type="button"
-              className="bg-transparent border-0 p-0 ml-auto text-muted-foreground/40 hover:text-destructive cursor-pointer transition-colors"
-              onClick={handleDelete}
-              title="Delete"
+              className="bg-transparent border-0 p-0 text-sm text-muted-foreground/50 cursor-pointer hover:text-primary transition-colors"
+              onClick={startEdit}
             >
-              &times;
+              Track weight
             </button>
           )}
-        </>
-      ) : (
-        <button
-          type="button"
-          className="bg-transparent border-0 p-0 text-xs text-muted-foreground/40 cursor-pointer hover:text-muted-foreground transition-colors"
-          onClick={startEdit}
-        >
-          —
-        </button>
+        </div>
       )}
     </div>
   );

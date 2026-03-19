@@ -13,6 +13,7 @@ export interface User {
   aiKeyLast4?: string;
   aiModel: string | null;
   aiDailyLimit: number | null;
+  todosEnabled: boolean;
 }
 
 export interface Entry {
@@ -61,6 +62,23 @@ export interface AIUsage {
   used: number;
   limit: number;
   remaining: number;
+}
+
+export interface Todo {
+  id: number;
+  name: string;
+  schedule: { type: 'daily' } | { type: 'weekdays'; days: number[] };
+  time_of_day: string | null;
+  sort_order: number;
+  created_at?: string;
+}
+
+export interface TodoDay {
+  id: number;
+  name: string;
+  time_of_day: string | null;
+  completed: boolean;
+  streak: number;
 }
 
 export interface DashboardData {

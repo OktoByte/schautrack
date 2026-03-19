@@ -35,7 +35,7 @@ export default function Register() {
       if (result.requireVerification) { navigate('/verify-email'); return; }
       if (result.ok) { await fetchUser(); navigate('/dashboard'); }
     } catch (err) {
-      if (err instanceof ApiError) { setError(err.message); if (err.data.captchaSvg) setCaptchaSvg(err.data.captchaSvg as string); }
+      if (err instanceof ApiError) { setError(err.message); if (typeof err.data.captchaSvg === 'string') setCaptchaSvg(err.data.captchaSvg); }
       else { setError('Could not register.'); }
       setLoading(false);
     }
@@ -54,7 +54,9 @@ export default function Register() {
             </>
           ) : (
             <div className="flex flex-col gap-2">
-              <div className="flex justify-center rounded-md bg-muted/50 p-2 invert [&_svg]:max-w-full" dangerouslySetInnerHTML={{ __html: captchaSvg }} />
+              <div className="flex justify-center rounded-md bg-muted/50 p-2 invert [&_img]:max-w-full">
+                <img src={`data:image/svg+xml;base64,${btoa(captchaSvg)}`} alt="Captcha" />
+              </div>
               <Input label="Captcha" value={captcha} onChange={(e) => setCaptcha(e.target.value)} required autoComplete="off" />
             </div>
           )}

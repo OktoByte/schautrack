@@ -70,7 +70,7 @@ export default function Landing() {
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {FEATURES.map((f) => (
-          <div key={f.title} className={`rounded-lg border border-border border-l-3 ${f.color} bg-card p-5`}>
+          <div key={f.title} className={`rounded-md border border-border border-l-3 ${f.color} bg-card p-5`}>
             <div className="mb-3">{f.icon}</div>
             <h3 className="mb-1.5 text-sm font-semibold text-foreground">{f.title}</h3>
             <p className="text-sm leading-relaxed text-muted-foreground">{f.desc}</p>

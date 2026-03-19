@@ -210,7 +210,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros 
           <div className="p-4 flex flex-col gap-3">
             {/* Mode tabs */}
             {phase === 'capture' && !imageData && (
-              <div className="flex gap-1 rounded-lg bg-muted p-1">
+              <div className="flex gap-1 rounded-md bg-muted p-1">
                 <button
                   type="button"
                   className={cn(
@@ -241,7 +241,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros 
             {/* Preview area */}
             {phase === 'capture' && (
               <>
-                <div className="relative rounded-lg overflow-hidden bg-black/30 min-h-[200px] flex items-center justify-center [&_video]:w-full [&_video]:block [&_img]:w-full [&_img]:block [&_img]:rounded-lg">
+                <div className="relative rounded-md overflow-hidden bg-black/30 min-h-[200px] flex items-center justify-center [&_video]:w-full [&_video]:block [&_img]:w-full [&_img]:block [&_img]:rounded-md">
                   {mode === 'camera' && !imageData && (
                     <>
                       <video ref={videoRef} autoPlay playsInline muted />
@@ -301,7 +301,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros 
             {phase === 'result' && result && (
               <>
                 {imageData && (
-                  <div className="rounded-lg overflow-hidden [&_img]:w-full [&_img]:block">
+                  <div className="rounded-md overflow-hidden [&_img]:w-full [&_img]:block">
                     <img src={imageData} alt="Food" />
                   </div>
                 )}
@@ -322,7 +322,7 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros 
                         return (
                           <div key={key} className="flex flex-col items-center">
                             <span className="text-sm font-semibold tabular-nums">{val}g</span>
-                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label?.short || key}</span>
+                            <span className="text-xs uppercase tracking-wider text-muted-foreground">{label?.short || key}</span>
                           </div>
                         );
                       })}

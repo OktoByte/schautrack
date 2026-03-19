@@ -9,6 +9,7 @@ import EntryForm from './EntryForm';
 import Timeline from './Timeline';
 import EntryList from './EntryList';
 import WeightRow from './WeightRow';
+import TodoList from './TodoList';
 
 export default function Dashboard() {
   const { user, isLoading: authLoading } = useRequireAuth();
@@ -55,7 +56,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2">
       <TodayPanel
         dailyGoal={dashboard.dailyGoal}
         todayTotal={dashboard.todayTotal}
@@ -90,8 +91,16 @@ export default function Dashboard() {
         todayStr={dashboard.todayStr}
       />
 
-      <div className="rounded-lg border border-border bg-card  overflow-hidden">
-        <div className="px-4 py-3 border-b border-border">
+      {effectiveUserId && selectedDate && (
+        <TodoList
+          date={selectedDate}
+          userId={effectiveUserId}
+          canEdit={canEdit}
+        />
+      )}
+
+      <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
+        <div className="px-3 py-2 border-b-2 border-border">
           <h3 className="text-sm font-medium text-muted-foreground">
             {selectedDate} &mdash; {currentLabel}
           </h3>

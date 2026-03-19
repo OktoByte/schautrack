@@ -16,7 +16,7 @@ export default function ForgotPassword() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    getCaptcha().then((data) => setCaptchaSvg(data.svg)).catch(() => {});
+    getCaptcha().then((data) => setCaptchaSvg(data.svg)).catch(() => setError('Failed to load captcha'));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,8 +48,9 @@ export default function ForgotPassword() {
           <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           {captchaSvg && (
             <div className="flex flex-col gap-2">
-              <div className="flex justify-center rounded-md bg-muted/50 p-2 invert [&_svg]:max-w-full"
-                dangerouslySetInnerHTML={{ __html: captchaSvg }} />
+              <div className="flex justify-center rounded-md bg-muted/50 p-2 invert [&_img]:max-w-full">
+                <img src={`data:image/svg+xml;base64,${btoa(captchaSvg)}`} alt="Captcha" />
+              </div>
               <Input label="Captcha" value={captcha} onChange={(e) => setCaptcha(e.target.value)} required autoComplete="off" />
             </div>
           )}

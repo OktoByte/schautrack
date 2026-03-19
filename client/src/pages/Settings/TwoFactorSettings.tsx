@@ -80,7 +80,7 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
       await navigator.clipboard.writeText(setupData.secret);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch { /* ignore */ }
+    } catch { /* clipboard not available */ }
   };
 
   const handleCancel = () => {

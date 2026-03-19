@@ -21,7 +21,7 @@ export default function DayDot({ date, status, isToday, isSelected, onClick }: P
     <button
       type="button"
       className={cn(
-        'size-[22px] rounded-lg cursor-pointer transition-all border-0 p-0 shrink-0',
+        'size-[22px] rounded-md cursor-pointer transition-all border-0 p-0 shrink-0',
         STATUS_COLORS[status] || 'bg-white/[0.03]',
         isToday && 'ring-2 ring-primary ring-offset-1 ring-offset-card',
         isSelected && 'ring-2 ring-foreground ring-offset-1 ring-offset-card scale-110',

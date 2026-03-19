@@ -1,11 +1,26 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router';
 import { useAuthStore } from '@/stores/authStore';
 import { useSSE } from '@/hooks/useSSE';
+import { setOn401 } from '@/api/client';
+import { queryClient } from './main';
 import Toaster from '@/components/ui/Toaster';
 import AppRouter from './router';
 
 export default function App() {
-  const { fetchUser, isInitialized, user } = useAuthStore();
+  const { fetchUser, isInitialized, user, clearUser } = useAuthStore();
+  const navigate = useNavigate();
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+
+  // Wire up global 401 handler — clears auth, cache, and redirects to login
+  useEffect(() => {
+    setOn401(() => {
+      clearUser();
+      queryClient.clear();
+      navigateRef.current('/login', { replace: true });
+    });
+  }, [clearUser]);
 
   useEffect(() => {
     fetchUser();

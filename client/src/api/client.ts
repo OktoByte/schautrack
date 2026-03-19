@@ -1,4 +1,9 @@
 let csrfToken: string | null = null;
+let on401Callback: (() => void) | null = null;
+
+export function setOn401(callback: () => void) {
+  on401Callback = callback;
+}
 
 async function fetchCsrfToken(): Promise<string> {
   const res = await fetch('/api/csrf');
@@ -44,8 +49,8 @@ export async function api<T = unknown>(
   }
 
   if (res.status === 401) {
-    // Clear the cached token since the session is invalid
     csrfToken = null;
+    if (on401Callback) on401Callback();
     const err = await res.json().catch(() => ({ error: 'Unauthorized' }));
     throw new ApiError(401, err.error || 'Unauthorized', err);
   }

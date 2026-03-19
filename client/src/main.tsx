@@ -6,7 +6,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import App from './App';
 import '@/styles/global.css';
 
-const queryClient = new QueryClient({
+export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,

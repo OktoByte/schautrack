@@ -13,6 +13,7 @@ import TwoFactorSettings from './TwoFactorSettings';
 import EmailSettings from './EmailSettings';
 import AISettings from './AISettings';
 import LinkSettings from './LinkSettings';
+import TodoSettings from './TodoSettings';
 
 export default function Settings() {
   const { isLoading: authLoading } = useRequireAuth();
@@ -93,6 +94,9 @@ export default function Settings() {
             availableSlots={data.availableSlots}
             onUpdate={refresh}
           />
+        </div>
+        <div className="break-inside-avoid">
+          <TodoSettings user={data.user} onSave={refresh} />
         </div>
         <div className="break-inside-avoid">
           <Card>

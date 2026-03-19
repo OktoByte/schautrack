@@ -14,6 +14,16 @@ export default function Privacy() {
             <li>Weight entries you create</li>
             <li>Timezone and display preferences</li>
           </ul>
+          <h3 className="font-semibold text-foreground">Third-Party Services</h3>
+          <ul className="list-disc pl-6">
+            <li>
+              Barcode scanning uses{' '}
+              <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer" className="text-primary underline">Open Food Facts</a>
+              , a free and open food products database licensed under the{' '}
+              <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener noreferrer" className="text-primary underline">Open Database License (ODbL)</a>.
+              When you scan a barcode, the barcode number is sent to Open Food Facts to retrieve product nutrition data.
+            </li>
+          </ul>
           <h3 className="font-semibold text-foreground">Data We Don't Collect</h3>
           <ul className="list-disc pl-6">
             <li>No analytics or tracking scripts</li>
