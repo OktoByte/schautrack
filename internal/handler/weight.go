@@ -62,11 +62,7 @@ func (h *WeightHandler) WeightDay(w http.ResponseWriter, r *http.Request) {
 
 // WeightUpsert handles POST /weight/upsert
 func (h *WeightHandler) WeightUpsert(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		EntryDate string `json:"entry_date"`
-		Date      string `json:"date"`
-		Weight    string `json:"weight"`
-	}
+	var body map[string]any
 	if err := ReadJSON(r, &body); err != nil {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid request.")
 		return
@@ -75,11 +71,11 @@ func (h *WeightHandler) WeightUpsert(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetCurrentUser(r)
 	userTz := getUserTimezone(r, user)
 
-	dateStr := strings.TrimSpace(body.EntryDate)
-	if dateStr == "" {
-		dateStr = strings.TrimSpace(body.Date)
+	dateStr := strings.TrimSpace(fmt.Sprintf("%v", body["entry_date"]))
+	if dateStr == "" || dateStr == "<nil>" {
+		dateStr = strings.TrimSpace(fmt.Sprintf("%v", body["date"]))
 	}
-	if dateStr == "" {
+	if dateStr == "" || dateStr == "<nil>" {
 		dateStr = service.FormatDateInTz(time.Now(), userTz)
 	}
 	if !dateRe.MatchString(dateStr) {
@@ -87,7 +83,8 @@ func (h *WeightHandler) WeightUpsert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	wr := service.ParseWeight(body.Weight)
+	weightStr := fmt.Sprintf("%v", body["weight"])
+	wr := service.ParseWeight(weightStr)
 	if !wr.Ok {
 		ErrorJSON(w, http.StatusBadRequest, "Invalid weight")
 		return
@@ -116,5 +113,3 @@ func (h *WeightHandler) WeightDelete(w http.ResponseWriter, r *http.Request) {
 	OkJSON(w)
 }
 
-// Suppress unused import
-var _ = fmt.Sprint

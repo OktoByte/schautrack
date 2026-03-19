@@ -309,14 +309,17 @@ func (h *EntriesHandler) CreateEntry(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Parse weight
+	// Parse weight (frontend may send as string or number)
 	var weightVal float64
 	hasWeight := false
-	if wStr, ok := body["weight"].(string); ok && wStr != "" {
-		wr := service.ParseWeight(wStr)
-		if wr.Ok {
-			weightVal = wr.Value
-			hasWeight = true
+	if wv, exists := body["weight"]; exists && wv != nil {
+		weightStr := fmt.Sprintf("%v", wv)
+		if weightStr != "" && weightStr != "<nil>" {
+			wr := service.ParseWeight(weightStr)
+			if wr.Ok {
+				weightVal = wr.Value
+				hasWeight = true
+			}
 		}
 	}
 
