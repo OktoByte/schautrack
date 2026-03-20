@@ -52,7 +52,7 @@ export default function Landing() {
     <div className="py-16 max-md:py-8">
       <section className="mx-auto mb-16 max-w-lg text-center max-md:mb-10">
         <h1 className="mb-5 text-4xl font-bold leading-[1.1] tracking-tight text-foreground max-md:text-3xl">
-          Track cat,<br />
+          Track nutrition,<br />
           <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">not complexity</span>
         </h1>
         <p className="mb-8 text-base leading-relaxed text-muted-foreground max-w-md mx-auto">
