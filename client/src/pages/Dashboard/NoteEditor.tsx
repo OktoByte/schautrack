@@ -57,7 +57,10 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
     <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
       <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">Notes</h3>
-        {saving && <span className="text-xs text-muted-foreground">Saving...</span>}
+        <div className="flex items-center gap-2">
+          {saving && <span className="text-xs text-muted-foreground">Saving...</span>}
+          {canEdit && <span className={`text-xs ${value.length > 9500 ? 'text-destructive' : 'text-muted-foreground'}`}>{value.length}/10000</span>}
+        </div>
       </div>
       <div className="p-3">
         <textarea
@@ -65,6 +68,7 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
           onChange={handleChange}
           onBlur={handleBlur}
           disabled={!canEdit}
+          maxLength={10000}
           placeholder={canEdit ? 'Write a note for this day...' : ''}
           rows={3}
           className="w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring resize-y min-h-[60px] disabled:opacity-60 disabled:cursor-default"
