@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useRequireAuth } from '@/hooks/useAuth';
 import { getDashboard, getDayEntries } from '@/api/entries';
 import { getWeightDay } from '@/api/weight';
@@ -26,6 +26,7 @@ export default function Dashboard() {
       end: rangeEnd || undefined,
     }),
     enabled: !!user,
+    placeholderData: keepPreviousData,
   });
 
   // Set self as current user on first load
