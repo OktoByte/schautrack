@@ -156,15 +156,21 @@ export default function Login() {
           )}
           <Button type="submit" loading={loading}>{requireToken ? 'Verify' : 'Log In'}</Button>
         </form>
-        <div className="mt-6 flex justify-between text-sm">
-          {requireToken && canReset2fa ? (
-            <button type="button" onClick={() => { setResetMode('request'); setResetEmail(email); setResetPassword(password); setError(''); setSuccess(''); }} className="text-primary hover:underline">
-              Lost your authenticator?
-            </button>
-          ) : (
-            <Link to="/forgot-password">Forgot password?</Link>
-          )}
-          <Link to="/register">Create account</Link>
+        <div className="mt-6 flex flex-col gap-2 text-sm">
+          <div className="flex justify-between">
+            {!requireToken && <Link to="/forgot-password">Forgot password?</Link>}
+            {requireToken && canReset2fa && (
+              <button type="button" onClick={() => { setResetMode('request'); setResetEmail(email); setResetPassword(password); setError(''); setSuccess(''); }} className="text-primary hover:underline">
+                Lost your authenticator?
+              </button>
+            )}
+            {requireToken && !canReset2fa && (
+              <span className="text-muted-foreground/50 cursor-default" title="Email reset requires SMTP to be configured on the server">
+                Lost your authenticator?
+              </span>
+            )}
+            <Link to="/register">Create account</Link>
+          </div>
         </div>
       </Card>
     </div>
