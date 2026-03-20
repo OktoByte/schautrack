@@ -51,10 +51,6 @@ export default function Landing() {
   return (
     <div className="py-16 max-md:py-8">
       <section className="mx-auto mb-16 max-w-lg text-center max-md:mb-10">
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs text-muted-foreground">
-          <span className="size-1.5 rounded-full bg-success animate-pulse" />
-          Every day counts
-        </div>
         <h1 className="mb-5 text-4xl font-bold leading-[1.1] tracking-tight text-foreground max-md:text-3xl">
           Track nutrition,<br />
           <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">not complexity</span>
