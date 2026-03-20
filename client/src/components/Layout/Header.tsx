@@ -26,7 +26,7 @@ export default function Header() {
           </div>
         </Link>
 
-        {user && (
+        {user ? (
           <>
             <button
               type="button"
@@ -68,6 +68,17 @@ export default function Header() {
               <div className="fixed inset-0 z-[100] bg-black/50 md:hidden" onClick={() => setMenuOpen(false)} />
             )}
           </>
+        ) : (
+          <nav className="flex items-center gap-1">
+            <Link to="/login"
+              className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
+              Login
+            </Link>
+            <Link to="/register"
+              className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
+              Register
+            </Link>
+          </nav>
         )}
       </div>
     </header>
