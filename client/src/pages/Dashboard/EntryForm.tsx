@@ -100,6 +100,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
 
   return (
     <div className="rounded-xl border-2 border-border bg-card p-4">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Log</h2>
       <form onSubmit={handleSubmit}>
         {/* Food name */}
         <div className="mb-3">

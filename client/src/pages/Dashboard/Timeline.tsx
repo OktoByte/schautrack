@@ -40,6 +40,7 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
 
   return (
     <div className="rounded-xl border-2 border-border bg-card p-4">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Timeline</h2>
       {/* Range selector */}
       <div className="flex flex-wrap gap-1.5 mb-4">
         {RANGE_PRESETS.map((days) => (

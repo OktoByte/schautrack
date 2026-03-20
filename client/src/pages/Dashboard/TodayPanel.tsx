@@ -51,9 +51,13 @@ export default function TodayPanel({
     );
   }
 
+  const itemCount = (caloriesEnabled ? 1 : 0) + enabledMacros.length;
+  const cols = itemCount <= 3 ? itemCount : Math.ceil(itemCount / 2);
+
   return (
     <section className="rounded-xl border-2 border-border bg-card p-4">
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(125px,1fr))] gap-2">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Today</h2>
+      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
         {caloriesEnabled && (
           <MacroChip
             macroKey="kcal"

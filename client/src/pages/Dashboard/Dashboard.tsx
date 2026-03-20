@@ -110,11 +110,10 @@ export default function Dashboard() {
         />
       )}
 
-      <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
-        <div className="px-3 py-2 border-b-2 border-border">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            {selectedDate} &mdash; {currentLabel}
-          </h3>
+      <div className="rounded-xl border-2 border-border bg-card overflow-hidden p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Entries</h2>
+          <span className="text-sm text-muted-foreground">{selectedDate} &mdash; {currentLabel}</span>
         </div>
 
         <EntryList

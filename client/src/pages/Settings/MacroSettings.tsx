@@ -66,13 +66,17 @@ export default function MacroSettings({ user, onSave }: Props) {
     onSave();
   }, [onSave]);
 
-  useAutosave(data, saveFn, { delay: 1000 });
+  const { status } = useAutosave(data, saveFn, { delay: 1000 });
 
   const allKeys = ['calories', ...MACRO_KEYS];
 
   return (
     <Card>
-      <h3 className="text-sm font-semibold mb-3">Nutrition Goals</h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold">Nutrition Goals</h3>
+        {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse">Saving...</span>}
+        {status === 'saved' && <span className="text-xs text-green-400">Saved</span>}
+      </div>
       <div className="flex flex-col gap-px">
         {allKeys.map((key) => {
           const label = key === 'calories' ? 'Calories' : (MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.label || key);

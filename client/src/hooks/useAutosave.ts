@@ -1,9 +1,9 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useToastStore } from '@/stores/toastStore';
 
 /**
  * Auto-save hook. Calls `saveFn` after `delay`ms of no changes.
- * Shows a subtle toast on save or error.
+ * Returns `status`: 'idle' | 'saving' | 'saved' | 'error'.
  */
 export function useAutosave<T>(
   data: T,
@@ -13,17 +13,24 @@ export function useAutosave<T>(
   const { delay = 800, enabled = true } = opts;
   const addToast = useToastStore((s) => s.addToast);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialRef = useRef(true);
   const savingRef = useRef(false);
   const latestDataRef = useRef(data);
   latestDataRef.current = data;
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   const save = useCallback(async () => {
     if (savingRef.current) return;
     savingRef.current = true;
+    setStatus('saving');
     try {
       await saveFn(latestDataRef.current);
+      setStatus('saved');
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = setTimeout(() => setStatus('idle'), 2000);
     } catch (err) {
+      setStatus('error');
       addToast('error', err instanceof Error ? err.message : 'Failed to save');
     }
     savingRef.current = false;
@@ -51,5 +58,5 @@ export function useAutosave<T>(
     save();
   }, [save]);
 
-  return { saveNow };
+  return { saveNow, status };
 }

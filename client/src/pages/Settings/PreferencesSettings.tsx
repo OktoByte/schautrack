@@ -23,11 +23,15 @@ export default function PreferencesSettings({ user, timezones, onSave }: Props) 
     onSave();
   }, [onSave]);
 
-  useAutosave(data, saveFn);
+  const { status } = useAutosave(data, saveFn);
 
   return (
     <Card>
-      <h3 className="text-sm font-semibold mb-3">Internationalization</h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold">Internationalization</h3>
+        {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse">Saving...</span>}
+        {status === 'saved' && <span className="text-xs text-green-400">Saved</span>}
+      </div>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Weight Unit</label>

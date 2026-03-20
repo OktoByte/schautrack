@@ -164,7 +164,7 @@ export default function TodoList({ date, userId, canEdit }: Props) {
               ))}
             </ul>
           ) : (
-            <div className="px-4 py-3">
+            <div className="px-4 py-3 flex justify-end">
               <button
                 type="button"
                 onClick={() => setManaging(true)}

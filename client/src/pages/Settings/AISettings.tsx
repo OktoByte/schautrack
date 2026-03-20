@@ -30,7 +30,7 @@ export default function AISettings({ user, onSave }: Props) {
     onSave();
   }, [onSave]);
 
-  useAutosave(autoData, autoSaveFn, { delay: 1200 });
+  const { status } = useAutosave(autoData, autoSaveFn, { delay: 1200 });
 
   const handleClear = async () => {
     setLoading(true);
@@ -47,7 +47,11 @@ export default function AISettings({ user, onSave }: Props) {
 
   return (
     <Card>
-      <h3 className="text-sm font-semibold mb-3">AI Settings</h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold">AI Settings</h3>
+        {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse">Saving...</span>}
+        {status === 'saved' && <span className="text-xs text-green-400">Saved</span>}
+      </div>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Provider</label>
