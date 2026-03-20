@@ -41,7 +41,7 @@ export default function EntryList({ entries, canEdit, enabledMacros, caloriesEna
           </span>
         ))}
         <span className="flex-1 min-w-[48px]">Name</span>
-        {canEdit && <span className="w-6 shrink-0" />}
+        {canEdit && <span className="w-8 shrink-0" />}
       </div>
 
       {entries.map((entry) => (
@@ -158,8 +158,12 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
       </span>
 
       {canEdit && (
-        <span className="w-6 flex-shrink-0">
-          <button type="button" className="bg-transparent border-0 p-0 text-muted-foreground hover:text-destructive text-lg cursor-pointer" onClick={handleDelete} title="Delete">&times;</button>
+        <span className="w-8 flex-shrink-0 flex justify-center">
+          <button type="button" className="size-7 flex items-center justify-center rounded-md border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer" onClick={handleDelete} title="Delete">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18" /><path d="M6 6l12 12" />
+            </svg>
+          </button>
         </span>
       )}
     </div>

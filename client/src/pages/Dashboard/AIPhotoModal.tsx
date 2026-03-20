@@ -203,15 +203,15 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros,
     <Dialog.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/90 sm:bg-black/60 sm:backdrop-blur-sm" />
-        <Dialog.Content className="fixed inset-0 z-50 bg-black flex flex-col overflow-y-auto sm:inset-auto sm:inset-x-4 sm:top-1/2 sm:-translate-y-1/2 sm:mx-auto sm:max-w-md sm:max-h-[90vh] sm:rounded-xl sm:border sm:border-border sm:bg-card">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card sm:bg-transparent shrink-0">
+        <Dialog.Content className="fixed inset-0 z-50 bg-black flex flex-col overflow-hidden sm:overflow-y-auto sm:inset-auto sm:inset-x-4 sm:top-1/2 sm:-translate-y-1/2 sm:mx-auto sm:max-w-md sm:max-h-[90vh] sm:rounded-xl sm:border sm:border-border sm:bg-card">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card/80 sm:bg-transparent shrink-0 z-10">
             <Dialog.Title className="text-sm font-semibold text-foreground">AI Calorie Estimate</Dialog.Title>
             <Dialog.Close className="bg-transparent border-0 p-0 text-xl text-muted-foreground hover:text-foreground cursor-pointer leading-none">
               &times;
             </Dialog.Close>
           </div>
 
-          <div className="p-4 flex flex-col gap-3 flex-1 sm:flex-initial bg-card sm:bg-transparent">
+          <div className="flex flex-col gap-3 flex-1 min-h-0 p-4 sm:flex-initial bg-card sm:bg-transparent">
             {/* Mode tabs */}
             {phase === 'capture' && !imageData && (
               <div className="flex gap-1 rounded-md bg-muted p-1">

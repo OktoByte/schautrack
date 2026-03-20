@@ -109,7 +109,7 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
         {canEdit && (
           <button
             type="button"
-            className={`ml-auto rounded-md px-2.5 py-1 text-xs font-medium border transition-colors ${
+            className={`ml-auto rounded-md px-4 py-2 text-sm font-semibold border transition-colors ${
               weightEntry
                 ? 'text-destructive border-destructive/30 bg-destructive/10 hover:bg-destructive/20 cursor-pointer'
                 : 'text-muted-foreground/40 border-border bg-muted/30 cursor-default'

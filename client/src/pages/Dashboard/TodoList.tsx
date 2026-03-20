@@ -282,8 +282,8 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <button type="button" onClick={() => startEdit(todo)} className="rounded-md px-2.5 py-1 text-xs font-medium text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer">Edit</button>
-                    <button type="button" onClick={() => handleDelete(todo.id)} className="rounded-md px-2.5 py-1 text-xs font-medium text-destructive border border-destructive/30 bg-destructive/10 hover:bg-destructive/20 transition-colors cursor-pointer">Remove</button>
+                    <button type="button" onClick={() => startEdit(todo)} className="rounded-md px-4 py-2 text-sm font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer">Edit</button>
+                    <button type="button" onClick={() => handleDelete(todo.id)} className="rounded-md px-4 py-2 text-sm font-semibold text-destructive border border-destructive/30 bg-destructive/10 hover:bg-destructive/20 transition-colors cursor-pointer">Remove</button>
                   </div>
                 </div>
               )}

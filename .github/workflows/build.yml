@@ -12,6 +12,7 @@ on:
       - 'cmd/**'
       - 'internal/**'
       - 'client/**'
+      - 'public/**'
       - 'db/init.sql'
       - 'helm/**'
       - '.github/workflows/build.yml'
@@ -28,6 +29,7 @@ on:
       - 'cmd/**'
       - 'internal/**'
       - 'client/**'
+      - 'public/**'
       - 'db/init.sql'
       - 'helm/**'
       - '.github/workflows/build.yml'
@@ -55,6 +57,27 @@ jobs:
       - name: Run tests
         run: go test ./...
 
+  check-client:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Type check
+        working-directory: client
+        run: npx tsc --noEmit
+
   security:
     runs-on: ubuntu-latest
     steps:
@@ -74,7 +97,7 @@ jobs:
 
   compute-version:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, check-client, security]
     outputs:
       version: ${{ steps.version.outputs.version }}
       should_tag: ${{ steps.version.outputs.should_tag }}
@@ -193,6 +216,10 @@ jobs:
           tags: |
             type=raw,value=${{ needs.compute-version.outputs.version }}
 
+      - name: Prepare cache scope
+        id: cache
+        run: echo "scope=build-$(echo '${{ matrix.platform }}' | tr '/' '-')" >> $GITHUB_OUTPUT
+
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@v7
@@ -202,8 +229,8 @@ jobs:
           build-args: |
             BUILD_VERSION=${{ needs.compute-version.outputs.version }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ steps.cache.outputs.scope }}
+          cache-to: type=gha,mode=max,scope=${{ steps.cache.outputs.scope }}
 
       - name: Export digest
         run: |
@@ -422,12 +449,8 @@ jobs:
           # Copy only the new package
           cp .helm-packages/*.tgz "$CHANNEL_PATH/"
 
-          # Update or create index (--merge preserves previous valid entries)
-          if [ -f "$CHANNEL_PATH/index.yaml" ]; then
-            helm repo index "$CHANNEL_PATH" --url "https://helm.schautrack.com/${{ steps.channel.outputs.path }}" --merge "$CHANNEL_PATH/index.yaml"
-          else
-            helm repo index "$CHANNEL_PATH" --url "https://helm.schautrack.com/${{ steps.channel.outputs.path }}"
-          fi
+          # Rebuild index from .tgz files on disk (no --merge to avoid stale entries)
+          helm repo index "$CHANNEL_PATH" --url "https://helm.schautrack.com/${{ steps.channel.outputs.path }}"
 
       - name: Push to gh-pages
         run: |
@@ -459,7 +482,7 @@ jobs:
             VERSION="${{ needs.compute-version.outputs.version }}"
             URL="https://helm.schautrack.com/index.yaml"
           fi
-          MAX_ATTEMPTS=90
+          MAX_ATTEMPTS=30
           for i in $(seq 1 $MAX_ATTEMPTS); do
             if curl -sf "$URL?_=$(date +%s)" | grep -q "version: $VERSION"; then
               echo "Chart version $VERSION is live on GitHub Pages"
