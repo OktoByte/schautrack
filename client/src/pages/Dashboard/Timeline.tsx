@@ -39,10 +39,12 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
   const active = rangePreset || range.preset;
 
   return (
-    <div className="rounded-xl border-2 border-border bg-card p-4">
-      <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Timeline</h2>
+    <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
+      <div className="px-4 py-3 border-b-2 border-border">
+        <h3 className="text-sm font-medium text-muted-foreground">Timeline</h3>
+      </div>
       {/* Range selector */}
-      <div className="flex flex-wrap gap-1.5 mb-4">
+      <div className="flex flex-wrap gap-1.5 mx-4 mt-4 mb-4">
         {RANGE_PRESETS.map((days) => (
           <button
             key={days}
@@ -74,7 +76,7 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
 
       {/* Custom range inputs */}
       {showCustom && (
-        <div className="flex flex-wrap items-center gap-2 mb-4 p-3 rounded-md bg-surface border border-border">
+        <div className="flex flex-wrap items-center gap-2 mx-4 mb-4 p-3 rounded-md bg-surface border border-border">
           <input
             type="date"
             className="rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring"
@@ -93,7 +95,7 @@ export default function Timeline({ sharedViews, range, todayStr }: Props) {
       )}
 
       {/* Share cards */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 p-4 pt-0">
         {sharedViews.map((view) => (
           <ShareCard
             key={view.userId}

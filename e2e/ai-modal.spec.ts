@@ -7,13 +7,7 @@ test.describe('AI Photo Modal', () => {
 
     // Find and click the AI button (sparkles icon)
     const aiButton = page.locator('button[title="Estimate with AI"]');
-    const hasAi = await aiButton.isVisible({ timeout: 3000 }).catch(() => false);
-
-    if (!hasAi) {
-      test.skip(true, 'AI not enabled for test user');
-      return;
-    }
-
+    await expect(aiButton).toBeVisible({ timeout: 10000 });
     await aiButton.click();
 
     // Modal should open
@@ -31,8 +25,8 @@ test.describe('AI Photo Modal', () => {
     // Should show file input
     await expect(modal.locator('input[type="file"]')).toBeVisible();
 
-    // Close modal
-    await modal.locator('button:has-text("×")').click();
-    await expect(modal).not.toBeVisible();
+    // Close modal via the X button (Dialog.Close)
+    await modal.locator('button.text-destructive').click();
+    await expect(modal).not.toBeVisible({ timeout: 3000 });
   });
 });

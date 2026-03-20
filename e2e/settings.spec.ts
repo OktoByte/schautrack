@@ -33,7 +33,7 @@ test.describe('Settings', () => {
 
     // Reload to verify
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const reloaded = page.locator('select').filter({ has: page.locator('option[value="kg"]') });
     const afterReload = await reloaded.inputValue();

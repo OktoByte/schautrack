@@ -61,7 +61,7 @@ func main() {
 	settingsCache := database.NewSettingsCache(pool)
 	sessionStore := session.NewStore(pool, cfg.SessionSecret)
 	emailService := service.NewEmailService(cfg)
-	authLimiter := middleware.NewRateLimiter(10, 15*time.Minute)
+	authLimiter := middleware.NewRateLimiter(cfg.RateLimitAuth, 15*time.Minute)
 	strictLimiter := middleware.NewRateLimiter(5, 5*time.Minute)
 	barcodeLimiter := middleware.NewRateLimiter(30, time.Minute)
 

@@ -55,9 +55,11 @@ export default function TodayPanel({
   const cols = itemCount <= 3 ? itemCount : Math.ceil(itemCount / 2);
 
   return (
-    <section className="rounded-xl border-2 border-border bg-card p-4">
-      <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Today</h2>
-      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+    <section className="rounded-xl border-2 border-border bg-card overflow-hidden">
+      <div className="px-4 py-3 border-b-2 border-border">
+        <h3 className="text-sm font-medium text-muted-foreground">Today</h3>
+      </div>
+      <div className="p-4 grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
         {caloriesEnabled && (
           <MacroChip
             macroKey="kcal"

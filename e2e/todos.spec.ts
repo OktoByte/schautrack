@@ -2,55 +2,45 @@ import { test, expect } from './fixtures/auth';
 import { login } from './fixtures/auth';
 
 test.describe('Todos', () => {
-  test('enable todos and manage them', async ({ page }) => {
+  test('create, complete, and delete a todo', async ({ page }) => {
     await login(page);
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
 
-    // Look for the todos toggle
-    const todosToggle = page.getByText('Enable Todos').locator('..').locator('input[type="checkbox"], button');
-    const hasTodosToggle = await todosToggle.first().isVisible({ timeout: 3000 }).catch(() => false);
+    // Todos section should be on the dashboard
+    const todosHeading = page.getByText('Todos', { exact: true });
+    await todosHeading.scrollIntoViewIfNeeded({ timeout: 5000 });
+    await expect(todosHeading).toBeVisible();
 
-    if (!hasTodosToggle) {
-      test.skip(true, 'Todos toggle not found in settings');
-      return;
-    }
+    // Click "Add a todo" to open the manager with add form
+    await page.getByText('Add a todo').click();
 
-    // Enable todos if not already
-    const toggleEl = todosToggle.first();
-    const isCheckbox = await toggleEl.getAttribute('type') === 'checkbox';
+    // Fill in todo name and submit
+    const nameInput = page.locator('input[placeholder="Todo name"]');
+    await expect(nameInput).toBeVisible({ timeout: 5000 });
+    await nameInput.fill('E2E Test Todo');
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
 
-    if (isCheckbox) {
-      const checked = await toggleEl.isChecked();
-      if (!checked) {
-        await toggleEl.click();
-        // Wait for it to take effect
-        await page.waitForTimeout(1000);
-      }
-    } else {
-      await toggleEl.click();
-      await page.waitForTimeout(1000);
-    }
+    // Close manager
+    await page.getByRole('button', { name: 'Done' }).last().click();
 
-    // Look for todo creation form
-    const todoInput = page.locator('input[placeholder*="todo" i], input[placeholder*="name" i]').first();
-    const hasTodoInput = await todoInput.isVisible({ timeout: 3000 }).catch(() => false);
+    // Todo should appear in the list
+    await expect(page.getByText('E2E Test Todo')).toBeVisible({ timeout: 5000 });
 
-    if (hasTodoInput) {
-      // Create a todo
-      await todoInput.fill('E2E Test Todo');
-      await page.getByRole('button', { name: /add|create|save/i }).first().click();
+    // Toggle complete (checkbox on the right)
+    const todoRow = page.locator('li').filter({ hasText: 'E2E Test Todo' });
+    const checkbox = todoRow.locator('button, input[type="checkbox"]').last();
+    await checkbox.click();
+    await expect(todoRow.locator('.line-through')).toBeVisible({ timeout: 3000 });
 
-      // Verify it appears
-      await expect(page.getByText('E2E Test Todo')).toBeVisible({ timeout: 5000 });
+    // Open Edit to delete
+    await page.getByRole('button', { name: 'Edit' }).click();
 
-      // Delete it (look for delete button near the todo)
-      const todoRow = page.locator('li, div').filter({ hasText: 'E2E Test Todo' });
-      const deleteBtn = todoRow.locator('button[title="Delete"], button:has-text("Delete"), button:has-text("×")').first();
-      if (await deleteBtn.isVisible().catch(() => false)) {
-        await deleteBtn.click();
-        await expect(page.getByText('E2E Test Todo')).not.toBeVisible({ timeout: 5000 });
-      }
-    }
+    // Find "Remove" button for our todo in the manager
+    await page.getByRole('button', { name: 'Remove' }).click();
+
+    // Close manager
+    await page.getByRole('button', { name: 'Done' }).last().click();
+
+    // Todo should be gone
+    await expect(page.getByText('E2E Test Todo')).not.toBeVisible({ timeout: 5000 });
   });
 });

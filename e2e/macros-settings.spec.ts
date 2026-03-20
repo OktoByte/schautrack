@@ -25,7 +25,7 @@ test.describe('Macro Settings', () => {
 
     // Reload and verify
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const afterReload = await page.getByText('Protein').locator('..').locator('input[type="checkbox"]').isChecked();
     expect(afterReload).toBe(!wasChecked);
 

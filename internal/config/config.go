@@ -32,8 +32,11 @@ type Config struct {
 	AIDailyLimit       int
 
 	// Features
-	EnableBarcode    bool
+	EnableBarcode      bool
 	EnableRegistration string
+
+	// Rate limiting
+	RateLimitAuth int
 
 	// SMTP
 	SMTPHost   string
@@ -62,6 +65,11 @@ func Load() (*Config, error) {
 
 	aiDailyLimit, _ := strconv.Atoi(os.Getenv("AI_DAILY_LIMIT"))
 
+	rateLimitAuth, _ := strconv.Atoi(os.Getenv("RATE_LIMIT_AUTH"))
+	if rateLimitAuth == 0 {
+		rateLimitAuth = 10
+	}
+
 	smtpPort, _ := strconv.Atoi(os.Getenv("SMTP_PORT"))
 	if smtpPort == 0 {
 		smtpPort = 587
@@ -89,8 +97,10 @@ func Load() (*Config, error) {
 		AIModel:            os.Getenv("AI_MODEL"),
 		AIDailyLimit:       aiDailyLimit,
 
-		EnableBarcode:    os.Getenv("ENABLE_BARCODE") != "false",
+		EnableBarcode:      os.Getenv("ENABLE_BARCODE") != "false",
 		EnableRegistration: os.Getenv("ENABLE_REGISTRATION"),
+
+		RateLimitAuth: rateLimitAuth,
 
 		SMTPHost:   os.Getenv("SMTP_HOST"),
 		SMTPPort:   smtpPort,

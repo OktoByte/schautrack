@@ -17,8 +17,8 @@ test.describe('Dashboard State', () => {
   test('entry list header shows date and user', async ({ page }) => {
     await login(page);
 
-    // Should show today's date and "You"
-    const header = page.locator('h3').filter({ hasText: /\d{4}-\d{2}-\d{2}.*You/ });
+    // The entries header span should show today's date and "You"
+    const header = page.locator('span').filter({ hasText: /\d{4}-\d{2}-\d{2}.*You/ });
     await expect(header).toBeVisible({ timeout: 5000 });
   });
 
@@ -26,7 +26,7 @@ test.describe('Dashboard State', () => {
     await login(page);
 
     // The user's share card should show "You"
-    await expect(page.getByText('You')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('You', { exact: true })).toBeVisible({ timeout: 5000 });
   });
 
   test('today dot has ring indicator', async ({ page }) => {

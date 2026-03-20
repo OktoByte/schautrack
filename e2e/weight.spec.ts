@@ -2,27 +2,25 @@ import { test, expect } from './fixtures/auth';
 import { login } from './fixtures/auth';
 
 test.describe('Weight Tracking', () => {
-  test.fixme('track weight entry', async ({ page }) => {
-    // FIXME: Track button click/Enter doesn't submit the weight form
+  test('track and delete weight entry', async ({ page }) => {
     await login(page);
 
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    // Weight input is always visible, saves on blur
+    const weightInput = page.getByLabel(/Weight in/);
+    await weightInput.scrollIntoViewIfNeeded({ timeout: 5000 });
+    await expect(weightInput).toBeVisible();
 
-    // Click "Track weight"
-    const trackButton = page.getByText('Track weight');
-    await expect(trackButton).toBeVisible({ timeout: 5000 });
-    await trackButton.click();
-
-    // Fill in weight
-    const weightInput = page.locator('#weight-input');
-    await expect(weightInput).toBeVisible({ timeout: 3000 });
+    // Fill in weight and blur to trigger save
     await weightInput.fill('75.5');
+    await weightInput.blur();
+    await expect(page.getByText('Weight tracked')).toBeVisible({ timeout: 5000 });
 
-    // Submit by pressing Enter on the input (more reliable than finding the button)
-    await weightInput.press('Enter');
+    // Delete button should now be enabled
+    const deleteBtn = page.getByTitle('Delete weight entry');
+    await expect(deleteBtn).toBeEnabled({ timeout: 3000 });
+    await deleteBtn.click();
 
-    // Weight value should appear (form closes, value shown)
-    await expect(page.locator('#weight-input')).not.toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('75.5')).toBeVisible({ timeout: 5000 });
+    // Weight should be cleared
+    await expect(weightInput).toHaveValue('', { timeout: 5000 });
   });
 });

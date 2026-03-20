@@ -73,16 +73,16 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
     : 0;
 
   return (
-    <div className="rounded-xl border-2 border-border bg-card p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Weight</h2>
+    <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
+      <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
+        <h3 className="text-sm font-medium text-muted-foreground">Weight</h3>
         {!isToday && entry?.entry_date && (
           <span className="text-sm text-muted-foreground">
             {entry.entry_date} &middot; {daysAgo === 1 ? '1 day ago' : `${daysAgo} days ago`}
           </span>
         )}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 p-4">
         {canEdit ? (
           <span className="relative flex items-center flex-1">
             <input

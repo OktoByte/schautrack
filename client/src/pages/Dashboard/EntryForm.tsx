@@ -100,9 +100,11 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   const aiDisabled = hasAiEnabled && aiUsage && aiUsage.remaining === 0;
 
   return (
-    <div className="rounded-xl border-2 border-border bg-card p-4">
-      <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Log</h2>
-      <form onSubmit={handleSubmit}>
+    <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
+      <div className="px-4 py-3 border-b-2 border-border">
+        <h3 className="text-sm font-medium text-muted-foreground">Log</h3>
+      </div>
+      <form onSubmit={handleSubmit} className="p-4">
         {/* Food name */}
         <div className="mb-3">
           <input

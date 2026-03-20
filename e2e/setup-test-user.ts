@@ -11,9 +11,10 @@ const DB_USER = process.env.POSTGRES_USER || 'schautrack';
 const DB_NAME = process.env.POSTGRES_DB || 'schautrack';
 
 function psql(sql: string): string {
+  // Use stdin to avoid shell escaping issues with $, ", etc. in values
   return execSync(
-    `docker exec ${DB_CONTAINER} psql -U ${DB_USER} -d ${DB_NAME} -tAc "${sql.replace(/"/g, '\\"')}"`,
-    { encoding: 'utf-8' }
+    `docker exec -i ${DB_CONTAINER} psql -U ${DB_USER} -d ${DB_NAME} -tA`,
+    { input: sql + '\n', encoding: 'utf-8' }
   ).trim();
 }
 
@@ -42,14 +43,18 @@ async function main() {
   psql(`UPDATE users SET
     macros_enabled = '{"calories": true, "protein": true, "carbs": true, "fat": true, "fiber": true, "sugar": true}',
     macro_goals = '{"calories": 2000, "protein": 150, "carbs": 250, "fat": 65, "fiber": 25, "sugar": 50, "calories_mode": "limit", "protein_mode": "target", "carbs_mode": "limit", "fat_mode": "limit"}',
-    todos_enabled = true
+    todos_enabled = true,
+    notes_enabled = true
     WHERE email = '${EMAIL}'`);
 
-  // Clean up leftover test entries
+  // Clean up leftover test data
   psql(`DELETE FROM calorie_entries WHERE user_id = (SELECT id FROM users WHERE email = '${EMAIL}')`);
   psql(`DELETE FROM weight_entries WHERE user_id = (SELECT id FROM users WHERE email = '${EMAIL}')`);
+  psql(`DELETE FROM todo_completions WHERE todo_id IN (SELECT id FROM todos WHERE user_id = (SELECT id FROM users WHERE email = '${EMAIL}'))`);
+  psql(`DELETE FROM todos WHERE user_id = (SELECT id FROM users WHERE email = '${EMAIL}')`);
+  psql(`DELETE FROM daily_notes WHERE user_id = (SELECT id FROM users WHERE email = '${EMAIL}')`);
 
-  console.log('Test user ready, entries cleaned up');
+  console.log('Test user ready, all test data cleaned up');
 }
 
 main().catch((err) => {

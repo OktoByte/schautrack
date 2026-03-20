@@ -15,19 +15,23 @@ export async function login(page: Page) {
       if (state.cookies?.length > 0) {
         await page.context().addCookies(state.cookies);
         await page.goto('/dashboard');
-        // Verify we're on dashboard (not redirected to login)
-        await page.waitForURL('/dashboard', { timeout: 5000 });
-        return;
+        // Wait a moment for client-side redirect to settle
+        await page.waitForTimeout(1000);
+        // Verify we're actually on the dashboard (not redirected to login)
+        if (page.url().includes('/dashboard')) {
+          return;
+        }
       }
     } catch {
-      // Session expired or invalid — delete and do fresh login
-      try { fs.unlinkSync(AUTH_FILE); } catch {}
+      // Session expired or invalid
     }
+    // Cache didn't work — delete it
+    try { fs.unlinkSync(AUTH_FILE); } catch {}
   }
 
   // Fresh login
   await page.goto('/login');
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
   await page.getByLabel('Email').fill('test@test.com');
   await page.getByLabel('Password').fill('test1234test');
   await page.getByRole('button', { name: 'Log In' }).click();
