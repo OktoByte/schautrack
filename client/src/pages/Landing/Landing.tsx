@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 const FEATURES = [
   {
     icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-macro-kcal">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-macro-kcal">
         <path d="M12 20V10" /><path d="M18 20V4" /><path d="M6 20v-4" />
       </svg>
     ),
@@ -14,7 +14,7 @@ const FEATURES = [
   },
   {
     icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-macro-carbs">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-macro-carbs">
         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
         <circle cx="12" cy="13" r="4" />
       </svg>
@@ -25,7 +25,7 @@ const FEATURES = [
   },
   {
     icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-macro-fiber">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-macro-fiber">
         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
         <path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
@@ -36,7 +36,7 @@ const FEATURES = [
   },
   {
     icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-macro-fat">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-macro-fat">
         <rect width="20" height="8" x="2" y="2" rx="2" ry="2" /><rect width="20" height="8" x="2" y="14" rx="2" ry="2" />
         <line x1="6" x2="6.01" y1="6" y2="6" /><line x1="6" x2="6.01" y1="18" y2="18" />
       </svg>
@@ -70,9 +70,9 @@ export default function Landing() {
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {FEATURES.map((f) => (
-          <div key={f.title} className={`rounded-md border border-border border-l-3 ${f.color} bg-card p-5`}>
+          <div key={f.title} className={`rounded-lg border border-border border-l-3 ${f.color} bg-card p-6`}>
             <div className="mb-3">{f.icon}</div>
-            <h3 className="mb-1.5 text-sm font-semibold text-foreground">{f.title}</h3>
+            <h3 className="mb-2 text-base font-semibold text-foreground">{f.title}</h3>
             <p className="text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
           </div>
         ))}
