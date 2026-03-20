@@ -80,9 +80,9 @@ export default function Dashboard() {
           aiUsage={dashboard.aiUsage}
           barcodeEnabled={dashboard.barcodeEnabled}
           onSubmit={() => {
-            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-            queryClient.invalidateQueries({ queryKey: ['day-entries'] });
-            queryClient.invalidateQueries({ queryKey: ['weight'] });
+            queryClient.refetchQueries({ queryKey: ['dashboard'] });
+            queryClient.refetchQueries({ queryKey: ['day-entries'] });
+            queryClient.refetchQueries({ queryKey: ['weight'] });
           }}
         />
       )}

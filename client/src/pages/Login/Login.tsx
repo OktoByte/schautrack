@@ -81,7 +81,7 @@ export default function Login() {
         setRequireToken(false);
         setCanReset2fa(false);
         setToken('');
-        setSuccess(result.message || '2FA has been disabled. You can now log in.');
+        setSuccess(result.message || '2FA removed. You can now log in.');
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not verify code.');
@@ -118,7 +118,7 @@ export default function Login() {
           {error && <Alert type="error" message={error} className="mb-4" />}
           <form onSubmit={handleResetVerify} className="flex flex-col gap-4">
             <Input label="Verification Code" value={resetCode} onChange={(e) => setResetCode(e.target.value)} required inputMode="numeric" maxLength={6} placeholder="Enter 6-digit code" autoComplete="one-time-code" />
-            <Button type="submit" loading={loading}>Verify & Disable 2FA</Button>
+            <Button type="submit" loading={loading}>Verify & Remove 2FA</Button>
           </form>
           <button type="button" onClick={() => { setResetMode(false); setError(''); }} className="mt-4 text-sm text-muted-foreground hover:text-primary transition-colors">
             Back to login

@@ -34,7 +34,7 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
     try {
       await saveNote(date, content);
       lastSavedRef.current = content;
-      queryClient.invalidateQueries({ queryKey: ['note'] });
+      queryClient.refetchQueries({ queryKey: ['note'] });
     } catch { /* ignore */ }
     setSaving(false);
   }, [date, queryClient]);

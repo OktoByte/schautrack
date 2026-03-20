@@ -53,8 +53,8 @@ export default function EntryList({ entries, canEdit, enabledMacros, caloriesEna
           caloriesEnabled={caloriesEnabled}
           autoCalcCalories={autoCalcCalories}
           onUpdate={() => {
-            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-            queryClient.invalidateQueries({ queryKey: ['day-entries'] });
+            queryClient.refetchQueries({ queryKey: ['dashboard'] });
+            queryClient.refetchQueries({ queryKey: ['day-entries'] });
           }}
         />
       ))}

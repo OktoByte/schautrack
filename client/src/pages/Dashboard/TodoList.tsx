@@ -1,6 +1,12 @@
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getTodosDay, toggleTodo } from '@/api/todos';
-import type { TodoDay } from '@/types';
+import { getTodos, getTodosDay, toggleTodo, createTodo, updateTodo, deleteTodo } from '@/api/todos';
+import { Button } from '@/components/ui/Button';
+import type { Todo, TodoDay } from '@/types';
+
+const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
+const timeInputClass = 'w-20 rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring text-center';
 
 interface Props {
   date: string;
@@ -8,8 +14,57 @@ interface Props {
   canEdit: boolean;
 }
 
+function ScheduleEditor({ schedule, onChange }: { schedule: Todo['schedule']; onChange: (s: Todo['schedule']) => void }) {
+  const isDaily = schedule.type === 'daily';
+  const days = schedule.type === 'weekdays' ? schedule.days : [];
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-3">
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+          <input type="radio" checked={isDaily} onChange={() => onChange({ type: 'daily' })} className="accent-primary" />
+          Daily
+        </label>
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+          <input type="radio" checked={!isDaily} onChange={() => onChange({ type: 'weekdays', days: days.length > 0 ? days : [1, 2, 3, 4, 5] })} className="accent-primary" />
+          Specific days
+        </label>
+      </div>
+      {!isDaily && (
+        <div className="flex gap-1 flex-wrap">
+          {DAY_LABELS.map((label, i) => {
+            const day = i + 1;
+            const active = days.includes(day);
+            return (
+              <button
+                key={day}
+                type="button"
+                onClick={() => {
+                  const next = active ? days.filter((d) => d !== day) : [...days, day].sort();
+                  if (next.length > 0) onChange({ type: 'weekdays', days: next });
+                }}
+                className={`px-2 py-1 text-xs rounded-md border transition-colors ${
+                  active ? 'border-primary bg-primary/10 text-primary' : 'border-input bg-muted/50 text-muted-foreground hover:border-ring'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatSchedule(schedule: Todo['schedule']) {
+  if (schedule.type === 'daily') return 'Daily';
+  return schedule.days.map((d) => DAY_LABELS[d - 1]).join(', ');
+}
+
 export default function TodoList({ date, userId, canEdit }: Props) {
   const queryClient = useQueryClient();
+  const [managing, setManaging] = useState(false);
 
   const { data } = useQuery({
     queryKey: ['todos-day', userId, date],
@@ -17,12 +72,10 @@ export default function TodoList({ date, userId, canEdit }: Props) {
     enabled: !!date && !!userId,
   });
 
-  if (!data?.enabled || !data.todos?.length) return null;
+  if (!data?.enabled) return null;
 
   const handleToggle = async (todo: TodoDay) => {
     if (!canEdit) return;
-
-    // Optimistic update
     queryClient.setQueryData(
       ['todos-day', userId, date],
       (old: typeof data | undefined) => {
@@ -35,14 +88,12 @@ export default function TodoList({ date, userId, canEdit }: Props) {
         };
       }
     );
-
     try {
       await toggleTodo(todo.id, date);
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['todos-day', userId, date] });
+      queryClient.refetchQueries({ queryKey: ['dashboard'] });
+      queryClient.refetchQueries({ queryKey: ['todos-day', userId, date] });
     } catch {
-      // Revert on error
-      queryClient.invalidateQueries({ queryKey: ['todos-day', userId, date] });
+      queryClient.refetchQueries({ queryKey: ['todos-day', userId, date] });
     }
   };
 
@@ -53,44 +104,214 @@ export default function TodoList({ date, userId, canEdit }: Props) {
     <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
       <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">Todos</h3>
-        <span className="text-xs text-muted-foreground">{completed}/{total}</span>
+        <div className="flex items-center gap-2">
+          {total > 0 && <span className="text-xs text-muted-foreground">{completed}/{total}</span>}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setManaging(!managing)}
+              className={`text-muted-foreground hover:text-primary transition-colors ${managing ? 'text-primary' : ''}`}
+              aria-label="Manage todos"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
-      <ul className="divide-y divide-border">
-        {data.todos.map((todo) => (
-          <li key={todo.id} className="flex items-center gap-3 px-4 py-2.5">
-            <div className="flex-1 min-w-0">
-              <span className={`text-sm ${todo.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-                {todo.name}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {todo.time_of_day && (
-                <span className="text-xs text-muted-foreground">{todo.time_of_day}</span>
-              )}
-              {todo.streak > 1 && (
-                <span className="text-xs text-primary font-medium">{todo.streak}d</span>
-              )}
+
+      {managing ? (
+        <TodoManager onClose={() => setManaging(false)} />
+      ) : (
+        <>
+          {data.todos.length > 0 ? (
+            <ul className="divide-y divide-border">
+              {data.todos.map((todo) => (
+                <li key={todo.id} className="flex items-center gap-3 px-4 py-2.5">
+                  <div className="flex-1 min-w-0">
+                    <span className={`text-sm ${todo.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                      {todo.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {todo.time_of_day && (
+                      <span className="text-xs text-muted-foreground">{todo.time_of_day}</span>
+                    )}
+                    {todo.streak > 1 && (
+                      <span className="text-xs text-primary font-medium">{todo.streak}d</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleToggle(todo)}
+                      disabled={!canEdit}
+                      className={`flex size-5 shrink-0 items-center justify-center rounded border transition-colors ${
+                        todo.completed
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-input bg-muted/50 hover:border-ring'
+                      } ${!canEdit ? 'cursor-default' : 'cursor-pointer'}`}
+                      aria-label={`${todo.completed ? 'Uncheck' : 'Check'} ${todo.name}`}
+                    >
+                      {todo.completed && (
+                        <svg className="size-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M2 6l3 3 5-5" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="px-4 py-3">
               <button
                 type="button"
-                onClick={() => handleToggle(todo)}
-                disabled={!canEdit}
-                className={`flex size-5 shrink-0 items-center justify-center rounded border transition-colors ${
-                  todo.completed
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-input bg-muted/50 hover:border-ring'
-                } ${!canEdit ? 'cursor-default' : 'cursor-pointer'}`}
-                aria-label={`${todo.completed ? 'Uncheck' : 'Check'} ${todo.name}`}
+                onClick={() => setManaging(true)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
               >
-                {todo.completed && (
-                  <svg className="size-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M2 6l3 3 5-5" />
-                  </svg>
-                )}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14" /><path d="M5 12h14" />
+                </svg>
+                Add a todo
               </button>
             </div>
-          </li>
-        ))}
-      </ul>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function TodoManager({ onClose }: { onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const { data } = useQuery({ queryKey: ['todos'], queryFn: getTodos });
+
+  const [newName, setNewName] = useState('');
+  const [newSchedule, setNewSchedule] = useState<Todo['schedule']>({ type: 'daily' });
+  const [newTime, setNewTime] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editSchedule, setEditSchedule] = useState<Todo['schedule']>({ type: 'daily' });
+  const [editTime, setEditTime] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const refresh = () => {
+    queryClient.refetchQueries({ queryKey: ['todos'] });
+    queryClient.refetchQueries({ queryKey: ['todos-day'] });
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName.trim()) return;
+    setCreating(true);
+    try {
+      await createTodo({ name: newName.trim(), schedule: newSchedule, time_of_day: newTime || null });
+      setNewName('');
+      setNewSchedule({ type: 'daily' });
+      setNewTime('');
+      setShowAddForm(false);
+      refresh();
+    } catch { /* ignore */ }
+    setCreating(false);
+  };
+
+  const startEdit = (todo: Todo) => {
+    setEditingId(todo.id);
+    setEditName(todo.name);
+    setEditSchedule(todo.schedule);
+    setEditTime(todo.time_of_day || '');
+  };
+
+  const handleUpdate = async (id: number) => {
+    if (!editName.trim()) return;
+    setSaving(true);
+    try {
+      await updateTodo(id, { name: editName.trim(), schedule: editSchedule, time_of_day: editTime || null });
+      setEditingId(null);
+      refresh();
+    } catch { /* ignore */ }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteTodo(id);
+      refresh();
+    } catch { /* ignore */ }
+  };
+
+  const todos = data?.todos || [];
+
+  return (
+    <div className="flex flex-col">
+      {todos.length > 0 && (
+        <ul className="divide-y divide-border">
+          {todos.map((todo) => (
+            <li key={todo.id}>
+              {editingId === todo.id ? (
+                <div className="flex flex-col gap-2 p-3 bg-muted/20">
+                  <input value={editName} onChange={(e) => setEditName(e.target.value)} className={inputClass} maxLength={100} autoFocus />
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-muted-foreground shrink-0">Time</label>
+                    <input value={editTime} onChange={(e) => setEditTime(e.target.value)} placeholder="HH:MM" pattern="[0-2][0-9]:[0-5][0-9]" maxLength={5} className={timeInputClass} />
+                    {editTime && <button type="button" onClick={() => setEditTime('')} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>}
+                  </div>
+                  <ScheduleEditor schedule={editSchedule} onChange={setEditSchedule} />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleUpdate(todo.id)} loading={saving}>Save</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/10 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-foreground truncate">{todo.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {todo.time_of_day && <span>{todo.time_of_day} &middot; </span>}
+                      {formatSchedule(todo.schedule)}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button type="button" onClick={() => startEdit(todo)} className="text-xs text-muted-foreground hover:text-primary transition-colors">Edit</button>
+                    <button type="button" onClick={() => handleDelete(todo.id)} className="text-xs text-muted-foreground hover:text-destructive transition-colors">Remove</button>
+                  </div>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="p-3 border-t border-border">
+        {showAddForm ? (
+          <form onSubmit={handleCreate} className="flex flex-col gap-2">
+            <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Todo name" className={inputClass} maxLength={100} autoFocus />
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-muted-foreground shrink-0">Time</label>
+              <input value={newTime} onChange={(e) => setNewTime(e.target.value)} placeholder="HH:MM" pattern="[0-2][0-9]:[0-5][0-9]" maxLength={5} className={timeInputClass} />
+              {newTime && <button type="button" onClick={() => setNewTime('')} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>}
+            </div>
+            <ScheduleEditor schedule={newSchedule} onChange={setNewSchedule} />
+            <div className="flex gap-2">
+              <Button type="submit" size="sm" loading={creating} disabled={!newName.trim()}>Add</Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => { setShowAddForm(false); setNewName(''); setNewTime(''); setNewSchedule({ type: 'daily' }); }}>Cancel</Button>
+            </div>
+          </form>
+        ) : (
+          <div className="flex items-center justify-between">
+            <button type="button" onClick={() => setShowAddForm(true)} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14" /><path d="M5 12h14" />
+              </svg>
+              Add todo
+            </button>
+            <button type="button" onClick={onClose} className="text-xs text-muted-foreground hover:text-primary transition-colors">Done</button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

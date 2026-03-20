@@ -27,7 +27,7 @@ export default function ShareCard({ view, todayStr, onDotClick }: Props) {
     if (trimmed && trimmed !== view.label) {
       try {
         await updateLinkLabel(view.linkId, trimmed);
-        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        queryClient.refetchQueries({ queryKey: ['dashboard'] });
       } catch { /* ignore */ }
     } else {
       setLabel(view.label);

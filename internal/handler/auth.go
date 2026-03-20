@@ -813,7 +813,7 @@ func (h *AuthHandler) Reset2FA(w http.ResponseWriter, r *http.Request) {
 		sess.Delete("reset2faUserId")
 		sess.Delete("reset2faAttempts")
 		sess.Delete("pendingUserId")
-		JSON(w, http.StatusOK, map[string]any{"ok": true, "message": "2FA has been disabled. You can now log in with your password."})
+		JSON(w, http.StatusOK, map[string]any{"ok": true, "message": "2FA removed. You can now log in with your password."})
 
 	default:
 		ErrorJSON(w, http.StatusBadRequest, "Invalid step.")
