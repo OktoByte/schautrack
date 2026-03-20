@@ -14,13 +14,14 @@ interface Props {
   enabledMacros: string[];
   hasAiEnabled: boolean;
   aiUsage: AIUsage | null;
+  aiProviderName: string | null;
   barcodeEnabled: boolean;
   onSubmit: () => void;
 }
 
 const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50';
 
-export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalories, enabledMacros, hasAiEnabled, aiUsage, barcodeEnabled, onSubmit }: Props) {
+export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalories, enabledMacros, hasAiEnabled, aiUsage, aiProviderName, barcodeEnabled, onSubmit }: Props) {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [macros, setMacros] = useState<Record<string, string>>({});
@@ -236,6 +237,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
           setAiModalOpen(false);
         }}
         enabledMacros={enabledMacros}
+        providerName={aiProviderName}
       />
 
       <BarcodeScanModal

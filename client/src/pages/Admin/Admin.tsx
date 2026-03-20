@@ -22,31 +22,66 @@ export default function Admin() {
     queryClient.invalidateQueries({ queryKey: ['admin'] });
   };
 
-  const isInviteMode = data.settings.enable_registration?.value === 'false';
-
   return (
     <div className="flex flex-col gap-6">
       <AdminSettingsForm settings={data.settings} onSave={() => queryClient.invalidateQueries({ queryKey: ['admin'] })} />
 
-      {isInviteMode && <InviteManager />}
+      <InviteManager />
 
-      <Card>
-        <h3 className="text-base font-semibold mb-4">Users</h3>
-        <div className="flex flex-col">
-          {data.users.map((user) => (
-            <div key={user.id} className="flex items-center gap-3 border-b border-border py-2 text-sm last:border-b-0">
-              <span className="flex-1 font-semibold overflow-hidden text-ellipsis whitespace-nowrap">{user.email}</span>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                {user.email_verified ? 'Verified' : 'Unverified'}
-                {' \u00B7 '}
-                {new Date(user.created_at).toLocaleDateString()}
-              </span>
-              <Button size="sm" variant="destructive" onClick={() => handleDeleteUser(user.id)}>Delete</Button>
-            </div>
-          ))}
-        </div>
-      </Card>
+      <UserList users={data.users} onDelete={handleDeleteUser} />
     </div>
+  );
+}
+
+const PAGE_SIZE = 100;
+
+function UserList({ users, onDelete }: { users: Array<{ id: number; email: string; email_verified: boolean; created_at: string }>; onDelete: (id: number) => void }) {
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+
+  const filtered = search
+    ? users.filter((u) => u.email.toLowerCase().includes(search.toLowerCase()))
+    : users;
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-base font-semibold">Users ({filtered.length})</h3>
+      </div>
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+        placeholder="Search by email..."
+        className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring mb-3"
+      />
+      <div className="flex flex-col">
+        {paged.map((user) => (
+          <div key={user.id} className="flex items-center gap-3 border-b border-border py-2 text-sm last:border-b-0">
+            <span className="flex-1 font-semibold overflow-hidden text-ellipsis whitespace-nowrap">{user.email}</span>
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {user.email_verified ? 'Verified' : 'Unverified'}
+              {' \u00B7 '}
+              {new Date(user.created_at).toLocaleDateString()}
+            </span>
+            <Button size="sm" variant="destructive" onClick={() => onDelete(user.id)}>Delete</Button>
+          </div>
+        ))}
+        {paged.length === 0 && (
+          <div className="py-4 text-center text-sm text-muted-foreground">No users found</div>
+        )}
+      </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+          <Button size="sm" variant="ghost" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
+          <span className="text-xs text-muted-foreground">{page + 1} / {totalPages}</span>
+          <Button size="sm" variant="ghost" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -67,17 +102,17 @@ function AdminSettingsForm({ settings, onSave }: { settings: Record<string, { va
   };
 
   const settingLabels: Record<string, string> = {
-    support_email: 'Support Email',
-    imprint_address: 'Imprint Address',
-    imprint_email: 'Imprint Email',
-    enable_legal: 'Enable Legal',
-    ai_provider: 'AI Provider',
-    ai_key: 'AI Key',
-    ai_endpoint: 'AI Endpoint',
-    ai_model: 'AI Model',
-    ai_daily_limit: 'AI Daily Limit',
-    enable_registration: 'Enable Registration',
-    enable_barcode: 'Enable Barcode',
+    support_email: 'SUPPORT_EMAIL',
+    imprint_address: 'IMPRINT_ADDRESS',
+    imprint_email: 'IMPRINT_EMAIL',
+    enable_legal: 'ENABLE_LEGAL',
+    ai_provider: 'AI_PROVIDER',
+    ai_key: 'AI_KEY',
+    ai_endpoint: 'AI_ENDPOINT',
+    ai_model: 'AI_MODEL',
+    ai_daily_limit: 'AI_DAILY_LIMIT',
+    enable_registration: 'ENABLE_REGISTRATION',
+    enable_barcode: 'ENABLE_BARCODE',
   };
 
   const toggleSettings: Record<string, { trueValue: string; falseValue: string; defaultValue: string }> = {
@@ -188,6 +223,11 @@ function InviteManager() {
               <div className="flex-1 min-w-0">
                 <code className="text-xs font-mono text-foreground break-all">{invite.code}</code>
                 {invite.email && <span className="text-xs text-muted-foreground ml-2">{invite.email}</span>}
+                {invite.expires_at && !invite.used_by && (
+                  <span className={`text-xs ml-2 ${new Date(invite.expires_at) < new Date() ? 'text-destructive' : 'text-muted-foreground/60'}`}>
+                    expires {new Date(invite.expires_at).toLocaleDateString()}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {invite.used_by ? (

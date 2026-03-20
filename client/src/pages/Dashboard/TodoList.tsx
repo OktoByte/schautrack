@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTodos, getTodosDay, toggleTodo, createTodo, updateTodo, deleteTodo } from '@/api/todos';
 import { Button } from '@/components/ui/Button';
@@ -6,7 +6,7 @@ import type { Todo, TodoDay } from '@/types';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
-const timeInputClass = 'w-20 rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring text-center';
+const timeInputClass = 'w-24 rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
 
 interface Props {
   date: string;
@@ -65,6 +65,7 @@ function formatSchedule(schedule: Todo['schedule']) {
 export default function TodoList({ date, userId, canEdit }: Props) {
   const queryClient = useQueryClient();
   const [managing, setManaging] = useState(false);
+  const [addOnOpen, setAddOnOpen] = useState(false);
 
   const { data } = useQuery({
     queryKey: ['todos-day', userId, date],
@@ -123,7 +124,7 @@ export default function TodoList({ date, userId, canEdit }: Props) {
       </div>
 
       {managing ? (
-        <TodoManager onClose={() => setManaging(false)} />
+        <TodoManager onClose={() => setManaging(false)} initialAdd={addOnOpen} onAddShown={() => setAddOnOpen(false)} />
       ) : (
         <>
           {data.todos.length > 0 ? (
@@ -167,7 +168,7 @@ export default function TodoList({ date, userId, canEdit }: Props) {
             <div className="px-4 py-3 flex justify-end">
               <button
                 type="button"
-                onClick={() => setManaging(true)}
+                onClick={() => { setManaging(true); setAddOnOpen(true); }}
                 className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -183,7 +184,7 @@ export default function TodoList({ date, userId, canEdit }: Props) {
   );
 }
 
-function TodoManager({ onClose }: { onClose: () => void }) {
+function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void; initialAdd?: boolean; onAddShown?: () => void }) {
   const queryClient = useQueryClient();
   const { data } = useQuery({ queryKey: ['todos'], queryFn: getTodos });
 
@@ -191,7 +192,11 @@ function TodoManager({ onClose }: { onClose: () => void }) {
   const [newSchedule, setNewSchedule] = useState<Todo['schedule']>({ type: 'daily' });
   const [newTime, setNewTime] = useState('');
   const [creating, setCreating] = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(!!initialAdd);
+
+  useEffect(() => {
+    if (initialAdd) onAddShown?.();
+  }, [initialAdd, onAddShown]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
   const [editSchedule, setEditSchedule] = useState<Todo['schedule']>({ type: 'daily' });
@@ -256,7 +261,7 @@ function TodoManager({ onClose }: { onClose: () => void }) {
                   <input value={editName} onChange={(e) => setEditName(e.target.value)} className={inputClass} maxLength={100} autoFocus />
                   <div className="flex items-center gap-2">
                     <label className="text-xs text-muted-foreground shrink-0">Time</label>
-                    <input value={editTime} onChange={(e) => setEditTime(e.target.value)} placeholder="HH:MM" pattern="[0-2][0-9]:[0-5][0-9]" maxLength={5} className={timeInputClass} />
+                    <input value={editTime} onChange={(e) => setEditTime(e.target.value)} type="time" className={timeInputClass} />
                     {editTime && <button type="button" onClick={() => setEditTime('')} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>}
                   </div>
                   <ScheduleEditor schedule={editSchedule} onChange={setEditSchedule} />
@@ -275,8 +280,8 @@ function TodoManager({ onClose }: { onClose: () => void }) {
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <button type="button" onClick={() => startEdit(todo)} className="text-xs text-muted-foreground hover:text-primary transition-colors">Edit</button>
-                    <button type="button" onClick={() => handleDelete(todo.id)} className="text-xs text-muted-foreground hover:text-destructive transition-colors">Remove</button>
+                    <button type="button" onClick={() => startEdit(todo)} className="rounded-md px-2.5 py-1 text-xs font-medium text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer">Edit</button>
+                    <button type="button" onClick={() => handleDelete(todo.id)} className="rounded-md px-2.5 py-1 text-xs font-medium text-destructive border border-destructive/30 bg-destructive/10 hover:bg-destructive/20 transition-colors cursor-pointer">Remove</button>
                   </div>
                 </div>
               )}
@@ -291,7 +296,7 @@ function TodoManager({ onClose }: { onClose: () => void }) {
             <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Todo name" className={inputClass} maxLength={100} autoFocus />
             <div className="flex items-center gap-2">
               <label className="text-xs text-muted-foreground shrink-0">Time</label>
-              <input value={newTime} onChange={(e) => setNewTime(e.target.value)} placeholder="HH:MM" pattern="[0-2][0-9]:[0-5][0-9]" maxLength={5} className={timeInputClass} />
+              <input value={newTime} onChange={(e) => setNewTime(e.target.value)} type="time" className={timeInputClass} />
               {newTime && <button type="button" onClick={() => setNewTime('')} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>}
             </div>
             <ScheduleEditor schedule={newSchedule} onChange={setNewSchedule} />
@@ -302,13 +307,13 @@ function TodoManager({ onClose }: { onClose: () => void }) {
           </form>
         ) : (
           <div className="flex items-center justify-between">
+            <button type="button" onClick={onClose} className="text-xs text-muted-foreground hover:text-primary transition-colors">Done</button>
             <button type="button" onClick={() => setShowAddForm(true)} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 5v14" /><path d="M5 12h14" />
               </svg>
               Add todo
             </button>
-            <button type="button" onClick={onClose} className="text-xs text-muted-foreground hover:text-primary transition-colors">Done</button>
           </div>
         )}
       </div>

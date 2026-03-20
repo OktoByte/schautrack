@@ -72,11 +72,7 @@ export default function MacroSettings({ user, onSave }: Props) {
 
   return (
     <Card>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold">Nutrition Goals</h3>
-        {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse">Saving...</span>}
-        {status === 'saved' && <span className="text-xs text-green-400">Saved</span>}
-      </div>
+      <h3 className="text-sm font-semibold mb-3">Nutrition Goals</h3>
       <div className="flex flex-col gap-px">
         {allKeys.map((key) => {
           const label = key === 'calories' ? 'Calories' : (MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.label || key);
@@ -158,6 +154,12 @@ export default function MacroSettings({ user, onSave }: Props) {
           </div>
         </div>
       </div>
+      {(status === 'saving' || status === 'saved') && (
+        <div className="flex justify-end mt-2">
+          {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse">Saving...</span>}
+          {status === 'saved' && <span className="text-xs text-green-400">Saved</span>}
+        </div>
+      )}
     </Card>
   );
 }

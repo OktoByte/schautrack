@@ -12,7 +12,9 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
   const queryClient = useQueryClient();
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef('');
 
   const { data } = useQuery({
@@ -31,10 +33,14 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
   const doSave = useCallback(async (content: string) => {
     if (content === lastSavedRef.current) return;
     setSaving(true);
+    setSaved(false);
     try {
       await saveNote(date, content);
       lastSavedRef.current = content;
       queryClient.refetchQueries({ queryKey: ['note'] });
+      setSaved(true);
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = setTimeout(() => setSaved(false), 2000);
     } catch { /* ignore */ }
     setSaving(false);
   }, [date, queryClient]);
@@ -58,7 +64,8 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
       <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">Notes</h3>
         <div className="flex items-center gap-2">
-          {saving && <span className="text-xs text-muted-foreground">Saving...</span>}
+          {saving && <span className="text-xs text-muted-foreground animate-pulse">Saving...</span>}
+          {!saving && saved && <span className="text-xs text-green-400">Saved</span>}
           {canEdit && <span className={`text-xs ${value.length > 9500 ? 'text-destructive' : 'text-muted-foreground'}`}>{value.length}/10000</span>}
         </div>
       </div>

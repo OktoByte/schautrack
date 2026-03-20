@@ -112,6 +112,17 @@
     transition: background-color 5000s ease-in-out 0s;
   }
 
+  /* Style date and time inputs for dark theme */
+  input[type="date"],
+  input[type="time"] {
+    color-scheme: dark;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
+    cursor: pointer;
+  }
+
   /* Hide number input spinners */
   input[type="number"]::-webkit-inner-spin-button,
   input[type="number"]::-webkit-outer-spin-button {

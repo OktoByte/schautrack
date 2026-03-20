@@ -20,6 +20,7 @@ import (
 	"schautrack/internal/config"
 	"schautrack/internal/database"
 	"schautrack/internal/middleware"
+	"schautrack/internal/model"
 	"schautrack/internal/service"
 	"schautrack/internal/sse"
 )
@@ -39,6 +40,25 @@ type EntriesHandler struct {
 	Broker   *sse.Broker
 	Cfg      *config.Config
 	Settings *database.SettingsCache
+}
+
+func (h *EntriesHandler) getAIProviderName(r *http.Request, user *model.User) *string {
+	provider := user.PreferredAIProvider
+	if provider == "" {
+		globalProvider := h.Settings.GetEffectiveSetting(r.Context(), "ai_provider", os.Getenv("AI_PROVIDER"))
+		if globalProvider.Value != nil {
+			provider = *globalProvider.Value
+		}
+	}
+	if provider == "" {
+		return nil
+	}
+	names := map[string]string{"openai": "OpenAI", "claude": "Anthropic", "ollama": "Ollama"}
+	name := names[provider]
+	if name == "" {
+		name = provider
+	}
+	return &name
 }
 
 func (h *EntriesHandler) isBarcodeEnabled(ctx context.Context) bool {
@@ -261,7 +281,7 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		"weightUnit": user.WeightUnit, "timeZone": userTz, "todayStr": todayStrTz,
 		"range": map[string]any{"start": oldest, "end": newest, "days": len(dayOptions), "preset": nilInt(rangePreset)},
 		"weightEntry": viewWeight, "lastWeightEntry": lastWeightEntry,
-		"hasAiEnabled": hasAiEnabled, "aiUsage": nil, "aiProviderName": nil,
+		"hasAiEnabled": hasAiEnabled, "aiUsage": nil, "aiProviderName": h.getAIProviderName(r, user),
 		"barcodeEnabled": h.isBarcodeEnabled(r.Context()),
 		"caloriesEnabled": caloriesEnabled, "autoCalcCalories": autoCalcCalories,
 		"enabledMacros": enabledMacros, "macroGoals": macroGoals,

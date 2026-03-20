@@ -223,8 +223,8 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
-        <Dialog.Content className="fixed inset-x-4 top-4 bottom-4 z-50 mx-auto max-w-md rounded-xl border border-border bg-card overflow-y-auto flex flex-col sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2 sm:max-h-[90vh]">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/90 sm:bg-black/60 sm:backdrop-blur-sm" />
+        <Dialog.Content className="fixed inset-0 z-50 bg-card flex flex-col overflow-y-auto sm:inset-auto sm:inset-x-4 sm:top-1/2 sm:-translate-y-1/2 sm:mx-auto sm:max-w-md sm:max-h-[90vh] sm:rounded-xl sm:border sm:border-border">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <Dialog.Title className="text-sm font-semibold text-foreground">Scan Barcode</Dialog.Title>
             <Dialog.Close className="bg-transparent border-0 p-0 text-xl text-muted-foreground hover:text-foreground cursor-pointer leading-none">
@@ -393,7 +393,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
             {/* Attribution */}
             {(phase === 'result' || phase === 'scanning') && (
               <div className="text-center text-[10px] text-muted-foreground/60">
-                Data from{' '}
+                Barcode data is sent to and provided by{' '}
                 <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer" className="underline hover:text-muted-foreground">
                   Open Food Facts
                 </a>

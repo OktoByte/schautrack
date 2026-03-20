@@ -47,11 +47,7 @@ export default function AISettings({ user, onSave }: Props) {
 
   return (
     <Card>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold">AI Settings</h3>
-        {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse">Saving...</span>}
-        {status === 'saved' && <span className="text-xs text-green-400">Saved</span>}
-      </div>
+      <h3 className="text-sm font-semibold mb-3">AI Settings</h3>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Provider</label>
@@ -72,6 +68,12 @@ export default function AISettings({ user, onSave }: Props) {
           <Button type="button" variant="ghost" size="sm" onClick={handleClear} loading={loading}>Clear All</Button>
         </div>
       </div>
+      {(status === 'saving' || status === 'saved') && (
+        <div className="flex justify-end mt-2">
+          {status === 'saving' && <span className="text-xs text-muted-foreground animate-pulse">Saving...</span>}
+          {status === 'saved' && <span className="text-xs text-green-400">Saved</span>}
+        </div>
+      )}
     </Card>
   );
 }

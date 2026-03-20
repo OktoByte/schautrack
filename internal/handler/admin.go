@@ -158,7 +158,7 @@ func (h *AdminHandler) CreateInvite(w http.ResponseWriter, r *http.Request) {
 
 	var id int
 	err := h.Pool.QueryRow(r.Context(),
-		"INSERT INTO invite_codes (code, email, created_by) VALUES ($1, $2, $3) RETURNING id",
+		"INSERT INTO invite_codes (code, email, created_by, expires_at) VALUES ($1, $2, $3, NOW() + INTERVAL '14 days') RETURNING id",
 		code, emailPtr, user.ID).Scan(&id)
 	if err != nil {
 		ErrorJSON(w, http.StatusInternalServerError, "Failed to create invite.")

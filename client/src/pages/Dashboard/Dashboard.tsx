@@ -79,6 +79,7 @@ export default function Dashboard() {
           enabledMacros={dashboard.enabledMacros}
           hasAiEnabled={dashboard.hasAiEnabled}
           aiUsage={dashboard.aiUsage}
+          aiProviderName={dashboard.aiProviderName}
           barcodeEnabled={dashboard.barcodeEnabled}
           onSubmit={() => {
             queryClient.refetchQueries({ queryKey: ['dashboard'] });

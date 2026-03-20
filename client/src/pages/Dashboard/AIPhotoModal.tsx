@@ -10,6 +10,7 @@ interface Props {
   onClose: () => void;
   onResult: (result: { calories: number; name: string; macros?: Record<string, number> }) => void;
   enabledMacros: string[];
+  providerName: string | null;
 }
 
 type Mode = 'camera' | 'upload';
@@ -66,7 +67,7 @@ function captureFrame(video: HTMLVideoElement): string {
   return canvas.toDataURL('image/jpeg', 0.85);
 }
 
-export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros }: Props) {
+export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros, providerName }: Props) {
   const [mode, setMode] = useState<Mode>('camera');
   const [phase, setPhase] = useState<Phase>('capture');
   const [imageData, setImageData] = useState<string | null>(null);
@@ -199,8 +200,8 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros 
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
-        <Dialog.Content className="fixed inset-x-4 top-4 bottom-4 z-50 mx-auto max-w-md rounded-xl border border-border bg-card overflow-y-auto flex flex-col sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2 sm:max-h-[90vh]">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/90 sm:bg-black/60 sm:backdrop-blur-sm" />
+        <Dialog.Content className="fixed inset-0 z-50 bg-card flex flex-col overflow-y-auto sm:inset-auto sm:inset-x-4 sm:top-1/2 sm:-translate-y-1/2 sm:mx-auto sm:max-w-md sm:max-h-[90vh] sm:rounded-xl sm:border sm:border-border">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <Dialog.Title className="text-sm font-semibold text-foreground">AI Calorie Estimate</Dialog.Title>
             <Dialog.Close className="bg-transparent border-0 p-0 text-xl text-muted-foreground hover:text-foreground cursor-pointer leading-none">
@@ -354,6 +355,12 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros 
             {/* Inline error during capture */}
             {phase === 'capture' && errorMsg && (
               <div className="text-center text-sm text-destructive">{errorMsg}</div>
+            )}
+
+            {providerName && (
+              <div className="text-center text-[10px] text-muted-foreground/60">
+                Your photo will be sent to {providerName} for analysis
+              </div>
             )}
           </div>
         </Dialog.Content>
