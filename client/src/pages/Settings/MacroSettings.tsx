@@ -8,7 +8,7 @@ import { useAutosave } from '@/hooks/useAutosave';
 
 const MACRO_KEYS = ['protein', 'carbs', 'fat', 'fiber', 'sugar'];
 
-const inputClass = 'w-20 rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
+const inputClass = 'w-24 rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
 const selectClass = 'rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
 
 const MACRO_STYLES: Record<string, { label: string; border: string; bg: string }> = {
