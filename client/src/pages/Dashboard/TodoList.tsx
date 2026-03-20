@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTodos, getTodosDay, toggleTodo, createTodo, updateTodo, deleteTodo } from '@/api/todos';
-import { Button } from '@/components/ui/Button';
 import type { Todo, TodoDay } from '@/types';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -169,11 +168,8 @@ export default function TodoList({ date, userId, canEdit }: Props) {
               <button
                 type="button"
                 onClick={() => { setManaging(true); setAddOnOpen(true); }}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                className="rounded-md px-4 py-2 text-sm font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 5v14" /><path d="M5 12h14" />
-                </svg>
                 Add a todo
               </button>
             </div>
@@ -265,11 +261,11 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
                       <input value={editTime} onChange={(e) => setEditTime(e.target.value)} type="text" inputMode="numeric" placeholder="HH:MM" pattern="[0-2][0-9]:[0-5][0-9]" maxLength={5} className={`${timeInputClass} pr-8`} />
                       <span className="absolute right-2 text-[10px] text-muted-foreground/60 pointer-events-none">&#128337;</span>
                     </span>
-                    {editTime && <button type="button" onClick={() => setEditTime('')} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>}
+                    {editTime && <button type="button" onClick={() => setEditTime('')} className="rounded-md px-3 py-1.5 text-xs font-semibold text-muted-foreground border border-border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">Clear</button>}
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleUpdate(todo.id)} loading={saving}>Save</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+                    <button type="button" onClick={() => handleUpdate(todo.id)} disabled={saving} className="rounded-md px-4 py-2 text-sm font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer disabled:opacity-50">Save</button>
+                    <button type="button" onClick={() => setEditingId(null)} className="rounded-md px-4 py-2 text-sm font-semibold text-muted-foreground border border-border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">Cancel</button>
                   </div>
                 </div>
               ) : (
@@ -302,22 +298,17 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
                 <input value={newTime} onChange={(e) => setNewTime(e.target.value)} type="text" inputMode="numeric" placeholder="HH:MM" pattern="[0-2][0-9]:[0-5][0-9]" maxLength={5} className={`${timeInputClass} pr-8`} />
                 <span className="absolute right-2 text-[10px] text-muted-foreground/60 pointer-events-none">&#128337;</span>
               </span>
-              {newTime && <button type="button" onClick={() => setNewTime('')} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>}
+              {newTime && <button type="button" onClick={() => setNewTime('')} className="rounded-md px-3 py-1.5 text-xs font-semibold text-muted-foreground border border-border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">Clear</button>}
             </div>
             <div className="flex gap-2">
-              <Button type="submit" size="sm" loading={creating} disabled={!newName.trim()}>Add</Button>
-              <Button type="button" size="sm" variant="ghost" onClick={() => { setShowAddForm(false); setNewName(''); setNewTime(''); setNewSchedule({ type: 'daily' }); }}>Cancel</Button>
+              <button type="submit" disabled={!newName.trim() || creating} className="rounded-md px-4 py-2 text-sm font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer disabled:opacity-50">Add</button>
+              <button type="button" onClick={() => { setShowAddForm(false); setNewName(''); setNewTime(''); setNewSchedule({ type: 'daily' }); }} className="rounded-md px-4 py-2 text-sm font-semibold text-muted-foreground border border-border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">Cancel</button>
             </div>
           </form>
         ) : (
           <div className="flex items-center justify-between">
-            <button type="button" onClick={onClose} className="text-xs text-muted-foreground hover:text-primary transition-colors">Done</button>
-            <button type="button" onClick={() => setShowAddForm(true)} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 5v14" /><path d="M5 12h14" />
-              </svg>
-              Add todo
-            </button>
+            <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm font-semibold text-muted-foreground border border-border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">Done</button>
+            <button type="button" onClick={() => setShowAddForm(true)} className="rounded-md px-4 py-2 text-sm font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer">Add todo</button>
           </div>
         )}
       </div>
