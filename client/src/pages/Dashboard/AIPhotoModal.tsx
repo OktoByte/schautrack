@@ -279,26 +279,25 @@ export default function AIPhotoModal({ isOpen, onClose, onResult, enabledMacros,
                     </div>
                   )}
                   {imageData && (
-                    <img src={imageData} alt="Food preview" />
+                    <>
+                      <img src={imageData} alt="Food preview" className="!object-contain !h-full" />
+                      <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-2 p-3 bg-gradient-to-t from-black/80 to-transparent pt-8">
+                        <input
+                          type="text"
+                          className="rounded-md border border-input bg-black/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring backdrop-blur-sm"
+                          value={context}
+                          onChange={(e) => setContext(e.target.value)}
+                          placeholder="Describe the food (optional)"
+                          maxLength={200}
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleEstimate}>Estimate</Button>
+                          <Button size="sm" variant="ghost" onClick={handleRetry}>Retake</Button>
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
-
-                {imageData && (
-                  <>
-                    <input
-                      type="text"
-                      className="rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring"
-                      value={context}
-                      onChange={(e) => setContext(e.target.value)}
-                      placeholder="Describe the food (optional)"
-                      maxLength={200}
-                    />
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={handleEstimate}>Estimate</Button>
-                      <Button size="sm" variant="ghost" onClick={handleRetry}>Retake</Button>
-                    </div>
-                  </>
-                )}
               </>
             )}
 
