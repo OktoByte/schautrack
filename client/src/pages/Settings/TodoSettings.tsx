@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { useToastStore } from '@/stores/toastStore';
 
 const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
-const timeInputClass = 'w-24 rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
+const timeInputClass = 'w-20 rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring text-center';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -206,9 +206,11 @@ export default function TodoSettings({ user, onSave }: Props) {
                       <div className="flex items-center gap-2">
                         <label className="text-xs text-muted-foreground shrink-0">Time</label>
                         <input
-                          type="time"
                           value={editTime}
                           onChange={(e) => setEditTime(e.target.value)}
+                          placeholder="HH:MM"
+                          pattern="[0-2][0-9]:[0-5][0-9]"
+                          maxLength={5}
                           className={timeInputClass}
                         />
                         {editTime && (
@@ -266,9 +268,11 @@ export default function TodoSettings({ user, onSave }: Props) {
               <div className="flex items-center gap-2">
                 <label className="text-xs text-muted-foreground shrink-0">Time</label>
                 <input
-                  type="time"
                   value={newTime}
                   onChange={(e) => setNewTime(e.target.value)}
+                  placeholder="HH:MM"
+                  pattern="[0-2][0-9]:[0-5][0-9]"
+                  maxLength={5}
                   className={timeInputClass}
                 />
                 {newTime && (
