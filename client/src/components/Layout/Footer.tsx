@@ -55,7 +55,7 @@ export default function Footer() {
   return (
     <footer className="mt-auto px-4 py-5">
       <div className="mx-auto max-w-[1100px] flex items-center justify-between gap-4 flex-wrap max-sm:flex-col max-sm:gap-3">
-        <div className="text-lg font-bold text-foreground leading-tight">
+        <div className="text-sm font-bold text-foreground leading-tight">
           You got this. Trust me.
         </div>
         <div className="flex items-center gap-1 flex-wrap text-sm">

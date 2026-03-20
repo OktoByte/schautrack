@@ -93,6 +93,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
     setLoading(false);
   };
 
+  const hasInput = !!(amount || computedCalories || Object.values(macros).some((v) => v));
   const aiDisabled = hasAiEnabled && aiUsage && aiUsage.remaining === 0;
 
   return (
@@ -198,7 +199,18 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
           )}
 
           <div className="ml-auto">
-            <Button type="submit" size="sm" loading={loading}>Track</Button>
+            <Button
+              type="submit"
+              size="default"
+              loading={loading}
+              className={
+                hasInput
+                  ? 'bg-gradient-to-r from-primary via-secondary to-primary bg-[length:200%_100%] animate-[shimmer_4s_linear_infinite] text-white font-bold border-0 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
+                  : 'bg-muted text-muted-foreground border border-border hover:bg-muted hover:text-muted-foreground cursor-default'
+              }
+            >
+              Track
+            </Button>
           </div>
         </div>
       </form>

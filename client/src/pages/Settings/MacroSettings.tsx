@@ -138,10 +138,19 @@ export default function MacroSettings({ user, onSave }: Props) {
         )}
 
         <div className="flex items-center gap-3 border-l-3 border-l-warning/40 rounded-r-lg px-3 py-2.5 bg-warning/[0.04] mt-px">
-          <span className="text-sm font-medium text-warning">Threshold</span>
+          <div className="flex items-center gap-2.5 min-w-[110px] shrink-0">
+            <div className="size-4 shrink-0" />
+            <span className="text-sm font-medium text-warning">Threshold</span>
+          </div>
           <div className="flex items-center gap-2 ml-auto">
-            <input className={inputClass} type="number" min="0" max="99" value={threshold} onChange={(e) => setThreshold(e.target.value)} />
-            <span className="text-sm text-muted-foreground">%</span>
+            <span className="relative flex items-center">
+              <input className={`${inputClass} pr-9`} type="number" min="0" max="99" value={threshold} onChange={(e) => setThreshold(e.target.value)} />
+              <span className="absolute right-2.5 text-[10px] tracking-wide text-warning opacity-60 pointer-events-none">%</span>
+            </span>
+            <select className={selectClass} tabIndex={-1} aria-hidden="true" style={{ opacity: 0, pointerEvents: 'none' }}>
+              <option value="limit">Limit</option>
+              <option value="target">Target</option>
+            </select>
           </div>
         </div>
       </div>

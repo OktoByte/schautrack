@@ -224,7 +224,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
     <Dialog.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
-        <Dialog.Content className="fixed inset-x-4 top-1/2 z-50 mx-auto max-w-md -translate-y-1/2 rounded-xl border border-border bg-card overflow-y-auto max-h-[90vh]">
+        <Dialog.Content className="fixed inset-x-4 top-4 bottom-4 z-50 mx-auto max-w-md rounded-xl border border-border bg-card overflow-y-auto flex flex-col sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2 sm:max-h-[90vh]">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <Dialog.Title className="text-sm font-semibold text-foreground">Scan Barcode</Dialog.Title>
             <Dialog.Close className="bg-transparent border-0 p-0 text-xl text-muted-foreground hover:text-foreground cursor-pointer leading-none">
@@ -309,9 +309,12 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
 
             {/* Loading phase */}
             {phase === 'loading' && (
-              <div className="flex flex-col items-center gap-3 py-8">
-                <div className="size-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                <span className="text-sm text-muted-foreground">Looking up {barcode}...</span>
+              <div className="flex flex-1 flex-col items-center justify-center gap-4 py-12">
+                <div className="relative size-12">
+                  <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+                  <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                </div>
+                <span className="text-sm font-medium text-muted-foreground animate-pulse">Looking up {barcode}...</span>
               </div>
             )}
 

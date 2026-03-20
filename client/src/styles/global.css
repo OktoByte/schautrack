@@ -166,3 +166,8 @@
   ::-webkit-scrollbar-thumb:hover { background: #1e2a3e; }
   * { scrollbar-width: thin; scrollbar-color: var(--color-border) var(--color-background); }
 }
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
