@@ -1,17 +1,27 @@
 /**
- * Run before E2E tests to ensure test user exists with correct password.
- * Usage: npx tsx e2e/setup-test-user.ts
+ * Creates/resets the test user in the E2E test database.
+ * Works with both compose.dev.yml and compose.test.yml.
  */
 import { execSync } from 'child_process';
 
 const EMAIL = 'test@test.com';
 const PASSWORD = 'test1234test';
-const DB_CONTAINER = 'schautrack-db-1';
+
+// Auto-detect which compose stack is running
+const DB_CONTAINER = process.env.DB_CONTAINER || detectDbContainer();
 const DB_USER = process.env.POSTGRES_USER || 'schautrack';
 const DB_NAME = process.env.POSTGRES_DB || 'schautrack';
 
+function detectDbContainer(): string {
+  try {
+    const out = execSync('docker ps --format "{{.Names}}" | grep -E "schautrack.*db"', { encoding: 'utf-8' }).trim();
+    return out.split('\n')[0];
+  } catch {
+    return 'schautrack-db-1';
+  }
+}
+
 function psql(sql: string): string {
-  // Use stdin to avoid shell escaping issues with $, ", etc. in values
   return execSync(
     `docker exec -i ${DB_CONTAINER} psql -U ${DB_USER} -d ${DB_NAME} -tA`,
     { input: sql + '\n', encoding: 'utf-8' }
@@ -19,27 +29,23 @@ function psql(sql: string): string {
 }
 
 async function main() {
-  // Generate bcrypt hash
   const hash = execSync(
     `python3 -c "import bcrypt; print(bcrypt.hashpw(b'${PASSWORD}', bcrypt.gensalt(10)).decode())"`,
     { encoding: 'utf-8' }
   ).trim();
 
-  // Check if user exists
   const exists = psql(`SELECT id FROM users WHERE email = '${EMAIL}'`);
 
   if (exists) {
-    // Reset password and ensure email is verified
     psql(`UPDATE users SET password_hash = '${hash}', email_verified = true WHERE email = '${EMAIL}'`);
     console.log(`Test user reset: ${EMAIL} (id: ${exists})`);
   } else {
-    // Create user
     psql(`INSERT INTO users (email, password_hash, email_verified) VALUES ('${EMAIL}', '${hash}', true)`);
     const id = psql(`SELECT id FROM users WHERE email = '${EMAIL}'`);
     console.log(`Test user created: ${EMAIL} (id: ${id})`);
   }
 
-  // Ensure macros and todos are enabled
+  // Enable all features for test user
   psql(`UPDATE users SET
     macros_enabled = '{"calories": true, "protein": true, "carbs": true, "fat": true, "fiber": true, "sugar": true}',
     macro_goals = '{"calories": 2000, "protein": 150, "carbs": 250, "fat": 65, "fiber": 25, "sugar": 50, "calories_mode": "limit", "protein_mode": "target", "carbs_mode": "limit", "fat_mode": "limit"}',

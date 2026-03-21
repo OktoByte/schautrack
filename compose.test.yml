@@ -1,0 +1,37 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3001:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://schautrack:testpass@db:5432/schautrack
+      - SESSION_SECRET=e2e-test-session-secret-not-for-production
+      - RATE_LIMIT_AUTH=1000
+      - ENABLE_BARCODE=true
+      - ENABLE_REGISTRATION=open
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 3s
+      timeout: 2s
+      retries: 15
+      start_period: 3s
+
+  db:
+    image: postgres:18-alpine
+    environment:
+      - POSTGRES_USER=schautrack
+      - POSTGRES_PASSWORD=testpass
+      - POSTGRES_DB=schautrack
+      - TZ=UTC
+      - PGTZ=UTC
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U schautrack -d schautrack"]
+      interval: 2s
+      timeout: 1s
+      retries: 10
+      start_period: 2s
+    tmpfs:
+      - /var/lib/postgresql/data
