@@ -75,10 +75,12 @@ test.describe('Account Linking', () => {
   });
 
   test('accept link request from other user', async ({ browser }) => {
-    const context = await browser.newContext();
+    // Fresh context with NO cookies — must not inherit main user session
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await context.newPage();
 
     await page.goto('/login');
+    await page.waitForLoadState('domcontentloaded');
     await page.getByLabel('Email').fill(LINK_USER_EMAIL);
     await page.getByLabel('Password').fill(LINK_USER_PASSWORD);
     await page.getByRole('button', { name: 'Log In' }).click();
