@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getNote, saveNote } from '@/api/notes';
+import { useToastStore } from '@/stores/toastStore';
 
 interface Props {
   date: string;
@@ -41,7 +42,9 @@ export default function NoteEditor({ date, userId, canEdit }: Props) {
       setSaved(true);
       if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setSaved(false), 2000);
-    } catch { /* ignore */ }
+    } catch (err) {
+      useToastStore.getState().addToast('error', err instanceof Error ? err.message : 'Failed to save note');
+    }
     setSaving(false);
   }, [date, queryClient]);
 

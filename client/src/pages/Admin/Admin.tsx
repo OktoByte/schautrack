@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRequireAdmin } from '@/hooks/useAuth';
 import { getAdminData, saveAdminSettings, deleteUser, createInvite, getInvites, deleteInvite } from '@/api/admin';
 import { Button } from '@/components/ui/Button';
+import { useToastStore } from '@/stores/toastStore';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import type { InviteCode } from '@/types';
@@ -97,7 +98,9 @@ function AdminSettingsForm({ settings, onSave }: { settings: Record<string, { va
     try {
       await saveAdminSettings(values);
       onSave();
-    } catch { /* ignore */ }
+    } catch (err) {
+      useToastStore.getState().addToast('error', err instanceof Error ? err.message : 'Failed to save settings');
+    }
     setLoading(false);
   };
 
@@ -183,7 +186,9 @@ function InviteManager() {
       await createInvite({ email: email || undefined });
       setEmail('');
       queryClient.invalidateQueries({ queryKey: ['invites'] });
-    } catch { /* ignore */ }
+    } catch (err) {
+      useToastStore.getState().addToast('error', err instanceof Error ? err.message : 'Failed to create invite');
+    }
     setCreating(false);
   };
 

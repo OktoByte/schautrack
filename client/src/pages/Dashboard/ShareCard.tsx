@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { SharedView } from '@/types';
 import { useDashboardStore } from '@/stores/dashboardStore';
 import { updateLinkLabel } from '@/api/links';
+import { useToastStore } from '@/stores/toastStore';
 import DayDot from './DayDot';
 import { cn } from '@/lib/utils';
 
@@ -28,7 +29,9 @@ export default function ShareCard({ view, todayStr, onDotClick }: Props) {
       try {
         await updateLinkLabel(view.linkId, trimmed);
         queryClient.refetchQueries({ queryKey: ['dashboard'] });
-      } catch { /* ignore */ }
+      } catch (err) {
+        useToastStore.getState().addToast('error', err instanceof Error ? err.message : 'Failed to update label');
+      }
     } else {
       setLabel(view.label);
     }
