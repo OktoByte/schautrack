@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRequireAuth } from '@/hooks/useAuth';
 import { getSettings, importData } from '@/api/settings';
@@ -22,6 +22,13 @@ export default function Settings() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importMessage, setImportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+
+  const handleFileChange = useCallback(() => {
+    const file = fileInputRef.current?.files?.[0];
+    setSelectedFileName(file ? file.name : null);
+    setImportMessage(null);
+  }, []);
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings'],
@@ -56,6 +63,7 @@ export default function Settings() {
     }
     setImportLoading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
+    setSelectedFileName(null);
   };
 
   return (
@@ -104,14 +112,42 @@ export default function Settings() {
         </div>
         <div className="break-inside-avoid">
           <Card>
-            <h3 className="text-sm font-semibold mb-3">Data</h3>
-            <div className="flex flex-col gap-3">
-              <a href="/settings/export" className="text-sm text-primary hover:underline">Export JSON</a>
-              <div className="border-t border-border pt-3">
-                <p className="text-xs text-muted-foreground mb-2">Import from a JSON backup. This replaces all existing entries.</p>
-                {importMessage && <Alert type={importMessage.type} message={importMessage.text} className="mb-2" />}
-                <input ref={fileInputRef} type="file" accept=".json,application/json" className="text-xs text-muted-foreground file:mr-2 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-xs file:text-foreground file:cursor-pointer mb-2 block" />
-                <Button variant="destructive" className="w-full" onClick={handleImport} loading={importLoading}>Import</Button>
+            <h3 className="text-sm font-semibold mb-4">Data</h3>
+            <div className="flex flex-col gap-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Export</p>
+                <p className="text-xs text-muted-foreground mb-3">Download all your entries as a JSON backup.</p>
+                <a href="/settings/export">
+                  <Button variant="outline" className="w-full">Export JSON</Button>
+                </a>
+              </div>
+              <div className="border-t border-border pt-4">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Import</p>
+                <p className="text-xs text-muted-foreground mb-3">Restore from a JSON backup. This replaces all existing entries.</p>
+                {importMessage && <Alert type={importMessage.type} message={importMessage.text} className="mb-3" />}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json,application/json"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full rounded-[10px] border border-dashed border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground hover:border-ring hover:text-foreground transition-colors cursor-pointer mb-3 text-left truncate"
+                >
+                  {selectedFileName ?? 'Choose a file…'}
+                </button>
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={handleImport}
+                  loading={importLoading}
+                  disabled={!selectedFileName}
+                >
+                  Import
+                </Button>
               </div>
             </div>
           </Card>

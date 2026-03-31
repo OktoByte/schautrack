@@ -23,7 +23,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             // Primary: cyan bordered — use for the main/confirm action
             'border border-[#0ea5e9]/60 text-[#0ea5e9] bg-[#0ea5e9]/[0.07] hover:bg-[#0ea5e9]/[0.13] hover:border-[#0ea5e9]/90 active:translate-y-px': variant === 'default',
             // Ghost: no border, muted — use for cancel/dismiss actions only
-            'bg-transparent text-muted-foreground hover:bg-white/[0.06] hover:text-foreground active:translate-y-px': variant === 'ghost',
+            'bg-transparent text-foreground/70 hover:bg-white/[0.06] hover:text-foreground active:translate-y-px': variant === 'ghost',
             // Destructive: red bordered — use for irreversible/dangerous actions
             'border border-destructive/60 text-destructive bg-destructive/[0.07] hover:bg-destructive/[0.13] hover:border-destructive/90 active:translate-y-px': variant === 'destructive',
             // Outline: purple bordered — use for secondary actions
