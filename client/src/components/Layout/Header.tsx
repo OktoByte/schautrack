@@ -16,7 +16,7 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-xl">
+    <header className="relative z-50">
       <div className="mx-auto flex max-w-[1100px] items-center justify-between px-4 py-3">
         <Link to={user ? '/dashboard' : '/'} className="flex items-center gap-2 text-foreground no-underline">
           <img src="/logo.png" alt="" width={32} height={32} className="rounded-md" />
