@@ -72,7 +72,9 @@ export default function EmailSettings({ currentEmail, totpEnabled }: Props) {
             maxLength={6}
           />
         )}
-        <Button type="submit" size="sm" loading={loading}>Send Verification Code</Button>
+        <div className="border-t border-border pt-3 mt-1">
+          <Button type="submit" className="w-full" loading={loading}>Send Verification Code</Button>
+        </div>
       </form>
     </Card>
   );

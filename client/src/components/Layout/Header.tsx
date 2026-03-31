@@ -17,12 +17,14 @@ export default function Header() {
 
   return (
     <header className="relative z-50">
-      <div className="mx-auto flex max-w-[1100px] items-center justify-between px-4 py-3">
+      <div className="mx-auto flex max-w-[1100px] items-center justify-between px-2 py-4">
         <Link to={user ? '/dashboard' : '/'} className="flex items-center gap-2 text-foreground no-underline">
-          <img src="/logo.png" alt="" width={32} height={32} className="rounded-md" />
+          <div className="size-11 rounded-[10px] bg-card border border-border shadow-[0_10px_30px_rgba(0,0,0,0.35)] overflow-hidden grid place-items-center shrink-0">
+            <img src="/logo.png" alt="" className="w-full h-full object-cover block" />
+          </div>
           <div className="flex flex-col leading-none">
-            <span className="text-xl font-semibold tracking-tight">Schautrack</span>
-            <span className="text-xs text-muted-foreground">Every day counts</span>
+            <span className="text-[18px] font-bold tracking-tight">Schautrack</span>
+            <span className="text-[13px] text-muted-foreground">Every day counts</span>
           </div>
         </Link>
 

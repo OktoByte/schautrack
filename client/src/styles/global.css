@@ -9,7 +9,7 @@
   --color-background: #070d1a;
   --color-foreground: #e5e7eb;
 
-  --color-card: #0d1525;
+  --color-card: #0c1320;
   --color-card-foreground: #e5e7eb;
 
   --color-primary: #6d8cff;
@@ -33,7 +33,7 @@
   --color-warning: #eab308;
   --color-warning-foreground: #ffffff;
 
-  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border: #182030;
   --color-input: rgba(255, 255, 255, 0.08);
   --color-ring: #6d8cff;
 

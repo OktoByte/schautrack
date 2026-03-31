@@ -89,9 +89,11 @@ export default function LinkSettings({ incomingRequests, outgoingRequests, accep
       )}
 
       {availableSlots > 0 && (
-        <form onSubmit={handleRequest} className="flex gap-2 items-end">
+        <form onSubmit={handleRequest} className="flex flex-col gap-2">
           <Input label="Link by email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <Button type="submit" size="sm" loading={loading}>Send</Button>
+          <div className="border-t border-border pt-3 mt-1">
+            <Button type="submit" className="w-full" loading={loading}>Send Request</Button>
+          </div>
         </form>
       )}
     </Card>

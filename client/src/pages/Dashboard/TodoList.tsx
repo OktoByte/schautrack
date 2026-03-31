@@ -6,8 +6,52 @@ import { Button } from '@/components/ui/Button';
 import type { Todo, TodoDay } from '@/types';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function formatTimeDigits(digits: string): string {
+  if (digits.length <= 2) return digits;
+  return digits.slice(0, 2) + ':' + digits.slice(2, 4);
+}
+
+function toTimeValue(digits: string): string {
+  if (!digits) return '';
+  const h = digits.slice(0, 2).padEnd(2, '0');
+  const m = digits.length >= 3 ? digits.slice(2, 4).padEnd(2, '0') : '00';
+  return `${h}:${m}`;
+}
+
+function TimeInput({ value, onChange, onClear }: { value: string; onChange: (v: string) => void; onClear: () => void }) {
+  // value is HH:MM or '', digits is raw digits only
+  const digits = value.replace(':', '');
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
+    onChange(raw ? formatTimeDigits(raw) : '');
+  };
+
+  const handleBlur = () => {
+    if (digits) onChange(toTimeValue(digits));
+  };
+
+  return (
+    <span className="relative flex items-center gap-2">
+      <input
+        type="text"
+        inputMode="numeric"
+        value={value}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        placeholder="HH:MM"
+        maxLength={5}
+        className="w-24 rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring pr-7"
+      />
+      <span className="absolute right-2 text-[10px] text-muted-foreground/60 pointer-events-none">🕑</span>
+      {value && (
+        <Button type="button" size="sm" variant="ghost" onClick={onClear}>Clear</Button>
+      )}
+    </span>
+  );
+}
 const inputClass = 'w-full rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
-const timeInputClass = 'w-24 rounded-md border border-input bg-muted/50 px-2.5 py-2 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring';
 
 interface Props {
   date: string;
@@ -265,11 +309,7 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
                   <input value={editName} onChange={(e) => setEditName(e.target.value)} className={inputClass} maxLength={100} autoFocus />
                   <ScheduleEditor schedule={editSchedule} onChange={setEditSchedule} />
                   <div className="flex items-center gap-2">
-                    <span className="relative flex items-center">
-                      <input value={editTime} onChange={(e) => setEditTime(e.target.value)} type="text" inputMode="numeric" placeholder="HH:MM" pattern="[0-2][0-9]:[0-5][0-9]" maxLength={5} className={`${timeInputClass} pr-8`} />
-                      <span className="absolute right-2 text-[10px] text-muted-foreground/60 pointer-events-none">&#128337;</span>
-                    </span>
-                    {editTime && <Button type="button" size="sm" variant="ghost" onClick={() => setEditTime('')}>Clear</Button>}
+                    <TimeInput value={editTime} onChange={setEditTime} onClear={() => setEditTime('')} />
                   </div>
                   <div className="flex gap-2 justify-end">
                     <Button type="button" size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
@@ -302,11 +342,7 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
             <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Todo name" className={inputClass} maxLength={100} autoFocus />
             <ScheduleEditor schedule={newSchedule} onChange={setNewSchedule} />
             <div className="flex items-center gap-2">
-              <span className="relative flex items-center">
-                <input value={newTime} onChange={(e) => setNewTime(e.target.value)} type="text" inputMode="numeric" placeholder="HH:MM" pattern="[0-2][0-9]:[0-5][0-9]" maxLength={5} className={`${timeInputClass} pr-8`} />
-                <span className="absolute right-2 text-[10px] text-muted-foreground/60 pointer-events-none">&#128337;</span>
-              </span>
-              {newTime && <Button type="button" size="sm" variant="ghost" onClick={() => setNewTime('')}>Clear</Button>}
+              <TimeInput value={newTime} onChange={setNewTime} onClear={() => setNewTime('')} />
             </div>
             <div className="flex gap-2 justify-end">
               <Button type="button" size="sm" variant="ghost" onClick={() => { setShowAddForm(false); setNewName(''); setNewTime(''); setNewSchedule({ type: 'daily' }); }}>Cancel</Button>

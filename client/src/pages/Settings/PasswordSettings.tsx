@@ -47,7 +47,9 @@ export default function PasswordSettings({ totpEnabled }: Props) {
         <Input label="New Password" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} required minLength={10} />
         <Input label="Confirm Password" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
         {totpEnabled && <Input label="2FA Code" value={totp} onChange={(e) => setTotp(e.target.value)} inputMode="numeric" />}
-        <Button type="submit" size="sm" loading={loading}>Update Password</Button>
+        <div className="border-t border-border pt-3 mt-1">
+          <Button type="submit" className="w-full" loading={loading}>Update Password</Button>
+        </div>
       </form>
     </Card>
   );

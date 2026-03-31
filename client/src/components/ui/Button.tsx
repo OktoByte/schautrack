@@ -20,14 +20,14 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0ea5e9] focus-visible:ring-offset-2 focus-visible:ring-offset-background',
           'disabled:pointer-events-none disabled:opacity-40 disabled:saturate-0',
           {
-            // Primary: bold gradient — use for the main action on a page
-            'bg-gradient-to-br from-[#0ea5e9] to-[#a855f7] text-[#0b0f1c] hover:brightness-110 active:translate-y-px': variant === 'default',
-            // Ghost: invisible until hovered — use for secondary/cancel actions
+            // Primary: cyan bordered — use for the main/confirm action
+            'border border-[#0ea5e9]/60 text-[#0ea5e9] bg-[#0ea5e9]/[0.07] hover:bg-[#0ea5e9]/[0.13] hover:border-[#0ea5e9]/90 active:translate-y-px': variant === 'default',
+            // Ghost: no border, muted — use for cancel/dismiss actions only
             'bg-transparent text-muted-foreground hover:bg-white/[0.06] hover:text-foreground active:translate-y-px': variant === 'ghost',
-            // Destructive: red — use for irreversible/dangerous actions
-            'bg-destructive/90 text-white hover:brightness-110 active:translate-y-px': variant === 'destructive',
-            // Outline: subtle bordered — use for secondary actions that need more presence than ghost
-            'bg-white/[0.05] text-foreground border border-border hover:bg-white/[0.09] active:translate-y-px': variant === 'outline',
+            // Destructive: red bordered — use for irreversible/dangerous actions
+            'border border-destructive/60 text-destructive bg-destructive/[0.07] hover:bg-destructive/[0.13] hover:border-destructive/90 active:translate-y-px': variant === 'destructive',
+            // Outline: purple bordered — use for secondary actions
+            'border border-[#a855f7]/60 text-[#a855f7] bg-[#a855f7]/[0.07] hover:bg-[#a855f7]/[0.13] hover:border-[#a855f7]/90 active:translate-y-px': variant === 'outline',
           },
           {
             'h-9 px-4': size === 'default',

@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -199,41 +200,56 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			"dailyStats": dailyStats, "todayStr": todayStrTz,
 		},
 	}
-	for _, link := range acceptedLinks {
-		lmu := link.AsMacroUser()
-		linkTodayStr := service.FormatDateInTz(time.Now(), link.Timezone)
-		var linkDayOptions []string
-		for _, d := range dayOptions {
-			if d <= linkTodayStr {
-				linkDayOptions = append(linkDayOptions, d)
+	type linkResult struct {
+		index int
+		view  map[string]any
+	}
+	linkResults := make([]linkResult, len(acceptedLinks))
+	var wg sync.WaitGroup
+	for i, link := range acceptedLinks {
+		wg.Add(1)
+		go func(i int, link service.LinkUser) {
+			defer wg.Done()
+			lmu := link.AsMacroUser()
+			linkTodayStr := service.FormatDateInTz(time.Now(), link.Timezone)
+			var linkDayOptions []string
+			for _, d := range dayOptions {
+				if d <= linkTodayStr {
+					linkDayOptions = append(linkDayOptions, d)
+				}
 			}
+			if len(linkDayOptions) == 0 {
+				return
+			}
+			linkOldest := linkDayOptions[len(linkDayOptions)-1]
+			linkNewest := linkDayOptions[0]
+			linkGoal := service.GetCalorieGoal(lmu)
+			linkTotals := getTotalsByDate(r, h.Pool, link.UserID, linkOldest, linkNewest)
+			linkEnabledMacros := service.GetEnabledMacros(lmu)
+			linkMacroGoals := service.GetMacroGoals(lmu)
+			linkMacroModes := service.GetMacroModes(lmu)
+			var linkMacroTotals map[string]map[string]int
+			if len(linkEnabledMacros) > 0 {
+				linkMacroTotals, _ = service.GetMacroTotalsByDate(r.Context(), h.Pool, link.UserID, linkOldest, linkNewest)
+			}
+			stats := buildDailyStats(linkDayOptions, linkTotals, linkGoal, linkEnabledMacros, linkMacroGoals, linkMacroModes, linkMacroTotals, lmu.GoalThreshold)
+			label := link.Email
+			if link.Label != nil && strings.TrimSpace(*link.Label) != "" {
+				label = *link.Label
+			}
+			linkResults[i] = linkResult{index: i, view: map[string]any{
+				"linkId": link.LinkID, "userId": link.UserID, "email": link.Email,
+				"label": label, "isSelf": false,
+				"dailyGoal": linkGoal, "goalThreshold": lmu.GoalThreshold,
+				"dailyStats": stats, "todayStr": linkTodayStr,
+			}}
+		}(i, link)
+	}
+	wg.Wait()
+	for _, res := range linkResults {
+		if res.view != nil {
+			sharedViews = append(sharedViews, res.view)
 		}
-		if len(linkDayOptions) == 0 {
-			continue
-		}
-		linkOldest := linkDayOptions[len(linkDayOptions)-1]
-		linkNewest := linkDayOptions[0]
-		linkGoal := service.GetCalorieGoal(lmu)
-		linkTotals := getTotalsByDate(r, h.Pool, link.UserID, linkOldest, linkNewest)
-		linkEnabledMacros := service.GetEnabledMacros(lmu)
-		linkMacroGoals := service.GetMacroGoals(lmu)
-		linkMacroModes := service.GetMacroModes(lmu)
-		var linkMacroTotals map[string]map[string]int
-		if len(linkEnabledMacros) > 0 {
-			linkMacroTotals, _ = service.GetMacroTotalsByDate(r.Context(), h.Pool, link.UserID, linkOldest, linkNewest)
-		}
-		stats := buildDailyStats(linkDayOptions, linkTotals, linkGoal, linkEnabledMacros, linkMacroGoals, linkMacroModes, linkMacroTotals, lmu.GoalThreshold)
-
-		label := link.Email
-		if link.Label != nil && strings.TrimSpace(*link.Label) != "" {
-			label = *link.Label
-		}
-		sharedViews = append(sharedViews, map[string]any{
-			"linkId": link.LinkID, "userId": link.UserID, "email": link.Email,
-			"label": label, "isSelf": false,
-			"dailyGoal": linkGoal, "goalThreshold": lmu.GoalThreshold,
-			"dailyStats": stats, "todayStr": linkTodayStr,
-		})
 	}
 
 	// AI status: show button if user has personal key OR global key is available

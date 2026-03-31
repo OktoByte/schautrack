@@ -199,7 +199,9 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
             >
               {useBackupCode ? 'Use authenticator code instead' : 'Lost your authenticator? Use a backup code'}
             </button>
-            <Button type="submit" variant="destructive" size="sm" loading={loading}>Disable 2FA</Button>
+            <div className="border-t border-border pt-3 mt-1">
+              <Button type="submit" variant="destructive" className="w-full" loading={loading}>Disable 2FA</Button>
+            </div>
           </form>
 
           <div className="mt-4 pt-4 border-t border-border">
@@ -214,9 +216,9 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
                   placeholder="Enter 6-digit code"
                   required
                 />
-                <div className="flex gap-2">
-                  <Button type="submit" size="sm" loading={regenLoading}>Regenerate</Button>
-                  <Button type="button" size="sm" variant="ghost" onClick={() => { setShowRegen(false); setRegenToken(''); }}>Cancel</Button>
+                <div className="border-t border-border pt-3 mt-1 flex gap-2">
+                  <Button type="button" variant="ghost" className="flex-1" onClick={() => { setShowRegen(false); setRegenToken(''); }}>Cancel</Button>
+                  <Button type="submit" className="flex-1" loading={regenLoading}>Regenerate</Button>
                 </div>
               </form>
             ) : (
@@ -258,14 +260,16 @@ export default function TwoFactorSettings({ totpEnabled, onUpdate }: Props) {
               placeholder="Enter 6-digit code"
               required
             />
-            <div className="flex gap-2">
-              <Button type="submit" size="sm" loading={loading}>Activate</Button>
-              <Button type="button" variant="ghost" size="sm" onClick={handleCancel}>Cancel</Button>
+            <div className="border-t border-border pt-3 mt-1 flex gap-2">
+              <Button type="button" variant="ghost" className="flex-1" onClick={handleCancel}>Cancel</Button>
+              <Button type="submit" className="flex-1" loading={loading}>Activate</Button>
             </div>
           </form>
         </div>
       ) : (
-        <Button size="sm" onClick={handleSetup} loading={loading}>Setup 2FA</Button>
+        <div className="border-t border-border pt-3 mt-1">
+          <Button className="w-full" onClick={handleSetup} loading={loading}>Setup 2FA</Button>
+        </div>
       )}
     </Card>
   );

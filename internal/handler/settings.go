@@ -527,7 +527,7 @@ type LinksHandler struct {
 	Broker *sse.Broker
 }
 
-const MaxLinks = 3
+const MaxLinks = 10
 
 // LinkRequest handles POST /settings/link/request
 func (h *LinksHandler) LinkRequest(w http.ResponseWriter, r *http.Request) {

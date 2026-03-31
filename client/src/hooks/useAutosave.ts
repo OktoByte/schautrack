@@ -36,6 +36,9 @@ export function useAutosave<T>(
     savingRef.current = false;
   }, [saveFn, addToast]);
 
+  const saveRef = useRef(save);
+  saveRef.current = save;
+
   useEffect(() => {
     // Skip the initial render (don't save on mount)
     if (initialRef.current) {
@@ -45,12 +48,13 @@ export function useAutosave<T>(
     if (!enabled) return;
 
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(save, delay);
+    timerRef.current = setTimeout(() => saveRef.current(), delay);
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [data, delay, enabled, save]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, delay, enabled]);
 
   // Save immediately (for blur events etc)
   const saveNow = useCallback(() => {

@@ -110,10 +110,8 @@ export default function Settings() {
               <div className="border-t border-border pt-3">
                 <p className="text-xs text-muted-foreground mb-2">Import from a JSON backup. This replaces all existing entries.</p>
                 {importMessage && <Alert type={importMessage.type} message={importMessage.text} className="mb-2" />}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <input ref={fileInputRef} type="file" accept=".json,application/json" className="text-xs text-muted-foreground file:mr-2 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-xs file:text-foreground file:cursor-pointer" />
-                  <Button size="sm" variant="destructive" onClick={handleImport} loading={importLoading}>Import</Button>
-                </div>
+                <input ref={fileInputRef} type="file" accept=".json,application/json" className="text-xs text-muted-foreground file:mr-2 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-xs file:text-foreground file:cursor-pointer mb-2 block" />
+                <Button variant="destructive" className="w-full" onClick={handleImport} loading={importLoading}>Import</Button>
               </div>
             </div>
           </Card>
@@ -122,7 +120,9 @@ export default function Settings() {
           <Card>
             <h3 className="text-sm font-semibold mb-2 text-destructive">Danger Zone</h3>
             <p className="text-xs text-muted-foreground mb-3">Permanently delete your account and all data.</p>
-            <a href="/delete"><Button size="sm" variant="destructive">Delete Account</Button></a>
+            <div className="border-t border-border pt-3 mt-1">
+              <a href="/delete"><Button variant="destructive" className="w-full">Delete Account</Button></a>
+            </div>
           </Card>
         </div>
       </div>
