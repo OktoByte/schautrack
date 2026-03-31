@@ -6,12 +6,22 @@ import { MACRO_LABELS } from '@/lib/macros';
 import { cn } from '@/lib/utils';
 import { useToastStore } from '@/stores/toastStore';
 
-const HEADER_COLORS: Record<string, string> = {
-  protein: 'text-macro-protein',
-  carbs: 'text-macro-carbs',
-  fat: 'text-macro-fat',
-  fiber: 'text-macro-fiber',
-  sugar: 'text-macro-sugar',
+const PILL_COLORS: Record<string, { bg: string; border: string }> = {
+  kcal:    { bg: 'bg-macro-kcal/10',    border: 'border-macro-kcal/20' },
+  protein: { bg: 'bg-macro-protein/10', border: 'border-macro-protein/20' },
+  carbs:   { bg: 'bg-macro-carbs/10',   border: 'border-macro-carbs/20' },
+  fat:     { bg: 'bg-macro-fat/10',     border: 'border-macro-fat/20' },
+  fiber:   { bg: 'bg-macro-fiber/10',   border: 'border-macro-fiber/20' },
+  sugar:   { bg: 'bg-macro-sugar/10',   border: 'border-macro-sugar/20' },
+};
+
+const LABEL_COLORS: Record<string, string> = {
+  kcal: 'text-macro-kcal/70',
+  protein: 'text-macro-protein/70',
+  carbs: 'text-macro-carbs/70',
+  fat: 'text-macro-fat/70',
+  fiber: 'text-macro-fiber/70',
+  sugar: 'text-macro-sugar/70',
 };
 
 interface Props {
@@ -30,20 +40,7 @@ export default function EntryList({ entries, canEdit, enabledMacros, caloriesEna
   }
 
   return (
-    <div className="overflow-x-auto">
-      <div className="min-w-[320px]">
-      <div className="flex gap-1.5 sm:gap-2 px-3 py-2 bg-muted/30 border-b-2 border-border text-xs uppercase tracking-wider text-muted-foreground font-medium">
-        <span className="w-10 sm:w-16 shrink-0">Time</span>
-        {caloriesEnabled && <span className="w-10 sm:w-16 shrink-0 text-macro-kcal">Cal</span>}
-        {enabledMacros.map((key) => (
-          <span key={key} className={cn('w-8 sm:w-14 shrink-0', HEADER_COLORS[key] || '')}>
-            {MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.short || key}
-          </span>
-        ))}
-        <span className="flex-1 min-w-[48px]">Name</span>
-        {canEdit && <span className="w-8 shrink-0" />}
-      </div>
-
+    <div className="flex flex-col gap-1.5 p-2">
       {entries.map((entry) => (
         <EntryRow
           key={entry.id}
@@ -58,7 +55,6 @@ export default function EntryList({ entries, canEdit, enabledMacros, caloriesEna
           }}
         />
       ))}
-      </div>
     </div>
   );
 }
@@ -76,6 +72,7 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
   const addToast = useToastStore((s) => s.addToast);
 
   const handleEdit = (field: string, currentValue: string | number | null) => {
+    if (!canEdit) return;
     setEditing(field);
     setEditValue(String(currentValue ?? ''));
   };
@@ -116,56 +113,129 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
     if (e.key === 'Escape') setEditing(null);
   };
 
-  return (
-    <div className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 border-b-2 border-border text-sm last:border-b-0">
-      <span className="w-10 sm:w-16 shrink-0 text-muted-foreground">{entry.time}</span>
+  const hasMacros = caloriesEnabled || enabledMacros.length > 0;
 
-      {caloriesEnabled && (
-        <span className="w-10 sm:w-16 shrink-0">
-          {canEdit && !autoCalcCalories && editing === 'amount' ? (
-            <input className="bg-muted/50 border border-ring rounded-md px-2 py-0.5 text-sm text-foreground outline-none w-full" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus inputMode="tel" />
+  return (
+    <div className={cn(
+      'rounded-[10px] border border-border bg-white/[0.015] transition-[border-color,background] duration-150 hover:bg-white/[0.04] hover:border-white/10',
+      editing && 'border-[#0ea5e9]/40 shadow-[0_0_0_1px_rgba(14,165,233,0.25),0_8px_22px_rgba(2,18,45,0.4)]',
+    )}>
+      {/* Row 1: Name + Time + Delete */}
+      <div className="flex items-center gap-1.5 px-3 py-2">
+        <span className="flex-1 min-w-0 truncate">
+          {editing === 'name' ? (
+            <input className="bg-muted/50 border border-ring rounded-md px-2 py-0.5 text-sm text-foreground outline-none w-full" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus />
           ) : (
-            <button type="button" className={cn('bg-transparent border-0 p-0 text-sm text-foreground cursor-pointer tabular-nums', (!canEdit || autoCalcCalories) && 'cursor-default')} onClick={() => canEdit && !autoCalcCalories && handleEdit('amount', entry.amount)} disabled={!canEdit || autoCalcCalories}>
-              {entry.amount}
+            <button
+              type="button"
+              className={cn('bg-transparent border-0 p-0 text-[15px] font-semibold text-foreground text-left truncate w-full rounded-lg transition-colors', canEdit ? 'cursor-pointer hover:text-[#0ea5e9]' : 'cursor-default')}
+              onClick={() => handleEdit('name', entry.name)}
+              disabled={!canEdit}
+            >
+              {entry.name || '\u2014'}
             </button>
           )}
         </span>
-      )}
-
-      {enabledMacros.map((key) => {
-        const val = entry.macros?.[key];
-        return (
-          <span key={key} className="w-8 sm:w-14 shrink-0">
-            {canEdit && editing === key ? (
-              <input className="bg-muted/50 border border-ring rounded-md px-2 py-0.5 text-sm text-foreground outline-none w-full" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus inputMode="numeric" />
-            ) : (
-              <button type="button" className={cn('bg-transparent border-0 p-0 text-sm text-foreground cursor-pointer tabular-nums', !canEdit && 'cursor-default')} onClick={() => canEdit && handleEdit(key, val ?? null)} disabled={!canEdit}>
-                {val != null ? val : '-'}
-              </button>
-            )}
-          </span>
-        );
-      })}
-
-      <span className="flex-1 min-w-[48px] truncate">
-        {canEdit && editing === 'name' ? (
-          <input className="bg-muted/50 border border-ring rounded-md px-2 py-0.5 text-sm text-foreground outline-none w-full" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus />
-        ) : (
-          <button type="button" className={cn('bg-transparent border-0 p-0 text-sm text-foreground cursor-pointer text-left truncate w-full', !canEdit && 'cursor-default')} onClick={() => canEdit && handleEdit('name', entry.name)} disabled={!canEdit}>
-            {entry.name || '\u2014'}
-          </button>
-        )}
-      </span>
-
-      {canEdit && (
-        <span className="w-8 flex-shrink-0 flex justify-center">
-          <button type="button" className="size-7 flex items-center justify-center rounded-md border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer" onClick={handleDelete} title="Delete">
+        <span className="text-xs text-muted-foreground tabular-nums shrink-0 opacity-85">{entry.time}</span>
+        {canEdit && (
+          <button type="button" className="size-7 flex items-center justify-center rounded-[10px] border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer shrink-0" onClick={handleDelete} title="Delete">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6L6 18" /><path d="M6 6l12 12" />
             </svg>
           </button>
-        </span>
+        )}
+      </div>
+
+      {/* Row 2: Macro pills */}
+      {hasMacros && (
+        <div className="flex flex-wrap gap-1.5 px-3 pb-2.5">
+          {caloriesEnabled && (
+            <MacroPill
+              macroKey="kcal"
+              label="Calories"
+              value={entry.amount}
+              unit="kcal"
+              editing={editing === 'amount'}
+              editValue={editValue}
+              onEdit={() => canEdit && !autoCalcCalories && handleEdit('amount', entry.amount)}
+              onChange={setEditValue}
+              onSave={handleSave}
+              onKeyDown={handleKeyDown}
+              canEdit={canEdit && !autoCalcCalories}
+              inputMode="tel"
+            />
+          )}
+          {enabledMacros.map((key) => {
+            const val = entry.macros?.[key];
+            return (
+              <MacroPill
+                key={key}
+                macroKey={key}
+                label={MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.label || key}
+                value={val ?? null}
+                unit="g"
+                editing={editing === key}
+                editValue={editValue}
+                onEdit={() => handleEdit(key, val ?? null)}
+                onChange={setEditValue}
+                onSave={handleSave}
+                onKeyDown={handleKeyDown}
+                canEdit={canEdit}
+                inputMode="numeric"
+              />
+            );
+          })}
+        </div>
       )}
     </div>
+  );
+}
+
+function MacroPill({ macroKey, label, value, unit, editing, editValue, onEdit, onChange, onSave, onKeyDown, canEdit, inputMode }: {
+  macroKey: string;
+  label: string;
+  value: number | null;
+  unit: string;
+  editing: boolean;
+  editValue: string;
+  onEdit: () => void;
+  onChange: (v: string) => void;
+  onSave: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  canEdit: boolean;
+  inputMode: 'tel' | 'numeric';
+}) {
+  const colors = PILL_COLORS[macroKey] || { bg: 'bg-white/[0.06]', border: 'border-white/[0.08]' };
+  const labelColor = LABEL_COLORS[macroKey] || 'text-muted-foreground';
+
+  if (editing) {
+    return (
+      <input
+        className="bg-muted/50 border border-ring rounded-full px-3 py-1 text-sm text-foreground outline-none w-20 tabular-nums"
+        value={editValue}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onSave}
+        onKeyDown={onKeyDown}
+        autoFocus
+        inputMode={inputMode}
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm tabular-nums transition-colors',
+        colors.bg, colors.border,
+        canEdit ? 'cursor-pointer hover:brightness-125' : 'cursor-default',
+      )}
+      onClick={onEdit}
+      disabled={!canEdit}
+    >
+      <span className={cn('text-[0.7rem] font-semibold uppercase tracking-wider', labelColor)}>{label}</span>
+      <span className="font-bold text-foreground">{value != null ? value : '-'}</span>
+      {value != null && <span className="text-[0.8em] font-normal text-muted-foreground/55">{unit}</span>}
+    </button>
   );
 }

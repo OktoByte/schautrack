@@ -53,7 +53,7 @@ export default function Footer() {
     : null;
 
   return (
-    <footer className="mt-auto px-4 py-5">
+    <footer className="mt-auto px-2 py-5">
       <div className="mx-auto max-w-[1100px] flex items-center justify-between gap-4 flex-wrap max-sm:flex-col max-sm:gap-3">
         <div className="text-sm font-bold text-foreground leading-tight">
           You got this. Trust me.

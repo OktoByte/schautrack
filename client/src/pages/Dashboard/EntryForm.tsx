@@ -127,7 +127,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
         <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: `repeat(${nutrientCols}, 1fr)` }}>
           {caloriesEnabled && (
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-macro-kcal">Cal</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-macro-kcal">Calories</label>
               <input
                 className={`${inputClass} ${autoCalcCalories ? 'opacity-60 cursor-not-allowed' : ''}`}
                 type="text"
@@ -152,7 +152,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
             return (
               <div key={key} className="flex flex-col gap-1">
                 <label className={`text-xs font-semibold uppercase tracking-wider ${color}`}>
-                  {MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.short || key}
+                  {MACRO_LABELS[key as keyof typeof MACRO_LABELS]?.label || key}
                 </label>
                 <input
                   className={inputClass}

@@ -393,7 +393,7 @@ export default function BarcodeScanModal({ isOpen, onClose, onResult, enabledMac
                         return (
                           <div key={key} className="flex flex-col items-center">
                             <span className="text-sm font-semibold tabular-nums">{val}g</span>
-                            <span className="text-xs uppercase tracking-wider text-muted-foreground">{label?.short || key}</span>
+                            <span className="text-xs uppercase tracking-wider text-muted-foreground">{label?.label || key}</span>
                           </div>
                         );
                       })}
