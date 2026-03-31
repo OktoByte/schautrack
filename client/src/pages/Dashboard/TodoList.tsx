@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTodos, getTodosDay, toggleTodo, createTodo, updateTodo, deleteTodo } from '@/api/todos';
 import { useToastStore } from '@/stores/toastStore';
+import { Button } from '@/components/ui/Button';
 import type { Todo, TodoDay } from '@/types';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -268,11 +269,11 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
                       <input value={editTime} onChange={(e) => setEditTime(e.target.value)} type="text" inputMode="numeric" placeholder="HH:MM" pattern="[0-2][0-9]:[0-5][0-9]" maxLength={5} className={`${timeInputClass} pr-8`} />
                       <span className="absolute right-2 text-[10px] text-muted-foreground/60 pointer-events-none">&#128337;</span>
                     </span>
-                    {editTime && <button type="button" onClick={() => setEditTime('')} className="rounded-md px-3 py-1.5 text-xs font-semibold text-muted-foreground border border-border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">Clear</button>}
+                    {editTime && <Button type="button" size="sm" variant="ghost" onClick={() => setEditTime('')}>Clear</Button>}
                   </div>
                   <div className="flex gap-2 justify-end">
-                    <button type="button" onClick={() => setEditingId(null)} className="rounded-md px-4 py-2 text-sm font-semibold text-muted-foreground border border-border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">Cancel</button>
-                    <button type="button" onClick={() => handleUpdate(todo.id)} disabled={saving} className="rounded-md px-4 py-2 text-sm font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer disabled:opacity-50">Save</button>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+                    <Button type="button" size="sm" onClick={() => handleUpdate(todo.id)} disabled={saving} loading={saving}>Save</Button>
                   </div>
                 </div>
               ) : (
@@ -285,8 +286,8 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <button type="button" onClick={() => startEdit(todo)} className="rounded-md px-4 py-2 text-sm font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer">Edit</button>
-                    <button type="button" onClick={() => handleDelete(todo.id)} className="rounded-md px-4 py-2 text-sm font-semibold text-destructive border border-destructive/30 bg-destructive/10 hover:bg-destructive/20 transition-colors cursor-pointer">Remove</button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => startEdit(todo)}>Edit</Button>
+                    <Button type="button" size="sm" variant="destructive" onClick={() => handleDelete(todo.id)}>Remove</Button>
                   </div>
                 </div>
               )}
@@ -305,17 +306,17 @@ function TodoManager({ onClose, initialAdd, onAddShown }: { onClose: () => void;
                 <input value={newTime} onChange={(e) => setNewTime(e.target.value)} type="text" inputMode="numeric" placeholder="HH:MM" pattern="[0-2][0-9]:[0-5][0-9]" maxLength={5} className={`${timeInputClass} pr-8`} />
                 <span className="absolute right-2 text-[10px] text-muted-foreground/60 pointer-events-none">&#128337;</span>
               </span>
-              {newTime && <button type="button" onClick={() => setNewTime('')} className="rounded-md px-3 py-1.5 text-xs font-semibold text-muted-foreground border border-border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">Clear</button>}
+              {newTime && <Button type="button" size="sm" variant="ghost" onClick={() => setNewTime('')}>Clear</Button>}
             </div>
             <div className="flex gap-2 justify-end">
-              <button type="button" onClick={() => { setShowAddForm(false); setNewName(''); setNewTime(''); setNewSchedule({ type: 'daily' }); }} className="rounded-md px-4 py-2 text-sm font-semibold text-muted-foreground border border-border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">Cancel</button>
-              <button type="submit" disabled={!newName.trim() || creating} className="rounded-md px-4 py-2 text-sm font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer disabled:opacity-50">Add</button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => { setShowAddForm(false); setNewName(''); setNewTime(''); setNewSchedule({ type: 'daily' }); }}>Cancel</Button>
+              <Button type="submit" size="sm" disabled={!newName.trim() || creating} loading={creating}>Add</Button>
             </div>
           </form>
         ) : (
           <div className="flex items-center justify-between">
-            <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm font-semibold text-muted-foreground border border-border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">Done</button>
-            <button type="button" onClick={() => setShowAddForm(true)} className="rounded-md px-4 py-2 text-sm font-semibold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer">Add todo</button>
+            <Button type="button" size="sm" variant="ghost" onClick={onClose}>Done</Button>
+            <Button type="button" size="sm" onClick={() => setShowAddForm(true)}>Add todo</Button>
           </div>
         )}
       </div>

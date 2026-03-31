@@ -15,14 +15,19 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <Comp
         className={cn(
-          'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium text-sm transition-colors cursor-pointer',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background',
-          'disabled:pointer-events-none disabled:opacity-50',
+          'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] font-bold text-sm cursor-pointer',
+          'transition-[filter,transform] duration-100 ease-out',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0ea5e9] focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          'disabled:pointer-events-none disabled:opacity-40 disabled:saturate-0',
           {
-            'bg-primary text-white hover:bg-primary/85 active:bg-primary/75': variant === 'default',
-            'bg-transparent text-muted-foreground border border-border hover:bg-white/[0.04] hover:text-foreground': variant === 'ghost',
-            'bg-destructive text-white hover:bg-destructive/85 active:bg-destructive/75': variant === 'destructive',
-            'border border-border bg-white/[0.03] text-foreground hover:bg-white/[0.06]': variant === 'outline',
+            // Primary: bold gradient — use for the main action on a page
+            'bg-gradient-to-br from-[#0ea5e9] to-[#a855f7] text-[#0b0f1c] hover:brightness-110 active:translate-y-px': variant === 'default',
+            // Ghost: invisible until hovered — use for secondary/cancel actions
+            'bg-transparent text-muted-foreground hover:bg-white/[0.06] hover:text-foreground active:translate-y-px': variant === 'ghost',
+            // Destructive: red — use for irreversible/dangerous actions
+            'bg-destructive/90 text-white hover:brightness-110 active:translate-y-px': variant === 'destructive',
+            // Outline: subtle bordered — use for secondary actions that need more presence than ghost
+            'bg-white/[0.05] text-foreground border border-border hover:bg-white/[0.09] active:translate-y-px': variant === 'outline',
           },
           {
             'h-9 px-4': size === 'default',
