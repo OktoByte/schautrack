@@ -12,6 +12,7 @@ export default function Register() {
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [inviteCode, setInviteCode] = useState(searchParams.get('invite') || '');
   const [captcha, setCaptcha] = useState('');
   const [captchaSvg, setCaptchaSvg] = useState('');
@@ -31,6 +32,10 @@ export default function Register() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (step === 'credentials' && password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
     setLoading(true);
     try {
       const result = await register({
@@ -67,6 +72,16 @@ export default function Register() {
             <>
               <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
               <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" minLength={10} placeholder="Minimum 10 characters" />
+              <Input
+                label="Confirm Password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+                error={confirmPassword && password !== confirmPassword ? 'Passwords do not match.' : undefined}
+                className={confirmPassword && password === confirmPassword ? 'border-green-500 focus-visible:ring-green-500' : undefined}
+              />
               {requireInvite && (
                 <Input label="Invite Code" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} required placeholder="Enter your invite code" />
               )}

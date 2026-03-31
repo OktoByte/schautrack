@@ -238,9 +238,35 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 
 	// AI status: show button if user has personal key OR global key is available
 	hasAiEnabled := user.AIKey != nil && *user.AIKey != ""
+	usingGlobalKey := false
 	if !hasAiEnabled {
 		globalKey := h.Settings.GetEffectiveSetting(r.Context(), "ai_key", h.Cfg.AIKey)
 		hasAiEnabled = globalKey.Value != nil && *globalKey.Value != ""
+		if hasAiEnabled {
+			usingGlobalKey = true
+		}
+	}
+
+	// Compute AI usage for display
+	var aiUsage any
+	if hasAiEnabled {
+		usedToday, _ := service.GetAIUsageToday(r.Context(), h.Pool, user.ID)
+		var dailyLimit int
+		if usingGlobalKey {
+			dailyLimitSetting := h.Settings.GetEffectiveSetting(r.Context(), "ai_daily_limit", os.Getenv("AI_DAILY_LIMIT"))
+			if dailyLimitSetting.Value != nil {
+				dailyLimit, _ = strconv.Atoi(*dailyLimitSetting.Value)
+			}
+		} else if user.AIDailyLimit != nil {
+			dailyLimit = *user.AIDailyLimit
+		}
+		remaining := dailyLimit - usedToday
+		if dailyLimit == 0 || remaining < 0 {
+			remaining = 0
+		}
+		aiUsage = map[string]any{
+			"used": usedToday, "limit": dailyLimit, "remaining": remaining,
+		}
 	}
 
 	tz := "UTC"
@@ -281,7 +307,7 @@ func (h *EntriesHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		"weightUnit": user.WeightUnit, "timeZone": userTz, "todayStr": todayStrTz,
 		"range": map[string]any{"start": oldest, "end": newest, "days": len(dayOptions), "preset": nilInt(rangePreset)},
 		"weightEntry": viewWeight, "lastWeightEntry": lastWeightEntry,
-		"hasAiEnabled": hasAiEnabled, "aiUsage": nil, "aiProviderName": h.getAIProviderName(r, user),
+		"hasAiEnabled": hasAiEnabled, "aiUsage": aiUsage, "aiProviderName": h.getAIProviderName(r, user),
 		"barcodeEnabled": h.isBarcodeEnabled(r.Context()),
 		"caloriesEnabled": caloriesEnabled, "autoCalcCalories": autoCalcCalories,
 		"enabledMacros": enabledMacros, "macroGoals": macroGoals,

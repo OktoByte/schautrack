@@ -29,6 +29,11 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   const [date, setDate] = useState(selectedDate);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
+  const [localAiUsage, setLocalAiUsage] = useState<AIUsage | null>(aiUsage);
+
+  useEffect(() => {
+    setLocalAiUsage(aiUsage);
+  }, [aiUsage]);
   const addToast = useToastStore((s) => s.addToast);
 
   useEffect(() => {
@@ -97,7 +102,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   const hasInput = !!(amount || computedCalories || Object.values(macros).some((v) => v));
   const nutrientCount = (caloriesEnabled ? 1 : 0) + enabledMacros.length;
   const nutrientCols = nutrientCount <= 3 ? nutrientCount : Math.ceil(nutrientCount / 2);
-  const aiDisabled = hasAiEnabled && aiUsage && aiUsage.remaining === 0;
+  const aiDisabled = hasAiEnabled && localAiUsage && localAiUsage.remaining === 0;
 
   return (
     <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
@@ -184,8 +189,8 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
                 <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
                 <path d="M20 3v4" /><path d="M22 5h-4" />
               </svg>
-              {aiUsage && aiUsage.limit > 0 && (
-                <span className="text-[10px] font-medium tabular-nums">{aiUsage.remaining}</span>
+              {localAiUsage && localAiUsage.limit > 0 && (
+                <span className="text-[10px] font-medium tabular-nums">{localAiUsage.remaining}</span>
               )}
             </button>
           )}
@@ -236,6 +241,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
             }
             setMacros(newMacros);
           }
+          setLocalAiUsage((u) => u && u.limit > 0 ? { ...u, used: u.used + 1, remaining: Math.max(0, u.remaining - 1) } : u);
           setAiModalOpen(false);
         }}
         enabledMacros={enabledMacros}
