@@ -306,12 +306,15 @@ func spaFallback(clientDir, publicDir string) http.Handler {
 		if _, err := fs.Stat(clientFS, path); err == nil {
 			if strings.HasPrefix(path, "assets/") {
 				w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+			} else if path == "index.html" {
+				w.Header().Set("Cache-Control", "no-cache")
 			}
 			clientFileServer.ServeHTTP(w, r)
 			return
 		}
 
-		// SPA fallback: serve index.html
+		// SPA fallback: serve index.html (must revalidate so clients pick up new asset hashes after deploys)
+		w.Header().Set("Cache-Control", "no-cache")
 		http.ServeFile(w, r, filepath.Join(clientDir, "index.html"))
 	})
 }

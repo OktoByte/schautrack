@@ -87,7 +87,7 @@ export default function WeightRow({ weightEntry, lastWeightEntry, weightUnit, ca
           <span className="relative flex items-center flex-1">
             <input
               ref={inputRef}
-              className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 pr-10 text-sm text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring"
+              className={`w-full rounded-md border bg-muted/50 px-3 py-2 pr-10 text-sm outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring ${isToday ? 'border-green-500/40 text-green-400' : 'border-input text-foreground'}`}
               type="text"
               inputMode="decimal"
               defaultValue={displayValue}
