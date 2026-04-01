@@ -99,6 +99,20 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
     setLoading(false);
   };
 
+  const applyResult = (result: { name?: string; calories?: number; macros?: Record<string, number> }) => {
+    if (result.name) setName(result.name);
+    if (result.calories) setAmount(String(result.calories));
+    if (result.macros) {
+      const newMacros: Record<string, string> = {};
+      for (const [key, val] of Object.entries(result.macros)) {
+        if (enabledMacros.includes(key) && val) {
+          newMacros[key] = String(val);
+        }
+      }
+      setMacros(newMacros);
+    }
+  };
+
   const hasInput = !!(amount || computedCalories || Object.values(macros).some((v) => v));
   const nutrientCount = (caloriesEnabled ? 1 : 0) + enabledMacros.length;
   const nutrientCols = nutrientCount <= 3 ? nutrientCount : Math.ceil(nutrientCount / 2);
@@ -177,39 +191,39 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
             onChange={(e) => setDate(e.target.value)}
           />
 
-          {hasAiEnabled && (
-            <button
-              type="button"
-              className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-transparent"
-              onClick={() => setAiModalOpen(true)}
-              disabled={!!aiDisabled}
-              title={aiDisabled ? 'Daily AI limit reached' : 'Estimate with AI'}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
-                <path d="M20 3v4" /><path d="M22 5h-4" />
-              </svg>
-              {localAiUsage && localAiUsage.limit > 0 && (
-                <span className="text-[10px] font-medium tabular-nums">{localAiUsage.remaining}</span>
-              )}
-            </button>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {hasAiEnabled && (
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-transparent"
+                onClick={() => setAiModalOpen(true)}
+                disabled={!!aiDisabled}
+                title={aiDisabled ? 'Daily AI limit reached' : 'Estimate with AI'}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+                  <path d="M20 3v4" /><path d="M22 5h-4" />
+                </svg>
+                {localAiUsage && localAiUsage.limit > 0 && (
+                  <span className="text-[10px] font-medium tabular-nums">{localAiUsage.remaining}</span>
+                )}
+              </button>
+            )}
 
-          {barcodeEnabled && (
-            <button
-              type="button"
-              className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer bg-transparent"
-              onClick={() => setBarcodeModalOpen(true)}
-              title="Scan barcode"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 5v-2h4" /><path d="M17 3h4v2" /><path d="M21 19v2h-4" /><path d="M7 21h-4v-2" />
-                <path d="M7 8v8" /><path d="M12 8v8" /><path d="M17 8v8" /><path d="M5 8v8" /><path d="M15 8v8" /><path d="M19 8v8" />
-              </svg>
-            </button>
-          )}
+            {barcodeEnabled && (
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer bg-transparent"
+                onClick={() => setBarcodeModalOpen(true)}
+                title="Scan barcode"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 5v-2h4" /><path d="M17 3h4v2" /><path d="M21 19v2h-4" /><path d="M7 21h-4v-2" />
+                  <path d="M7 8v8" /><path d="M12 8v8" /><path d="M17 8v8" /><path d="M5 8v8" /><path d="M15 8v8" /><path d="M19 8v8" />
+                </svg>
+              </button>
+            )}
 
-          <div className="ml-auto">
             <Button
               type="submit"
               size="default"
@@ -230,17 +244,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
         isOpen={aiModalOpen}
         onClose={() => setAiModalOpen(false)}
         onResult={(result) => {
-          if (result.name) setName(result.name);
-          if (result.calories) setAmount(String(result.calories));
-          if (result.macros) {
-            const newMacros: Record<string, string> = {};
-            for (const [key, val] of Object.entries(result.macros)) {
-              if (enabledMacros.includes(key) && val) {
-                newMacros[key] = String(val);
-              }
-            }
-            setMacros(newMacros);
-          }
+          applyResult(result);
           setLocalAiUsage((u) => u && u.limit > 0 ? { ...u, used: u.used + 1, remaining: Math.max(0, u.remaining - 1) } : u);
           setAiModalOpen(false);
         }}
@@ -252,17 +256,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
         isOpen={barcodeModalOpen}
         onClose={() => setBarcodeModalOpen(false)}
         onResult={(result) => {
-          if (result.name) setName(result.name);
-          if (result.calories) setAmount(String(result.calories));
-          if (result.macros) {
-            const newMacros: Record<string, string> = {};
-            for (const [key, val] of Object.entries(result.macros)) {
-              if (enabledMacros.includes(key) && val) {
-                newMacros[key] = String(val);
-              }
-            }
-            setMacros(newMacros);
-          }
+          applyResult(result);
           setBarcodeModalOpen(false);
         }}
         enabledMacros={enabledMacros}

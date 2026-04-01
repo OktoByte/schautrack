@@ -6,22 +6,13 @@ import { MACRO_LABELS } from '@/lib/macros';
 import { cn } from '@/lib/utils';
 import { useToastStore } from '@/stores/toastStore';
 
-const PILL_COLORS: Record<string, { bg: string; border: string }> = {
-  kcal:    { bg: 'bg-macro-kcal/10',    border: 'border-macro-kcal/20' },
-  protein: { bg: 'bg-macro-protein/10', border: 'border-macro-protein/20' },
-  carbs:   { bg: 'bg-macro-carbs/10',   border: 'border-macro-carbs/20' },
-  fat:     { bg: 'bg-macro-fat/10',     border: 'border-macro-fat/20' },
-  fiber:   { bg: 'bg-macro-fiber/10',   border: 'border-macro-fiber/20' },
-  sugar:   { bg: 'bg-macro-sugar/10',   border: 'border-macro-sugar/20' },
-};
-
-const LABEL_COLORS: Record<string, string> = {
-  kcal: 'text-macro-kcal/70',
-  protein: 'text-macro-protein/70',
-  carbs: 'text-macro-carbs/70',
-  fat: 'text-macro-fat/70',
-  fiber: 'text-macro-fiber/70',
-  sugar: 'text-macro-sugar/70',
+const MACRO_STYLES: Record<string, { bg: string; border: string; label: string }> = {
+  kcal:    { bg: 'bg-macro-kcal/10',    border: 'border-macro-kcal/20',    label: 'text-macro-kcal/70' },
+  protein: { bg: 'bg-macro-protein/10', border: 'border-macro-protein/20', label: 'text-macro-protein/70' },
+  carbs:   { bg: 'bg-macro-carbs/10',   border: 'border-macro-carbs/20',   label: 'text-macro-carbs/70' },
+  fat:     { bg: 'bg-macro-fat/10',     border: 'border-macro-fat/20',     label: 'text-macro-fat/70' },
+  fiber:   { bg: 'bg-macro-fiber/10',   border: 'border-macro-fiber/20',   label: 'text-macro-fiber/70' },
+  sugar:   { bg: 'bg-macro-sugar/10',   border: 'border-macro-sugar/20',   label: 'text-macro-sugar/70' },
 };
 
 interface Props {
@@ -128,7 +119,7 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
           ) : (
             <button
               type="button"
-              className={cn('bg-transparent border-0 p-0 text-[15px] font-semibold text-foreground text-left truncate w-full rounded-lg transition-colors', canEdit ? 'cursor-pointer hover:text-[#0ea5e9]' : 'cursor-default')}
+              className={cn('bg-transparent border border-transparent px-2 py-0.5 text-[15px] font-semibold text-foreground text-left truncate w-full rounded-md transition-colors', canEdit ? 'cursor-pointer hover:text-[#0ea5e9]' : 'cursor-default')}
               onClick={() => handleEdit('name', entry.name)}
               disabled={!canEdit}
             >
@@ -205,20 +196,31 @@ function MacroPill({ macroKey, label, value, unit, editing, editValue, onEdit, o
   canEdit: boolean;
   inputMode: 'tel' | 'numeric';
 }) {
-  const colors = PILL_COLORS[macroKey] || { bg: 'bg-white/[0.06]', border: 'border-white/[0.08]' };
-  const labelColor = LABEL_COLORS[macroKey] || 'text-muted-foreground';
+  const style = MACRO_STYLES[macroKey] || { bg: 'bg-white/[0.06]', border: 'border-white/[0.08]', label: 'text-muted-foreground' };
+  const { bg, border, label: labelColor } = style;
 
   if (editing) {
     return (
-      <input
-        className="bg-muted/50 border border-ring rounded-full px-3 py-1 text-sm text-foreground outline-none w-20 tabular-nums"
-        value={editValue}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={onSave}
-        onKeyDown={onKeyDown}
-        autoFocus
-        inputMode={inputMode}
-      />
+      <span
+        className={cn(
+          'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm tabular-nums',
+          'border-ring', bg,
+        )}
+      >
+        <span className={cn('text-[0.7rem] font-semibold uppercase tracking-wider', labelColor)}>{label}</span>
+        <input
+          className="bg-transparent border-0 outline-none text-sm font-bold text-foreground tabular-nums p-0"
+          style={{ width: `${Math.max(1, editValue.length)}ch` }}
+          value={editValue}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onSave}
+          onKeyDown={onKeyDown}
+          autoFocus
+          onFocus={(e) => e.target.select()}
+          inputMode={inputMode}
+        />
+        <span className="text-[0.8em] font-normal text-muted-foreground/55">{unit}</span>
+      </span>
     );
   }
 
@@ -227,7 +229,7 @@ function MacroPill({ macroKey, label, value, unit, editing, editValue, onEdit, o
       type="button"
       className={cn(
         'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm tabular-nums transition-colors',
-        colors.bg, colors.border,
+        bg, border,
         canEdit ? 'cursor-pointer hover:brightness-125' : 'cursor-default',
       )}
       onClick={onEdit}
