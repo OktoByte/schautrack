@@ -102,6 +102,7 @@ export default function Dashboard() {
           date={selectedDate}
           userId={effectiveUserId}
           canEdit={canEdit}
+          timezone={dashboard?.timeZone || 'UTC'}
         />
       )}
 

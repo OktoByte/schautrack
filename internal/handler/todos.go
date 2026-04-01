@@ -303,8 +303,9 @@ func (h *TodosHandler) DayTodos(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Calculate streaks
+	// Calculate streaks and missed days
 	streaks := map[int]int{}
+	missedSince := map[int]string{}
 	if len(todoIDs) > 0 {
 		sRows, _ := h.Pool.Query(r.Context(),
 			"SELECT todo_id, completion_date FROM todo_completions WHERE todo_id = ANY($1) AND completion_date <= $2 ORDER BY completion_date DESC",
@@ -341,16 +342,46 @@ func (h *TodosHandler) DayTodos(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 				streaks[t.ID] = streak
+
+				// Compute missed_since: walk backwards from the day before dateStr
+				// to find the earliest consecutive missed scheduled day
+				if !completions[t.ID] {
+					earliest := ""
+					for i := 1; i <= 30; i++ {
+						d := start.AddDate(0, 0, -i).Format("2006-01-02")
+						if !service.IsScheduledForDate(t.Schedule, d) {
+							continue
+						}
+						found := false
+						for _, cd := range dates {
+							if cd == d {
+								found = true
+								break
+							}
+						}
+						if found {
+							break
+						}
+						earliest = d
+					}
+					if earliest != "" {
+						missedSince[t.ID] = earliest
+					}
+				}
 			}
 		}
 	}
 
 	var result []map[string]any
 	for _, t := range scheduled {
-		result = append(result, map[string]any{
+		item := map[string]any{
 			"id": t.ID, "name": t.Name, "time_of_day": t.TimeOfDay,
 			"completed": completions[t.ID], "streak": streaks[t.ID],
-		})
+		}
+		if ms, ok := missedSince[t.ID]; ok {
+			item["missed_since"] = ms
+		}
+		result = append(result, item)
 	}
 	if result == nil {
 		result = []map[string]any{}

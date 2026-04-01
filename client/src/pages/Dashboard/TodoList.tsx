@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTodos, getTodosDay, toggleTodo, createTodo, updateTodo, deleteTodo } from '@/api/todos';
 import { useToastStore } from '@/stores/toastStore';
@@ -57,6 +57,36 @@ interface Props {
   date: string;
   userId: number;
   canEdit: boolean;
+  timezone: string;
+}
+
+type TodoState = 'completed' | 'overdue' | 'upcoming';
+
+function getTodayStr(timezone: string): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: timezone });
+}
+
+function getCurrentTime(timezone: string): string {
+  return new Date().toLocaleTimeString('en-GB', { timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function getTodoState(todo: TodoDay, viewDate: string, todayStr: string, currentTime: string): TodoState {
+  if (todo.completed) return 'completed';
+  if (viewDate < todayStr) return 'overdue';
+  if (viewDate > todayStr) return 'upcoming';
+  // Viewing today
+  if (!todo.time_of_day) return 'overdue';
+  return todo.time_of_day <= currentTime ? 'overdue' : 'upcoming';
+}
+
+function getMissedLabel(missedSince: string | undefined, viewDate: string): string | null {
+  if (!missedSince) return null;
+  const missed = new Date(missedSince + 'T12:00:00');
+  const view = new Date(viewDate + 'T12:00:00');
+  const diffDays = Math.round((view.getTime() - missed.getTime()) / 86400000);
+  if (diffDays <= 0) return null;
+  if (diffDays === 1) return 'Yesterday';
+  return `${diffDays}d`;
 }
 
 function ScheduleEditor({ schedule, onChange }: { schedule: Todo['schedule']; onChange: (s: Todo['schedule']) => void }) {
@@ -107,10 +137,22 @@ function formatSchedule(schedule: Todo['schedule']) {
   return schedule.days.map((d) => DAY_LABELS[d - 1]).join(', ');
 }
 
-export default function TodoList({ date, userId, canEdit }: Props) {
+export default function TodoList({ date, userId, canEdit, timezone }: Props) {
   const queryClient = useQueryClient();
   const [managing, setManaging] = useState(false);
   const [addOnOpen, setAddOnOpen] = useState(false);
+  const [tick, setTick] = useState(0);
+
+  const todayStr = useMemo(() => getTodayStr(timezone), [timezone, tick]);
+  const currentTime = useMemo(() => getCurrentTime(timezone), [timezone, tick]);
+  const isToday = date === todayStr;
+
+  // Re-render every 60s when viewing today so overdue/upcoming flips as time passes
+  useEffect(() => {
+    if (!isToday) return;
+    const interval = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(interval);
+  }, [isToday]);
 
   const { data } = useQuery({
     queryKey: ['todos-day', userId, date],
@@ -129,7 +171,7 @@ export default function TodoList({ date, userId, canEdit }: Props) {
         return {
           ...old,
           todos: old.todos.map((a: TodoDay) =>
-            a.id === todo.id ? { ...a, completed: !a.completed, streak: a.completed ? Math.max(0, a.streak - 1) : a.streak + 1 } : a
+            a.id === todo.id ? { ...a, completed: !a.completed, missed_since: undefined, streak: a.completed ? Math.max(0, a.streak - 1) : a.streak + 1 } : a
           ),
         };
       }
@@ -173,40 +215,56 @@ export default function TodoList({ date, userId, canEdit }: Props) {
         <>
           {data.todos.length > 0 ? (
             <ul className="divide-y divide-border">
-              {data.todos.map((todo) => (
-                <li key={todo.id} className="flex items-center gap-3 px-4 py-2.5">
-                  <div className="flex-1 min-w-0">
-                    <span className={`text-sm ${todo.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-                      {todo.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {todo.time_of_day && (
-                      <span className="text-xs text-muted-foreground">{todo.time_of_day}</span>
-                    )}
-                    {todo.streak > 1 && (
-                      <span className="text-xs text-primary font-medium">{todo.streak}d</span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleToggle(todo)}
-                      disabled={!canEdit}
-                      className={`flex size-5 shrink-0 items-center justify-center rounded border transition-colors ${
-                        todo.completed
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-input bg-muted/50 hover:border-ring'
-                      } ${!canEdit ? 'cursor-default' : 'cursor-pointer'}`}
-                      aria-label={`${todo.completed ? 'Uncheck' : 'Check'} ${todo.name}`}
-                    >
-                      {todo.completed && (
-                        <svg className="size-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M2 6l3 3 5-5" />
-                        </svg>
+              {data.todos.map((todo) => {
+                const state = getTodoState(todo, date, todayStr, currentTime);
+                const missedLabel = getMissedLabel(todo.missed_since, date);
+                const nameClass = {
+                  completed: 'text-green-400 line-through',
+                  overdue: 'text-red-400',
+                  upcoming: 'text-muted-foreground',
+                }[state];
+                const checkboxClass = {
+                  completed: 'border-green-500 bg-green-500 text-white',
+                  overdue: 'border-red-400 bg-muted/50 hover:border-red-500',
+                  upcoming: 'border-input bg-muted/50 hover:border-ring',
+                }[state];
+
+                return (
+                  <li key={todo.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <div className="flex-1 min-w-0">
+                      <span className={`text-sm ${nameClass}`}>
+                        {todo.name}
+                      </span>
+                      {missedLabel && (
+                        <span className="ml-1.5 text-[10px] font-medium text-red-400 bg-red-500/10 rounded px-1 py-0.5">
+                          {missedLabel}
+                        </span>
                       )}
-                    </button>
-                  </div>
-                </li>
-              ))}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {todo.time_of_day && (
+                        <span className="text-xs text-muted-foreground">{todo.time_of_day}</span>
+                      )}
+                      {todo.streak > 1 && (
+                        <span className="text-xs text-primary font-medium">{todo.streak}d</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleToggle(todo)}
+                        disabled={!canEdit}
+                        className={`flex size-5 shrink-0 items-center justify-center rounded border transition-colors ${checkboxClass} ${!canEdit ? 'cursor-default' : 'cursor-pointer'}`}
+                        aria-label={`${todo.completed ? 'Uncheck' : 'Check'} ${todo.name}`}
+                      >
+                        {todo.completed && (
+                          <svg className="size-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M2 6l3 3 5-5" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <div className="px-4 py-3 flex justify-end">

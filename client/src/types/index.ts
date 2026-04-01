@@ -81,6 +81,7 @@ export interface TodoDay {
   time_of_day: string | null;
   completed: boolean;
   streak: number;
+  missed_since?: string;
 }
 
 export interface DashboardData {
