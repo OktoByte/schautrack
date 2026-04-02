@@ -37,6 +37,7 @@ type Config struct {
 
 	// Rate limiting
 	RateLimitAuth int
+	TrustProxy    bool
 
 	// SMTP
 	SMTPHost   string
@@ -101,6 +102,7 @@ func Load() (*Config, error) {
 		EnableRegistration: os.Getenv("ENABLE_REGISTRATION"),
 
 		RateLimitAuth: rateLimitAuth,
+		TrustProxy:    os.Getenv("TRUST_PROXY") != "false", // default true for k8s/docker
 
 		SMTPHost:   os.Getenv("SMTP_HOST"),
 		SMTPPort:   smtpPort,

@@ -25,7 +25,7 @@ func CsrfToken(w http.ResponseWriter, r *http.Request) {
 }
 
 // Me handles GET /api/me
-func Me(adminEmail string) http.HandlerFunc {
+func Me(adminEmail string, settingsCache *database.SettingsCache, cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := middleware.GetCurrentUser(r)
 		if user == nil {
@@ -49,9 +49,12 @@ func Me(adminEmail string) http.HandlerFunc {
 			tz = *user.Timezone
 		}
 
+		globalKey := settingsCache.GetEffectiveSetting(r.Context(), "ai_key", cfg.AIKey)
+		hasGlobalAiKey := globalKey.Value != nil && *globalKey.Value != ""
+
 		JSON(w, http.StatusOK, map[string]any{
 			"user": map[string]any{
-				"id":                 user.ID,
+				"id":                  user.ID,
 				"email":              user.Email,
 				"timezone":           tz,
 				"weightUnit":         user.WeightUnit,
@@ -62,10 +65,11 @@ func Me(adminEmail string) http.HandlerFunc {
 				"goalThreshold":      user.GoalThreshold,
 				"preferredAiProvider": nilStr(user.PreferredAIProvider),
 				"hasAiKey":           user.AIKey != nil && *user.AIKey != "",
+				"hasGlobalAiKey":     hasGlobalAiKey,
 				"aiModel":            user.AIModel,
 				"aiDailyLimit":       user.AIDailyLimit,
 				"todosEnabled":       user.TodosEnabled,
-			"notesEnabled":       user.NotesEnabled,
+				"notesEnabled":       user.NotesEnabled,
 			},
 			"isAdmin": middleware.IsAdmin(user, adminEmail),
 		})
@@ -104,7 +108,7 @@ func Settings(pool *pgxpool.Pool, adminEmail string, settingsCache *database.Set
 
 		hasTempSecret := sess.GetString("tempSecret") != ""
 
-		const maxLinks = 3
+		const maxLinks = MaxLinks
 
 		// Build user response
 		userResp := map[string]any{

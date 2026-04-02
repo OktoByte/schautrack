@@ -61,9 +61,9 @@ func main() {
 	settingsCache := database.NewSettingsCache(pool)
 	sessionStore := session.NewStore(pool, cfg.SessionSecret)
 	emailService := service.NewEmailService(cfg)
-	authLimiter := middleware.NewRateLimiter(cfg.RateLimitAuth, 15*time.Minute)
-	strictLimiter := middleware.NewRateLimiter(5, 5*time.Minute)
-	barcodeLimiter := middleware.NewRateLimiter(30, time.Minute)
+	authLimiter := middleware.NewRateLimiter(cfg.RateLimitAuth, 15*time.Minute, cfg.TrustProxy)
+	strictLimiter := middleware.NewRateLimiter(5, 5*time.Minute, cfg.TrustProxy)
+	barcodeLimiter := middleware.NewRateLimiter(30, time.Minute, cfg.TrustProxy)
 
 	// SSE broker
 	sseBroker := sse.NewBroker(pool)
@@ -80,6 +80,7 @@ func main() {
 	// Router
 	r := chi.NewRouter()
 	r.Use(middleware.Recovery)
+	r.Use(middleware.MaxBodySize(15 << 20)) // 15MB global limit
 	r.Use(middleware.SecurityHeaders)
 	r.Use(session.Middleware(sessionStore))
 	r.Use(middleware.AttachUser(pool))
@@ -93,7 +94,7 @@ func main() {
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/health", handler.Health(pool, cfg.BuildVersion))
 		r.Get("/csrf", handler.CsrfToken)
-		r.Get("/me", handler.Me(cfg.AdminEmail))
+		r.Get("/me", handler.Me(cfg.AdminEmail, settingsCache, cfg))
 
 		// Registration info (public)
 		r.Get("/auth/registration-info", handler.RegistrationInfo(settingsCache, cfg))

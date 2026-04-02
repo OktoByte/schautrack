@@ -19,16 +19,18 @@ type RateLimiter struct {
 	max        int
 	window     time.Duration
 	maxEntries int
+	trustProxy bool
 }
 
 const defaultMaxEntries = 10000
 
-func NewRateLimiter(max int, window time.Duration) *RateLimiter {
+func NewRateLimiter(max int, window time.Duration, trustProxy bool) *RateLimiter {
 	rl := &RateLimiter{
 		entries:    make(map[string]*rateLimitEntry),
 		max:        max,
 		window:     window,
 		maxEntries: defaultMaxEntries,
+		trustProxy: trustProxy,
 	}
 	go rl.cleanup()
 	return rl
@@ -36,7 +38,7 @@ func NewRateLimiter(max int, window time.Duration) *RateLimiter {
 
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := clientIP(r)
+		ip := clientIP(r, rl.trustProxy)
 
 		rl.mu.Lock()
 		entry, ok := rl.entries[ip]
@@ -90,22 +92,23 @@ func (rl *RateLimiter) cleanup() {
 	}
 }
 
-// clientIP extracts the client IP from the request. It trusts X-Forwarded-For
-// and X-Real-Ip headers, which is appropriate when running behind a reverse proxy
-// or Kubernetes ingress that sets these headers. Do NOT use for direct-access
-// deployments without a trusted proxy, as clients can spoof these headers.
-func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		// First IP in X-Forwarded-For
-		for i := 0; i < len(xff); i++ {
-			if xff[i] == ',' {
-				return xff[:i]
+// clientIP extracts the client IP from the request. When trustProxy is true,
+// it reads X-Forwarded-For and X-Real-Ip headers set by a reverse proxy or
+// Kubernetes ingress. When false, it uses RemoteAddr directly to prevent
+// clients from spoofing their IP.
+func clientIP(r *http.Request, trustProxy bool) string {
+	if trustProxy {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			for i := 0; i < len(xff); i++ {
+				if xff[i] == ',' {
+					return xff[:i]
+				}
 			}
+			return xff
 		}
-		return xff
-	}
-	if xri := r.Header.Get("X-Real-Ip"); xri != "" {
-		return xri
+		if xri := r.Header.Get("X-Real-Ip"); xri != "" {
+			return xri
+		}
 	}
 	host, _, _ := net.SplitHostPort(r.RemoteAddr)
 	return host

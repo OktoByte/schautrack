@@ -163,6 +163,7 @@ func TestRateLimiter_XForwardedFor(t *testing.T) {
 		max:        1,
 		window:     time.Minute,
 		maxEntries: defaultMaxEntries,
+		trustProxy: true,
 	}
 
 	handler := rl.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -220,7 +221,7 @@ func TestRateLimiter_MaxEntriesCap(t *testing.T) {
 	}
 }
 
-func TestClientIP(t *testing.T) {
+func TestClientIP_TrustProxy(t *testing.T) {
 	tests := []struct {
 		name       string
 		remoteAddr string
@@ -246,7 +247,39 @@ func TestClientIP(t *testing.T) {
 				r.Header.Set("X-Real-Ip", tt.xri)
 			}
 
-			got := clientIP(r)
+			got := clientIP(r, true)
+			if got != tt.want {
+				t.Errorf("clientIP() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestClientIP_NoTrustProxy(t *testing.T) {
+	tests := []struct {
+		name       string
+		remoteAddr string
+		xff        string
+		xri        string
+		want       string
+	}{
+		{"ignores xff", "192.168.1.1:1234", "10.0.0.1", "", "192.168.1.1"},
+		{"ignores xri", "192.168.1.1:1234", "", "10.0.0.5", "192.168.1.1"},
+		{"ignores both", "192.168.1.1:1234", "10.0.0.1", "10.0.0.5", "192.168.1.1"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := httptest.NewRequest("GET", "/", nil)
+			r.RemoteAddr = tt.remoteAddr
+			if tt.xff != "" {
+				r.Header.Set("X-Forwarded-For", tt.xff)
+			}
+			if tt.xri != "" {
+				r.Header.Set("X-Real-Ip", tt.xri)
+			}
+
+			got := clientIP(r, false)
 			if got != tt.want {
 				t.Errorf("clientIP() = %q, want %q", got, tt.want)
 			}
