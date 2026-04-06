@@ -144,7 +144,8 @@ export function createIsolatedUser(specName: string, opts: { features?: boolean 
  * Returns the path to the storageState file.
  */
 export async function loginUser(browser: import('@playwright/test').Browser, email: string, password: string): Promise<{ context: import('@playwright/test').BrowserContext; page: import('@playwright/test').Page }> {
-  const context = await browser.newContext();
+  const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
+  const context = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
   await page.goto('/login');
   await page.waitForLoadState('domcontentloaded');
