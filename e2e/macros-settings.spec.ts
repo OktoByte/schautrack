@@ -94,7 +94,7 @@ test.describe('Macro Settings', () => {
     await waitForMacroSaved(page);
   });
 
-  test.skip('set protein goal with target mode persists after reload', async ({ page }) => {
+  test('set protein goal with target mode persists after reload', async ({ page }) => {
     await login(page);
     await page.goto('/settings');
     await page.waitForURL('/settings');
@@ -109,7 +109,7 @@ test.describe('Macro Settings', () => {
     }
 
     // Find the Protein row — locate the goal input within the row containing "Protein"
-    const proteinRow = page.locator('div').filter({ has: page.getByText('Protein', { exact: true }) }).first();
+    const proteinRow = page.locator('label').filter({ hasText: 'Protein' }).locator('..');
     const goalInput = proteinRow.locator('input[type="number"][placeholder="Goal"]');
     await expect(goalInput).toBeVisible({ timeout: 5000 });
 
@@ -129,7 +129,7 @@ test.describe('Macro Settings', () => {
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByText('Nutrition Goals')).toBeVisible({ timeout: 10000 });
 
-    const reloadedProteinRow = page.locator('div').filter({ has: page.getByText('Protein', { exact: true }) }).first();
+    const reloadedProteinRow = page.locator('label').filter({ hasText: 'Protein' }).locator('..');
     const reloadedGoal = reloadedProteinRow.locator('input[type="number"][placeholder="Goal"]');
     await expect(reloadedGoal).toHaveValue('150', { timeout: 5000 });
 
@@ -173,7 +173,7 @@ test.describe('Macro Settings', () => {
       await calInput.fill('300');
     }
 
-    const proteinInput = page.locator('label').filter({ hasText: 'Protein' }).locator('..').locator('input');
+    const proteinInput = page.locator('label').filter({ hasText: 'Protein' }).locator('..').locator('..').locator('input');
     const carbsInput = page.locator('label').filter({ hasText: 'Carbs' }).locator('..').locator('input');
     await expect(proteinInput).toBeVisible({ timeout: 5000 });
     await proteinInput.fill('30');
@@ -318,7 +318,7 @@ test.describe('Macro Settings', () => {
     await page.waitForURL('/dashboard');
 
     // Protein input: label is "Protein" (uppercase in the form)
-    const proteinInput = page.locator('label').filter({ hasText: 'Protein' }).locator('..').locator('input');
+    const proteinInput = page.locator('label').filter({ hasText: 'Protein' }).locator('..').locator('..').locator('input');
     const carbsInput = page.locator('label').filter({ hasText: 'Carbs' }).locator('..').locator('input');
     const fatInput = page.locator('label').filter({ hasText: 'Fat' }).locator('..').locator('input');
     const caloriesInput = page.locator('label').filter({ hasText: 'Calories' }).locator('..').locator('input');

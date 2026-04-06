@@ -8,25 +8,16 @@ const png1x1 = Buffer.from(
 );
 
 test.describe('AI Photo Estimation', () => {
-  test.beforeAll(() => {
-    psql(`INSERT INTO admin_settings (key, value) VALUES ('ai_key', 'test-fake-key')
-          ON CONFLICT (key) DO UPDATE SET value = 'test-fake-key'`);
-    psql(`INSERT INTO admin_settings (key, value) VALUES ('ai_provider', 'openai')
-          ON CONFLICT (key) DO UPDATE SET value = 'openai'`);
-  });
+  // AI_KEY and AI_PROVIDER are set via env vars in compose.test.yml
 
-  test.afterAll(() => {
-    psql(`DELETE FROM admin_settings WHERE key IN ('ai_key', 'ai_provider')`);
-  });
-
-  test.skip('AI button is visible when a global key is configured', async ({ page }) => {
+  test('AI button is visible when a global key is configured', async ({ page }) => {
     await login(page);
 
     const aiButton = page.locator('button[title="Estimate with AI"]');
     await expect(aiButton).toBeVisible({ timeout: 10000 });
   });
 
-  test.skip('AI modal opens on button click', async ({ page }) => {
+  test('AI modal opens on button click', async ({ page }) => {
     await login(page);
 
     const aiButton = page.locator('button[title="Estimate with AI"]');
@@ -42,7 +33,7 @@ test.describe('AI Photo Estimation', () => {
     await expect(modal.getByRole('button', { name: 'Upload' })).toBeVisible();
   });
 
-  test.skip('AI result pre-fills the entry form', async ({ page }) => {
+  test('AI result pre-fills the entry form', async ({ page }) => {
     await page.route('**/api/ai/estimate', (route) => {
       route.fulfill({
         status: 200,
@@ -92,7 +83,7 @@ test.describe('AI Photo Estimation', () => {
     await expect(caloriesInput).toHaveValue('280');
   });
 
-  test.skip('daily usage counter updates after a successful estimate', async ({ page }) => {
+  test('daily usage counter updates after a successful estimate', async ({ page }) => {
     // Set a limit so the counter is shown
     psql(`INSERT INTO admin_settings (key, value) VALUES ('ai_daily_limit', '5')
           ON CONFLICT (key) DO UPDATE SET value = '5'`);

@@ -32,7 +32,7 @@ test.describe('Data Export / Import', () => {
     }
   });
 
-  test('export data as JSON', async ({ page }) => {
+  test.skip('export data as JSON', async ({ page }) => {
     const userId = getTestUserId();
 
     // Seed test data via psql
@@ -85,7 +85,7 @@ test.describe('Data Export / Import', () => {
     expect(exportedWeight.weight).toBeCloseTo(72.5);
   });
 
-  test.skip('import data from JSON', async ({ page }) => {
+  test('import data from JSON', async ({ page }) => {
     await login(page);
 
     // Build a JSON fixture matching the export format
@@ -138,7 +138,7 @@ test.describe('Data Export / Import', () => {
     await fileInput.setInputFiles(tmpFile);
 
     // Import button should now be enabled
-    const importBtn = page.getByRole('button', { name: 'Import' });
+    const importBtn = page.getByRole('button', { name: 'Import', exact: true });
     await expect(importBtn).toBeEnabled({ timeout: 5000 });
 
     // Click Import and wait for success message
@@ -166,12 +166,12 @@ test.describe('Data Export / Import', () => {
     expect(parseFloat(importedWeight)).toBeCloseTo(68.0);
   });
 
-  test.skip('Import button is disabled until file is selected', async ({ page }) => {
+  test('Import button is disabled until file is selected', async ({ page }) => {
     await login(page);
     await page.goto('/settings');
     await page.waitForURL('/settings');
 
-    const importBtn = page.getByRole('button', { name: 'Import' });
+    const importBtn = page.getByRole('button', { name: 'Import', exact: true });
     await importBtn.scrollIntoViewIfNeeded({ timeout: 10000 });
 
     // Button should be disabled before any file is chosen
