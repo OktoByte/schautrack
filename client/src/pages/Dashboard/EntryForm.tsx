@@ -117,7 +117,7 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
   const hasInput = !!(amount || computedCalories || Object.values(macros).some((v) => v));
   const nutrientCount = (caloriesEnabled ? 1 : 0) + enabledMacros.length;
   const nutrientCols = nutrientCount <= 3 ? nutrientCount : Math.ceil(nutrientCount / 2);
-  const aiDisabled = hasAiEnabled && localAiUsage && localAiUsage.remaining === 0;
+  const aiDisabled = hasAiEnabled && localAiUsage && localAiUsage.limit > 0 && localAiUsage.remaining === 0;
 
   return (
     <div className="rounded-xl border-2 border-border bg-card overflow-hidden">

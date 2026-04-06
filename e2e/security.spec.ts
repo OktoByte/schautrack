@@ -1,107 +1,116 @@
-import { test, expect } from './fixtures/auth';
-import { login } from './fixtures/auth';
-import { psql, bcryptHash } from './fixtures/helpers';
+import { test, expect } from '@playwright/test';
+import { psql, createIsolatedUser } from './fixtures/helpers';
 
-const LINK_USER_EMAIL = 'link-test@test.com';
-const TEST_USER_EMAIL = 'test@test.com';
+const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
+let user: { email: string; password: string; id: string };
+let targetUser: { email: string; password: string; id: string };
 
 test.describe('Security', () => {
-  test('cannot access another user\'s entry via API', async ({ page }) => {
-    await login(page);
+  test.describe.configure({ mode: 'serial' });
 
-    // Ensure link-test user exists in DB
-    const linkUserExists = psql(`SELECT id FROM users WHERE email = '${LINK_USER_EMAIL}'`);
-    if (!linkUserExists) {
-      const hash = bcryptHash('linktest1234');
-      psql(`INSERT INTO users (email, password_hash, email_verified) VALUES ('${LINK_USER_EMAIL}', '${hash}', true)`);
+  test.beforeAll(() => {
+    user = createIsolatedUser('security');
+    targetUser = createIsolatedUser('security-target');
+    // Ensure no link exists between them
+    psql(`DELETE FROM account_links WHERE
+      (requester_id = ${user.id} AND target_id = ${targetUser.id}) OR
+      (requester_id = ${targetUser.id} AND target_id = ${user.id})`);
+  });
+
+  async function loginAndGo(page: import('@playwright/test').Page, path = '/dashboard') {
+    await page.goto(`${baseURL}/login`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByLabel('Email').fill(user.email);
+    await page.getByLabel('Password').fill(user.password);
+    await page.getByRole('button', { name: 'Log In' }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    if (path !== '/dashboard') {
+      await page.goto(`${baseURL}${path}`);
+      await page.waitForURL(new RegExp(path.replace('/', '\\/')), { timeout: 10000 });
     }
+  }
 
-    const linkUserId = psql(`SELECT id FROM users WHERE email = '${LINK_USER_EMAIL}'`);
-    expect(linkUserId).toBeTruthy();
+  test('cannot access another user\'s entry via API', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
-    // Insert an entry belonging to link-test user directly in DB
+    // Insert an entry belonging to the target user directly in DB
     const today = new Date().toISOString().split('T')[0];
-    psql(`INSERT INTO calorie_entries (user_id, entry_name, amount, entry_date) VALUES (${linkUserId}, 'security-test-entry', 999, '${today}')`);
-    const entryId = psql(`SELECT id FROM calorie_entries WHERE user_id = ${linkUserId} AND entry_name = 'security-test-entry' ORDER BY id DESC LIMIT 1`);
+    psql(`INSERT INTO calorie_entries (user_id, entry_name, amount, entry_date) VALUES (${targetUser.id}, 'security-test-entry', 999, '${today}')`);
+    const entryId = psql(`SELECT id FROM calorie_entries WHERE user_id = ${targetUser.id} AND entry_name = 'security-test-entry' ORDER BY id DESC LIMIT 1`);
     expect(entryId).toBeTruthy();
 
-    // Get a valid CSRF token
-    const csrfRes = await page.request.get('/api/csrf');
+    const csrfRes = await page.request.get(`${baseURL}/api/csrf`);
     const { token } = await csrfRes.json();
 
-    // As test user, try to delete link-test user's entry
-    const response = await page.request.post(`/entries/${entryId}/delete`, {
+    // As main user, try to delete target user's entry
+    const response = await page.request.post(`${baseURL}/entries/${entryId}/delete`, {
       headers: { 'X-CSRF-Token': token },
     });
 
     // The API returns 200 even if no row was deleted (WHERE user_id filter prevents cross-user delete)
-    // The important thing is the entry still exists in the DB
     expect([200, 403, 404]).toContain(response.status());
 
     // Verify the entry still exists in DB
-    const stillExists = psql(`SELECT id FROM calorie_entries WHERE id = ${entryId} AND user_id = ${linkUserId}`);
+    const stillExists = psql(`SELECT id FROM calorie_entries WHERE id = ${entryId} AND user_id = ${targetUser.id}`);
     expect(stillExists).toBeTruthy();
 
     // Cleanup
     psql(`DELETE FROM calorie_entries WHERE id = ${entryId}`);
+    await ctx.close();
   });
 
-  test('cannot access linked user data without active link', async ({ page }) => {
-    await login(page);
+  test('cannot access linked user data without active link', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
-    const testUserId = psql(`SELECT id FROM users WHERE email = '${TEST_USER_EMAIL}'`);
-    const linkUserId = psql(`SELECT id FROM users WHERE email = '${LINK_USER_EMAIL}'`);
-
-    // Ensure no active link exists between test and link-test users
-    if (testUserId && linkUserId) {
-      psql(`DELETE FROM account_links WHERE
-        (requester_id = ${testUserId} AND target_id = ${linkUserId}) OR
-        (requester_id = ${linkUserId} AND target_id = ${testUserId})`);
-    }
-
-    // Attempt to fetch entries for link-test user without a link
+    // Confirm no active link exists (already cleared in beforeAll)
     const today = new Date().toISOString().split('T')[0];
-    const response = await page.request.get(`/entries/day?user=${linkUserId}&date=${today}`);
+    const response = await page.request.get(`${baseURL}/entries/day?user=${targetUser.id}&date=${today}`);
 
-    // Should be 403 (not linked) or 404
     expect([403, 404]).toContain(response.status());
+    await ctx.close();
   });
 
-  test('session cookie is httpOnly', async ({ page }) => {
-    await login(page);
+  test('session cookie is httpOnly', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
-    const cookies = await page.context().cookies();
+    const cookies = await ctx.cookies();
     const sessionCookie = cookies.find((c) => c.name === 'schautrack.sid');
 
     expect(sessionCookie).toBeDefined();
     expect(sessionCookie!.httpOnly).toBe(true);
+    await ctx.close();
   });
 
-  test('session cookie has sameSite lax or strict', async ({ page }) => {
-    await login(page);
+  test('session cookie has sameSite lax or strict', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
-    const cookies = await page.context().cookies();
+    const cookies = await ctx.cookies();
     const sessionCookie = cookies.find((c) => c.name === 'schautrack.sid');
 
     expect(sessionCookie).toBeDefined();
-    // SameSite must be Lax or Strict — never None (which would allow cross-site requests)
     expect(['Lax', 'Strict']).toContain(sessionCookie!.sameSite);
+    await ctx.close();
   });
 
-  test('failed login returns 401 not 429 under normal conditions', async ({ page }) => {
-    // This confirms the rate limiter isn't falsely triggering for normal usage.
-    // Login requires a CSRF token, so fetch one first from the login page context.
-    const context = await page.context().browser()!.newContext({ storageState: { cookies: [], origins: [] } });
-    const freshPage = await context.newPage();
+  test('failed login returns 401 not 429 under normal conditions', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const freshPage = await ctx.newPage();
 
-    // Visiting the page sets up a session so we can fetch a CSRF token
-    await freshPage.goto('/login');
+    await freshPage.goto(`${baseURL}/login`);
     await freshPage.waitForLoadState('domcontentloaded');
 
-    const csrfRes = await freshPage.request.get('/api/csrf');
+    const csrfRes = await freshPage.request.get(`${baseURL}/api/csrf`);
     const { token } = await csrfRes.json();
 
-    const response = await freshPage.request.post('/api/auth/login', {
+    const response = await freshPage.request.post(`${baseURL}/api/auth/login`, {
       data: { email: 'nobody@example.com', password: 'wrongpassword' },
       headers: {
         'Content-Type': 'application/json',
@@ -109,40 +118,39 @@ test.describe('Security', () => {
       },
     });
 
-    // Should be 401 (bad credentials), NOT 429 (rate limit)
     expect(response.status()).toBe(401);
     expect(response.status()).not.toBe(429);
 
-    await context.close();
+    await ctx.close();
   });
 
-  test('unauthenticated API requests return 401', async ({ page }) => {
-    // Fresh context — no session
-    const context = await page.context().browser()!.newContext({ storageState: { cookies: [], origins: [] } });
-    const freshPage = await context.newPage();
+  test('unauthenticated API requests return 401', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const freshPage = await ctx.newPage();
 
-    const response = await freshPage.request.get('/api/me');
+    const response = await freshPage.request.get(`${baseURL}/api/me`);
     expect(response.status()).toBe(401);
 
-    await context.close();
+    await ctx.close();
   });
 
-  test('cannot access admin routes as non-admin user', async ({ page }) => {
-    await login(page);
+  test('cannot access admin routes as non-admin user', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
-    // As a non-admin user, GET /admin/invites should return 403
-    const response = await page.request.get('/admin/invites');
+    const response = await page.request.get(`${baseURL}/admin/invites`);
     expect(response.status()).toBe(403);
+    await ctx.close();
   });
 
-  test('API returns 401 for protected endpoints without session', async ({ page }) => {
-    const context = await page.context().browser()!.newContext({ storageState: { cookies: [], origins: [] } });
-    const freshPage = await context.newPage();
+  test('API returns 401 for protected endpoints without session', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const freshPage = await ctx.newPage();
 
-    // Dashboard data endpoint requires login
-    const dashResponse = await freshPage.request.get('/api/dashboard');
+    const dashResponse = await freshPage.request.get(`${baseURL}/api/dashboard`);
     expect(dashResponse.status()).toBe(401);
 
-    await context.close();
+    await ctx.close();
   });
 });
