@@ -1,19 +1,36 @@
 import { test, expect } from '@playwright/test';
-import { psql } from './fixtures/helpers';
+import { psql, createIsolatedUser } from './fixtures/helpers';
+
+const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
+let user: { email: string; password: string; id: string };
 
 test.describe('SSE Real-time Updates', () => {
+  test.beforeAll(() => {
+    user = createIsolatedUser('sse');
+  });
+
+  async function loginAndGo(page: import('@playwright/test').Page, targetPath = '/dashboard') {
+    await page.goto(`${baseURL}/login`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByLabel('Email').fill(user.email);
+    await page.getByLabel('Password').fill(user.password);
+    await page.getByRole('button', { name: 'Log In' }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    if (targetPath !== '/dashboard') {
+      await page.goto(`${baseURL}${targetPath}`);
+      await page.waitForURL(new RegExp(targetPath), { timeout: 10000 });
+    }
+  }
+
   test('entry appears in second tab via SSE', async ({ browser }) => {
-    const contextA = await browser.newContext({ storageState: 'e2e/.auth/user.json' });
-    const contextB = await browser.newContext({ storageState: 'e2e/.auth/user.json' });
+    const contextA = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const contextB = await browser.newContext({ storageState: { cookies: [], origins: [] } });
 
     const pageA = await contextA.newPage();
     const pageB = await contextB.newPage();
 
-    await pageA.goto('/dashboard');
-    await pageA.waitForURL('/dashboard');
-
-    await pageB.goto('/dashboard');
-    await pageB.waitForURL('/dashboard');
+    await loginAndGo(pageA);
+    await loginAndGo(pageB);
 
     // Add an entry on page A
     await pageA.locator('input[placeholder="Breakfast, snack..."]').fill('SSE Test Entry');
@@ -47,24 +64,18 @@ test.describe('SSE Real-time Updates', () => {
   });
 
   test('todo completion propagates via SSE', async ({ browser }) => {
-    // Create a todo via psql for the test user
-    const userId = psql(`SELECT id FROM users WHERE email = 'test@test.com'`);
-    const today = new Date().toISOString().split('T')[0];
     const todoId = psql(
-      `INSERT INTO todos (user_id, name, schedule) VALUES (${userId}, 'SSE Todo Test', '{"type":"daily"}') RETURNING id`
+      `INSERT INTO todos (user_id, name, schedule) VALUES (${user.id}, 'SSE Todo Test', '{"type":"daily"}') RETURNING id`
     );
 
-    const contextA = await browser.newContext({ storageState: 'e2e/.auth/user.json' });
-    const contextB = await browser.newContext({ storageState: 'e2e/.auth/user.json' });
+    const contextA = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const contextB = await browser.newContext({ storageState: { cookies: [], origins: [] } });
 
     const pageA = await contextA.newPage();
     const pageB = await contextB.newPage();
 
-    await pageA.goto('/dashboard');
-    await pageA.waitForURL('/dashboard');
-
-    await pageB.goto('/dashboard');
-    await pageB.waitForURL('/dashboard');
+    await loginAndGo(pageA);
+    await loginAndGo(pageB);
 
     // Complete the todo on page A
     const todoRowA = pageA.locator('li').filter({ hasText: 'SSE Todo Test' });
@@ -90,25 +101,15 @@ test.describe('SSE Real-time Updates', () => {
   });
 
   test('note change propagates via SSE', async ({ browser }) => {
-    // This test requires notes to be enabled for the test user
-    const userId = psql(`SELECT id FROM users WHERE email = 'test@test.com'`);
-    const notesEnabled = psql(`SELECT notes_enabled FROM users WHERE email = 'test@test.com'`);
-    if (notesEnabled !== 't' && notesEnabled !== 'true' && notesEnabled !== '1') {
-      // Enable notes for this test
-      psql(`UPDATE users SET notes_enabled = true WHERE id = ${userId}`);
-    }
-
-    const contextA = await browser.newContext({ storageState: 'e2e/.auth/user.json' });
-    const contextB = await browser.newContext({ storageState: 'e2e/.auth/user.json' });
+    // notes_enabled is already set by createIsolatedUser — no conditional needed
+    const contextA = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const contextB = await browser.newContext({ storageState: { cookies: [], origins: [] } });
 
     const pageA = await contextA.newPage();
     const pageB = await contextB.newPage();
 
-    await pageA.goto('/dashboard');
-    await pageA.waitForURL('/dashboard');
-
-    await pageB.goto('/dashboard');
-    await pageB.waitForURL('/dashboard');
+    await loginAndGo(pageA);
+    await loginAndGo(pageB);
 
     // Write a note on page A
     const textareaA = pageA.locator('textarea[placeholder*="Write a note"]');
@@ -139,11 +140,6 @@ test.describe('SSE Real-time Updates', () => {
 
     await contextA.close();
     await contextB.close();
-
-    // Restore notes_enabled if it was originally disabled
-    if (notesEnabled !== 't' && notesEnabled !== 'true' && notesEnabled !== '1') {
-      psql(`UPDATE users SET notes_enabled = false WHERE id = ${userId}`);
-    }
   });
 
   // NOTE: Testing that a linked user's entry propagates via SSE to a viewer is not straightforward
@@ -153,17 +149,14 @@ test.describe('SSE Real-time Updates', () => {
   // This scenario is therefore not covered by an automated E2E test.
 
   test('weight update propagates via SSE', async ({ browser }) => {
-    const contextA = await browser.newContext({ storageState: 'e2e/.auth/user.json' });
-    const contextB = await browser.newContext({ storageState: 'e2e/.auth/user.json' });
+    const contextA = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const contextB = await browser.newContext({ storageState: { cookies: [], origins: [] } });
 
     const pageA = await contextA.newPage();
     const pageB = await contextB.newPage();
 
-    await pageA.goto('/dashboard');
-    await pageA.waitForURL('/dashboard');
-
-    await pageB.goto('/dashboard');
-    await pageB.waitForURL('/dashboard');
+    await loginAndGo(pageA);
+    await loginAndGo(pageB);
 
     // Enter weight on page A
     const weightInputA = pageA.getByLabel(/Weight in/);
@@ -175,9 +168,9 @@ test.describe('SSE Real-time Updates', () => {
     await expect(pageA.getByText('Weight tracked')).toBeVisible({ timeout: 5000 });
 
     // Page B should show the weight input updated via SSE
-    const weightInputB = pageB.getByLabel(/Weight in/);
-    await weightInputB.scrollIntoViewIfNeeded({ timeout: 5000 });
-    await expect(weightInputB).toHaveValue('75', { timeout: 10000 });
+    // Note: the weight input may be re-rendered by SSE update; avoid scrollIntoViewIfNeeded
+    // (stale element risk) and go directly to the value assertion which auto-retries.
+    await expect(pageB.getByLabel(/Weight in/)).toHaveValue('75', { timeout: 10000 });
 
     // Clean up: delete the weight entry on page A
     const deleteBtn = pageA.getByTitle('Delete weight entry');

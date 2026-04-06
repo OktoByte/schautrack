@@ -1,20 +1,41 @@
-import { test, expect } from './fixtures/auth';
-import { login } from './fixtures/auth';
+import { test, expect } from '@playwright/test';
+import { createIsolatedUser } from './fixtures/helpers';
 
-// Settings tests modify shared user state (timezone, weight unit, macros) and must run serially
+const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
+let user: { email: string; password: string; id: string };
+
+// Settings tests modify user state (timezone, weight unit, macros) and must run serially
 // to avoid races between parallel tests that all call savePreferences with different values.
 test.describe.serial('Settings', () => {
-  test('settings page loads with user email', async ({ page }) => {
-    await login(page);
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
-    await expect(page.getByText('Nutrition Goals')).toBeVisible({ timeout: 15000 });
+  test.beforeAll(() => {
+    user = createIsolatedUser('settings');
   });
 
-  test('preferences save on change', async ({ page }) => {
-    await login(page);
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+  async function loginAndGo(page: import('@playwright/test').Page, path = '/dashboard') {
+    await page.goto(`${baseURL}/login`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByLabel('Email').fill(user.email);
+    await page.getByLabel('Password').fill(user.password);
+    await page.getByRole('button', { name: 'Log In' }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    if (path !== '/dashboard') {
+      await page.goto(`${baseURL}${path}`);
+      await page.waitForURL(new RegExp(path), { timeout: 10000 });
+    }
+  }
+
+  test('settings page loads with user email', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page, '/settings');
+    await expect(page.getByText('Nutrition Goals')).toBeVisible({ timeout: 15000 });
+    await ctx.close();
+  });
+
+  test('preferences save on change', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page, '/settings');
 
     // Find the weight unit select
     const weightSelect = page.locator('select').filter({ has: page.locator('option[value="kg"]') });
@@ -47,12 +68,14 @@ test.describe.serial('Settings', () => {
     } else {
       await page.waitForTimeout(1500);
     }
+
+    await ctx.close();
   });
 
-  test('change daily calorie goal persists after reload', async ({ page }) => {
-    await login(page);
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+  test('change daily calorie goal persists after reload', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page, '/settings');
 
     await expect(page.getByText('Nutrition Goals')).toBeVisible({ timeout: 10000 });
 
@@ -73,7 +96,7 @@ test.describe.serial('Settings', () => {
 
     // Reload and verify
     await page.reload();
-    await page.waitForURL('/settings');
+    await page.waitForURL(/\/settings/);
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByText('Nutrition Goals')).toBeVisible({ timeout: 10000 });
 
@@ -85,12 +108,14 @@ test.describe.serial('Settings', () => {
     await reloadedInput.fill(originalValue || '0');
     await reloadedInput.blur();
     await page.waitForTimeout(1500);
+
+    await ctx.close();
   });
 
-  test('toggle notes disabled hides notes section on dashboard', async ({ page }) => {
-    await login(page);
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+  test('toggle notes disabled hides notes section on dashboard', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page, '/settings');
 
     // Find the Daily Notes card toggle
     const notesHeading = page.getByRole('heading', { name: 'Daily Notes' });
@@ -114,25 +139,27 @@ test.describe.serial('Settings', () => {
     await page.waitForTimeout(600);
 
     // Notes section should be gone from dashboard
-    await page.goto('/dashboard');
-    await page.waitForURL('/dashboard');
+    await page.goto(`${baseURL}/dashboard`);
+    await page.waitForURL(/\/dashboard/);
     const textarea = page.locator('textarea[placeholder*="Write a note"]');
     await expect(textarea).not.toBeVisible({ timeout: 5000 });
 
     // Re-enable notes to restore state
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+    await page.goto(`${baseURL}/settings`);
+    await page.waitForURL(/\/settings/);
     const notesHeading2 = page.getByRole('heading', { name: 'Daily Notes' });
     await notesHeading2.scrollIntoViewIfNeeded();
     const notesCard2 = notesHeading2.locator('../..');
     await notesCard2.locator('button').first().click();
     await page.waitForTimeout(600);
+
+    await ctx.close();
   });
 
-  test('change timezone preference autosaves', async ({ page }) => {
-    await login(page);
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+  test('change timezone preference autosaves', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page, '/settings');
 
     // Wait for the Internationalization card to load
     await expect(page.getByText('Internationalization')).toBeVisible({ timeout: 10000 });
@@ -151,7 +178,7 @@ test.describe.serial('Settings', () => {
 
     // Reload and verify the timezone was persisted
     await page.reload();
-    await page.waitForURL('/settings');
+    await page.waitForURL(/\/settings/);
     await expect(page.getByText('Internationalization')).toBeVisible({ timeout: 10000 });
 
     const reloadedTzSelect = page.locator('select').filter({ has: page.locator('option[value="UTC"]') });
@@ -160,24 +187,28 @@ test.describe.serial('Settings', () => {
     // Restore original timezone
     await reloadedTzSelect.selectOption(originalTz);
     await expect(page.getByText('Saved')).toBeVisible({ timeout: 6000 });
+
+    await ctx.close();
   });
 
-  test('no spurious Saved indicator on initial page load', async ({ page }) => {
-    await login(page);
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+  test('no spurious Saved indicator on initial page load', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page, '/settings');
 
     // Wait for the page to fully render
     await expect(page.getByText('Nutrition Goals')).toBeVisible({ timeout: 15000 });
 
     // Without any user interaction, "Saved" must not appear within 2 seconds of load
     await expect(page.getByText('Saved')).not.toBeVisible({ timeout: 2000 });
+
+    await ctx.close();
   });
 
-  test('autosave indicators appear across settings sections', async ({ page }) => {
-    await login(page);
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+  test('autosave indicators appear across settings sections', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page, '/settings');
 
     await expect(page.getByText('Nutrition Goals')).toBeVisible({ timeout: 15000 });
 
@@ -216,12 +247,14 @@ test.describe.serial('Settings', () => {
     // Restore weight unit
     await weightSelect.selectOption(originalWeight);
     await expect(page.getByText('Saved')).toBeVisible({ timeout: 6000 });
+
+    await ctx.close();
   });
 
-  test('toggle todos disabled hides todos section on dashboard', async ({ page }) => {
-    await login(page);
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+  test('toggle todos disabled hides todos section on dashboard', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page, '/settings');
 
     // Find the Todos card toggle (heading "Todos" within a Card)
     const todosHeading = page.getByRole('heading', { name: 'Todos', exact: true });
@@ -245,20 +278,22 @@ test.describe.serial('Settings', () => {
     await page.waitForTimeout(600);
 
     // The todos section heading should not appear on dashboard
-    await page.goto('/dashboard');
-    await page.waitForURL('/dashboard');
+    await page.goto(`${baseURL}/dashboard`);
+    await page.waitForURL(/\/dashboard/);
     // The TodoList component returns null when disabled, so the "Todos" heading in that widget is gone
     // We check the specific card heading, not the Settings page heading
     const todoWidget = page.locator('h3').filter({ hasText: 'Todos' });
     await expect(todoWidget).not.toBeVisible({ timeout: 5000 });
 
     // Re-enable todos
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+    await page.goto(`${baseURL}/settings`);
+    await page.waitForURL(/\/settings/);
     const todosHeading2 = page.getByRole('heading', { name: 'Todos', exact: true });
     await todosHeading2.scrollIntoViewIfNeeded();
     const todosCard2 = todosHeading2.locator('../..');
     await todosCard2.locator('button').first().click();
     await page.waitForTimeout(600);
+
+    await ctx.close();
   });
 });

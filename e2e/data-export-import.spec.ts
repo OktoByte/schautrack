@@ -1,47 +1,41 @@
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
-import { test, expect } from './fixtures/auth';
-import { login } from './fixtures/auth';
-import { psql } from './fixtures/helpers';
+import { test, expect } from '@playwright/test';
+import { psql, createIsolatedUser } from './fixtures/helpers';
 
-const TEST_USER_EMAIL = 'test@test.com';
-
-function getTestUserId(): string {
-  return psql(`SELECT id FROM users WHERE email = '${TEST_USER_EMAIL}'`);
-}
-
-function cleanupTestData(userId: string) {
-  psql(`DELETE FROM calorie_entries WHERE user_id = ${userId} AND entry_name LIKE 'E2E Export%'`);
-  psql(`DELETE FROM weight_entries WHERE user_id = ${userId} AND entry_date = '2026-01-15'`);
-}
-
-function cleanupImportedData(userId: string) {
-  psql(`DELETE FROM calorie_entries WHERE user_id = ${userId} AND entry_name LIKE 'E2E Import%'`);
-  psql(`DELETE FROM weight_entries WHERE user_id = ${userId} AND entry_date = '2026-03-10'`);
-}
+const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
+let user: { email: string; password: string; id: string };
 
 test.describe('Data Export / Import', () => {
-  test.use({ storageState: 'e2e/.auth/user.json' });
+  test.describe.configure({ mode: 'serial' });
 
-  test.afterEach(async () => {
-    const userId = getTestUserId();
-    if (userId) {
-      cleanupTestData(userId);
-      cleanupImportedData(userId);
-    }
+  test.beforeAll(() => {
+    user = createIsolatedUser('data-export');
   });
 
-  test.skip('export data as JSON', async ({ page }) => {
-    const userId = getTestUserId();
+  async function loginAndGo(page: import('@playwright/test').Page, path = '/dashboard') {
+    await page.goto(`${baseURL}/login`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByLabel('Email').fill(user.email);
+    await page.getByLabel('Password').fill(user.password);
+    await page.getByRole('button', { name: 'Log In' }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    if (path !== '/dashboard') {
+      await page.goto(`${baseURL}${path}`);
+      await page.waitForURL(new RegExp(path), { timeout: 10000 });
+    }
+  }
+
+  test('export data as JSON', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
 
     // Seed test data via psql
-    psql(`INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES (${userId}, '2026-01-15', 350, 'E2E Export Meal') ON CONFLICT DO NOTHING`);
-    psql(`INSERT INTO weight_entries (user_id, entry_date, weight) VALUES (${userId}, '2026-01-15', 72.5) ON CONFLICT (user_id, entry_date) DO UPDATE SET weight = 72.5`);
+    psql(`INSERT INTO calorie_entries (user_id, entry_date, amount, entry_name) VALUES (${user.id}, '2026-01-15', 350, 'E2E Export Meal') ON CONFLICT DO NOTHING`);
+    psql(`INSERT INTO weight_entries (user_id, entry_date, weight) VALUES (${user.id}, '2026-01-15', 72.5) ON CONFLICT (user_id, entry_date) DO UPDATE SET weight = 72.5`);
 
-    await login(page);
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+    await loginAndGo(page, '/settings');
 
     // Locate the Export button inside the Data card
     const exportLink = page.locator('a[href="/settings/export"]');
@@ -83,16 +77,19 @@ test.describe('Data Export / Import', () => {
     );
     expect(exportedWeight).toBeDefined();
     expect(exportedWeight.weight).toBeCloseTo(72.5);
+
+    await ctx.close();
   });
 
-  test('import data from JSON', async ({ page }) => {
-    await login(page);
+  test('import data from JSON', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
 
     // Build a JSON fixture matching the export format
     const importFixture = {
       exported_at: new Date().toISOString(),
       user: {
-        email: TEST_USER_EMAIL,
+        email: user.email,
         daily_goal: 2000,
         macros_enabled: {},
         macro_goals: {},
@@ -126,8 +123,7 @@ test.describe('Data Export / Import', () => {
     const tmpFile = path.join(tmpDir, `schautrack-import-test-${Date.now()}.json`);
     fs.writeFileSync(tmpFile, JSON.stringify(importFixture));
 
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+    await loginAndGo(page, '/settings');
 
     // Scroll to and click the file chooser button (hidden input via button proxy)
     const fileChooserButton = page.locator('button', { hasText: 'Choose a file' });
@@ -148,28 +144,25 @@ test.describe('Data Export / Import', () => {
     // Clean up temp file
     fs.unlinkSync(tmpFile);
 
-    // Navigate to dashboard and verify imported entries appear
-    await page.goto('/dashboard');
-    await page.waitForURL('/dashboard');
-
-    // The dashboard shows today's entries by default; navigate to the imported date
-    // by checking if entries from 2026-03-10 are in the DB (they were imported)
-    const userId = getTestUserId();
+    // Verify imported entries are in the DB
     const importedCount = psql(
-      `SELECT COUNT(*) FROM calorie_entries WHERE user_id = ${userId} AND entry_date = '2026-03-10' AND entry_name LIKE 'E2E Import%'`
+      `SELECT COUNT(*) FROM calorie_entries WHERE user_id = ${user.id} AND entry_date = '2026-03-10' AND entry_name LIKE 'E2E Import%'`
     );
     expect(Number(importedCount)).toBe(2);
 
     const importedWeight = psql(
-      `SELECT weight FROM weight_entries WHERE user_id = ${userId} AND entry_date = '2026-03-10'`
+      `SELECT weight FROM weight_entries WHERE user_id = ${user.id} AND entry_date = '2026-03-10'`
     );
     expect(parseFloat(importedWeight)).toBeCloseTo(68.0);
+
+    await ctx.close();
   });
 
-  test('Import button is disabled until file is selected', async ({ page }) => {
-    await login(page);
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+  test('Import button is disabled until file is selected', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+
+    await loginAndGo(page, '/settings');
 
     const importBtn = page.getByRole('button', { name: 'Import', exact: true });
     await importBtn.scrollIntoViewIfNeeded({ timeout: 10000 });
@@ -184,7 +177,7 @@ test.describe('Data Export / Import', () => {
       tmpFile,
       JSON.stringify({
         exported_at: new Date().toISOString(),
-        user: { email: TEST_USER_EMAIL, daily_goal: 2000 },
+        user: { email: user.email, daily_goal: 2000 },
         entries: [{ date: '2026-02-01', amount: 100, name: 'E2E Import Enable Test' }],
         weights: [],
       })
@@ -199,10 +192,6 @@ test.describe('Data Export / Import', () => {
 
     fs.unlinkSync(tmpFile);
 
-    // Clean up imported entry
-    const userId = getTestUserId();
-    if (userId) {
-      psql(`DELETE FROM calorie_entries WHERE user_id = ${userId} AND entry_name = 'E2E Import Enable Test'`);
-    }
+    await ctx.close();
   });
 });

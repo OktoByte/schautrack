@@ -108,23 +108,21 @@ export function createIsolatedUser(specName: string, opts: { features?: boolean 
   const hash = bcryptHash(password);
   const features = opts.features !== false;
 
-  // Create or reset
-  const exists = psql(`SELECT id FROM users WHERE email = '${email}'`);
-  if (exists) {
-    psql(`UPDATE users SET password_hash = '${hash}', email_verified = true, totp_enabled = false, totp_secret = NULL WHERE email = '${email}'`);
-    psql(`DELETE FROM totp_backup_codes WHERE user_id = ${exists}`);
-    // Clean all data
-    psql(`DELETE FROM calorie_entries WHERE user_id = ${exists}`);
-    psql(`DELETE FROM weight_entries WHERE user_id = ${exists}`);
-    psql(`DELETE FROM todo_completions WHERE todo_id IN (SELECT id FROM todos WHERE user_id = ${exists})`);
-    psql(`DELETE FROM todos WHERE user_id = ${exists}`);
-    psql(`DELETE FROM daily_notes WHERE user_id = ${exists}`);
-    psql(`DELETE FROM ai_usage WHERE user_id = ${exists}`);
-  } else {
-    psql(`INSERT INTO users (email, password_hash, email_verified) VALUES ('${email}', '${hash}', true)`);
-  }
-
-  const id = psql(`SELECT id FROM users WHERE email = '${email}'`);
+  // Upsert user atomically to avoid race conditions when multiple workers call this simultaneously
+  const id = psql(
+    `INSERT INTO users (email, password_hash, email_verified)
+     VALUES ('${email}', '${hash}', true)
+     ON CONFLICT (email) DO UPDATE SET password_hash = '${hash}', email_verified = true, totp_enabled = false, totp_secret = NULL
+     RETURNING id`
+  );
+  psql(`DELETE FROM totp_backup_codes WHERE user_id = ${id}`);
+  // Clean all data
+  psql(`DELETE FROM calorie_entries WHERE user_id = ${id}`);
+  psql(`DELETE FROM weight_entries WHERE user_id = ${id}`);
+  psql(`DELETE FROM todo_completions WHERE todo_id IN (SELECT id FROM todos WHERE user_id = ${id})`);
+  psql(`DELETE FROM todos WHERE user_id = ${id}`);
+  psql(`DELETE FROM daily_notes WHERE user_id = ${id}`);
+  psql(`DELETE FROM ai_usage WHERE user_id = ${id}`);
 
   if (features) {
     psql(`UPDATE users SET

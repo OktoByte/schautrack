@@ -1,9 +1,31 @@
-import { test, expect } from './fixtures/auth';
-import { login } from './fixtures/auth';
+import { test, expect } from '@playwright/test';
+import { createIsolatedUser } from './fixtures/helpers';
+
+const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
+let user: { email: string; password: string; id: string };
 
 test.describe('Timeline', () => {
-  test('range preset buttons switch the timeline', async ({ page }) => {
-    await login(page);
+  test.beforeAll(() => {
+    user = createIsolatedUser('timeline');
+  });
+
+  async function loginAndGo(page: import('@playwright/test').Page, path = '/dashboard') {
+    await page.goto(`${baseURL}/login`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByLabel('Email').fill(user.email);
+    await page.getByLabel('Password').fill(user.password);
+    await page.getByRole('button', { name: 'Log In' }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    if (path !== '/dashboard') {
+      await page.goto(`${baseURL}${path}`);
+      await page.waitForURL(new RegExp(path), { timeout: 10000 });
+    }
+  }
+
+  test('range preset buttons switch the timeline', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
     // Click 7d
     await page.locator('button').filter({ hasText: '7d' }).click();
@@ -17,10 +39,14 @@ test.describe('Timeline', () => {
     await page.waitForTimeout(500);
 
     await expect(page.getByText('You', { exact: true })).toBeVisible();
+
+    await ctx.close();
   });
 
-  test('clicking a day dot updates the entry list', async ({ page }) => {
-    await login(page);
+  test('clicking a day dot updates the entry list', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
     // Day dots have aria-label with dates
     const dots = page.locator('button[aria-label*="2026"]');
@@ -33,10 +59,14 @@ test.describe('Timeline', () => {
       const dateSpan = page.locator('span').filter({ hasText: /\d{4}-\d{2}-\d{2}/ });
       await expect(dateSpan).toBeVisible({ timeout: 5000 });
     }
+
+    await ctx.close();
   });
 
-  test('custom date range works', async ({ page }) => {
-    await login(page);
+  test('custom date range works', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
     await page.locator('button').filter({ hasText: 'Custom' }).click();
 
@@ -45,10 +75,14 @@ test.describe('Timeline', () => {
     // At least 3 date inputs (entry form + 2 custom range)
     await expect(dateInputs.nth(1)).toBeVisible({ timeout: 3000 });
     await expect(page.getByRole('button', { name: 'Apply' })).toBeVisible();
+
+    await ctx.close();
   });
 
-  test('clicking a timeline dot updates the selected date', async ({ page }) => {
-    await login(page);
+  test('clicking a timeline dot updates the selected date', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
     // Use a 30-day range so there are more dots to click
     await page.locator('button').filter({ hasText: '30d' }).click();
@@ -59,6 +93,7 @@ test.describe('Timeline', () => {
     const count = await dots.count();
 
     if (count < 2) {
+      await ctx.close();
       test.skip();
       return;
     }
@@ -77,10 +112,14 @@ test.describe('Timeline', () => {
       const dateDisplay = page.locator('span').filter({ hasText: dotDate });
       await expect(dateDisplay).toBeVisible({ timeout: 5000 });
     }
+
+    await ctx.close();
   });
 
-  test('custom date range picker applies and updates the timeline', async ({ page }) => {
-    await login(page);
+  test('custom date range picker applies and updates the timeline', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
     // Build a 14-day range ending today
     const today = new Date();
@@ -115,5 +154,7 @@ test.describe('Timeline', () => {
 
     // The share card for the user should still be rendered
     await expect(page.getByText('You', { exact: true })).toBeVisible();
+
+    await ctx.close();
   });
 });

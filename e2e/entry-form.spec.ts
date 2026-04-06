@@ -1,9 +1,31 @@
-import { test, expect } from './fixtures/auth';
-import { login } from './fixtures/auth';
+import { test, expect } from '@playwright/test';
+import { createIsolatedUser } from './fixtures/helpers';
+
+const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
+let user: { email: string; password: string; id: string };
 
 test.describe('Entry Form', () => {
-  test('form clears after successful submission', async ({ page }) => {
-    await login(page);
+  test.beforeAll(() => {
+    user = createIsolatedUser('entry-form');
+  });
+
+  async function loginAndGo(page: import('@playwright/test').Page, path = '/dashboard') {
+    await page.goto(`${baseURL}/login`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByLabel('Email').fill(user.email);
+    await page.getByLabel('Password').fill(user.password);
+    await page.getByRole('button', { name: 'Log In' }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    if (path !== '/dashboard') {
+      await page.goto(`${baseURL}${path}`);
+      await page.waitForURL(new RegExp(path), { timeout: 10000 });
+    }
+  }
+
+  test('form clears after successful submission', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
     const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
 
@@ -19,10 +41,14 @@ test.describe('Entry Form', () => {
 
     // Form should be cleared
     await expect(nameInput).toHaveValue('');
+
+    await ctx.close();
   });
 
-  test('date picker changes the entry date', async ({ page }) => {
-    await login(page);
+  test('date picker changes the entry date', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
     const dateInput = page.locator('form input[type="date"]');
     await expect(dateInput).toBeVisible();
@@ -36,15 +62,21 @@ test.describe('Entry Form', () => {
     await dateInput.fill(yesterdayStr);
 
     await expect(dateInput).toHaveValue(yesterdayStr);
+
+    await ctx.close();
   });
 
-  test('name input trims whitespace on blur', async ({ page }) => {
-    await login(page);
+  test('name input trims whitespace on blur', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
     const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
     await nameInput.fill('  Spaced name  ');
     await nameInput.blur();
 
     await expect(nameInput).toHaveValue('Spaced name');
+
+    await ctx.close();
   });
 });

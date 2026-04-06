@@ -1,17 +1,42 @@
-import { test, expect } from './fixtures/auth';
-import { login } from './fixtures/auth';
+import { test, expect } from '@playwright/test';
+import { createIsolatedUser } from './fixtures/helpers';
+
+const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
+let user: { email: string; password: string; id: string };
 
 test.describe('Entry with Macros', () => {
+  test.beforeAll(() => {
+    user = createIsolatedUser('entry-macros');
+  });
 
-  test('track entry with macro values', async ({ page }) => {
-    await login(page);
+  async function loginAndGo(page: import('@playwright/test').Page, path = '/dashboard') {
+    await page.goto(`${baseURL}/login`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByLabel('Email').fill(user.email);
+    await page.getByLabel('Password').fill(user.password);
+    await page.getByRole('button', { name: 'Log In' }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    if (path !== '/dashboard') {
+      await page.goto(`${baseURL}${path}`);
+      await page.waitForURL(new RegExp(path), { timeout: 10000 });
+    }
+  }
+
+  test('track entry with macro values', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
+
+    // Wait for form to fully render before checking for macro inputs
+    await page.locator('input[placeholder="Breakfast, snack..."]').waitFor({ state: 'visible', timeout: 10000 });
 
     // Check if macro inputs are visible (user needs macros enabled)
     const proteinInput = page.locator('input[inputmode="numeric"][placeholder="0"]').first();
-    const hasMacros = await proteinInput.isVisible({ timeout: 2000 }).catch(() => false);
+    const hasMacros = await proteinInput.isVisible({ timeout: 5000 }).catch(() => false);
 
     if (!hasMacros) {
       test.skip(true, 'Macros not enabled for test user');
+      await ctx.close();
       return;
     }
 
@@ -41,5 +66,7 @@ test.describe('Entry with Macros', () => {
       await deleteBtn.click();
       await expect(page.getByText('Chicken breast')).not.toBeVisible({ timeout: 5000 });
     }
+
+    await ctx.close();
   });
 });

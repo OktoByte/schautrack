@@ -1,5 +1,8 @@
-import { test, expect } from './fixtures/auth';
-import { login } from './fixtures/auth';
+import { test, expect } from '@playwright/test';
+import { createIsolatedUser } from './fixtures/helpers';
+
+const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
+let user: { email: string; password: string; id: string };
 
 /** Find the Daily Notes settings card and its toggle button. */
 async function getNotesToggle(page: import('@playwright/test').Page) {
@@ -11,14 +14,28 @@ async function getNotesToggle(page: import('@playwright/test').Page) {
   return { heading, toggle };
 }
 
-test.describe('Daily Notes', () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+test.describe.serial('Daily Notes', () => {
+  test.beforeAll(() => {
+    user = createIsolatedUser('notes');
   });
 
-  test('enable notes and write a note', async ({ page }) => {
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+  async function loginAndGo(page: import('@playwright/test').Page, path = '/dashboard') {
+    await page.goto(`${baseURL}/login`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByLabel('Email').fill(user.email);
+    await page.getByLabel('Password').fill(user.password);
+    await page.getByRole('button', { name: 'Log In' }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    if (path !== '/dashboard') {
+      await page.goto(`${baseURL}${path}`);
+      await page.waitForURL(new RegExp(path), { timeout: 10000 });
+    }
+  }
+
+  test('enable notes and write a note', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page, '/settings');
 
     const { heading, toggle } = await getNotesToggle(page);
     await heading.scrollIntoViewIfNeeded();
@@ -33,8 +50,8 @@ test.describe('Daily Notes', () => {
     }
 
     // Go to dashboard
-    await page.goto('/dashboard');
-    await page.waitForURL('/dashboard');
+    await page.goto(`${baseURL}/dashboard`);
+    await page.waitForURL(/\/dashboard/);
 
     // Notes section should be visible
     const textarea = page.locator('textarea[placeholder*="Write a note"]');
@@ -50,7 +67,7 @@ test.describe('Daily Notes', () => {
 
     // Reload and verify persistence
     await page.reload();
-    await page.waitForURL('/dashboard');
+    await page.waitForURL(/\/dashboard/);
     await page.waitForLoadState('domcontentloaded');
     const reloadedTextarea = page.locator('textarea[placeholder*="Write a note"]');
     await expect(reloadedTextarea).toHaveValue(testNote, { timeout: 10000 });
@@ -58,11 +75,14 @@ test.describe('Daily Notes', () => {
     // Clear the note
     await reloadedTextarea.fill('');
     await expect(page.getByText('Saved')).toBeVisible({ timeout: 5000 });
+
+    await ctx.close();
   });
 
-  test('notes are date-specific', async ({ page }) => {
-    await page.goto('/dashboard');
-    await page.waitForURL('/dashboard');
+  test('notes are date-specific', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
     const textarea = page.locator('textarea[placeholder*="Write a note"]');
     await textarea.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
@@ -88,11 +108,14 @@ test.describe('Daily Notes', () => {
       const otherTextarea = page.locator('textarea[placeholder*="Write a note"]');
       await expect(otherTextarea).toHaveValue('', { timeout: 3000 });
     }
+
+    await ctx.close();
   });
 
-  test('disable notes hides editor', async ({ page }) => {
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+  test('disable notes hides editor', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page, '/settings');
 
     const { heading, toggle } = await getNotesToggle(page);
     await heading.scrollIntoViewIfNeeded();
@@ -110,23 +133,26 @@ test.describe('Daily Notes', () => {
     await page.waitForTimeout(500);
 
     // Go to dashboard — note editor should not be visible
-    await page.goto('/dashboard');
-    await page.waitForURL('/dashboard');
+    await page.goto(`${baseURL}/dashboard`);
+    await page.waitForURL(/\/dashboard/);
     const textarea = page.locator('textarea[placeholder*="Write a note"]');
     await expect(textarea).not.toBeVisible({ timeout: 3000 });
 
     // Re-enable notes for other tests
-    await page.goto('/settings');
-    await page.waitForURL('/settings');
+    await page.goto(`${baseURL}/settings`);
+    await page.waitForURL(/\/settings/);
     const { heading: h2, toggle: t2 } = await getNotesToggle(page);
     await h2.scrollIntoViewIfNeeded();
     await t2.click();
     await page.waitForTimeout(500);
+
+    await ctx.close();
   });
 
-  test('autosave indicator shows Saving then Saved', async ({ page }) => {
-    await page.goto('/dashboard');
-    await page.waitForURL('/dashboard');
+  test('autosave indicator shows Saving then Saved', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
     const textarea = page.locator('textarea[placeholder*="Write a note"]');
     await textarea.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
@@ -147,11 +173,14 @@ test.describe('Daily Notes', () => {
     // Clean up
     await textarea.fill('');
     await page.waitForTimeout(1500);
+
+    await ctx.close();
   });
 
-  test('clearing note removes it after reload', async ({ page }) => {
-    await page.goto('/dashboard');
-    await page.waitForURL('/dashboard');
+  test('clearing note removes it after reload', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
     const textarea = page.locator('textarea[placeholder*="Write a note"]');
     await textarea.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
@@ -169,18 +198,23 @@ test.describe('Daily Notes', () => {
     // Clear the note text
     await textarea.fill('');
     await expect(page.getByText('Saved')).toBeVisible({ timeout: 8000 });
+    // Wait for the Saved toast to dismiss — confirms the save round-trip completed
+    await expect(page.getByText('Saved')).not.toBeVisible({ timeout: 8000 });
 
     // Reload and verify the note is empty
     await page.reload();
-    await page.waitForURL('/dashboard');
+    await page.waitForURL(/\/dashboard/);
     await page.waitForLoadState('domcontentloaded');
     const reloadedTextarea = page.locator('textarea[placeholder*="Write a note"]');
     await expect(reloadedTextarea).toHaveValue('', { timeout: 10000 });
+
+    await ctx.close();
   });
 
-  test('character limit is enforced', async ({ page }) => {
-    await page.goto('/dashboard');
-    await page.waitForURL('/dashboard');
+  test('character limit is enforced', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
     const textarea = page.locator('textarea[placeholder*="Write a note"]');
     await textarea.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
@@ -199,5 +233,7 @@ test.describe('Daily Notes', () => {
     // Clean up
     await textarea.fill('');
     await page.waitForTimeout(1500);
+
+    await ctx.close();
   });
 });

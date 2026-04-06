@@ -1,7 +1,26 @@
-import { test, expect } from './fixtures/auth';
-import { login } from './fixtures/auth';
+import { test, expect } from '@playwright/test';
+import { createIsolatedUser } from './fixtures/helpers';
+
+const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
+let user: { email: string; password: string; id: string };
 
 test.describe('Entry Inline Edit', () => {
+  test.beforeAll(() => {
+    user = createIsolatedUser('entry-edit');
+  });
+
+  async function loginAndGo(page: import('@playwright/test').Page, path = '/dashboard') {
+    await page.goto(`${baseURL}/login`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByLabel('Email').fill(user.email);
+    await page.getByLabel('Password').fill(user.password);
+    await page.getByRole('button', { name: 'Log In' }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    if (path !== '/dashboard') {
+      await page.goto(`${baseURL}${path}`);
+      await page.waitForURL(new RegExp(path), { timeout: 10000 });
+    }
+  }
 
   async function createEntry(page: any, name: string) {
     await page.locator('input[placeholder="Breakfast, snack..."]').fill(name);
@@ -17,8 +36,10 @@ test.describe('Entry Inline Edit', () => {
     await page.waitForTimeout(1000);
   }
 
-  test('edit entry name inline', async ({ page }) => {
-    await login(page);
+  test('edit entry name inline', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
     await createEntry(page, 'Edit test name');
 
     // Wait for entry to appear and scroll to it
@@ -42,10 +63,14 @@ test.describe('Entry Inline Edit', () => {
     if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await deleteBtn.click();
     }
+
+    await ctx.close();
   });
 
-  test('edit entry calorie value inline', async ({ page }) => {
-    await login(page);
+  test('edit entry calorie value inline', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
     await createEntry(page, 'Cal edit test');
 
     // Wait for entry to appear in the list
@@ -74,5 +99,7 @@ test.describe('Entry Inline Edit', () => {
     if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await deleteBtn.click();
     }
+
+    await ctx.close();
   });
 });

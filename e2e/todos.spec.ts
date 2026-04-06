@@ -1,19 +1,31 @@
-import { test, expect } from './fixtures/auth';
-import { login } from './fixtures/auth';
-import { psql } from './fixtures/helpers';
+import { test, expect } from '@playwright/test';
+import { psql, createIsolatedUser } from './fixtures/helpers';
 
-test.describe('Todos', () => {
+const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
+let user: { email: string; password: string; id: string };
+
+test.describe.serial('Todos', () => {
   test.beforeAll(() => {
-    // Clean up test todos from previous runs
-    const userId = psql(`SELECT id FROM users WHERE email = 'test@test.com'`);
-    if (userId) {
-      psql(`DELETE FROM todo_completions WHERE todo_id IN (SELECT id FROM todos WHERE user_id = ${userId})`);
-      psql(`DELETE FROM todos WHERE user_id = ${userId}`);
-    }
+    user = createIsolatedUser('todos');
   });
 
-  test('create, complete, and delete a todo', async ({ page }) => {
-    await login(page);
+  async function loginAndGo(page: import('@playwright/test').Page, path = '/dashboard') {
+    await page.goto(`${baseURL}/login`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByLabel('Email').fill(user.email);
+    await page.getByLabel('Password').fill(user.password);
+    await page.getByRole('button', { name: 'Log In' }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    if (path !== '/dashboard') {
+      await page.goto(`${baseURL}${path}`);
+      await page.waitForURL(new RegExp(path), { timeout: 10000 });
+    }
+  }
+
+  test('create, complete, and delete a todo', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
     // Todos section should be on the dashboard
     const todosHeading = page.getByText('Todos', { exact: true });
@@ -52,10 +64,14 @@ test.describe('Todos', () => {
 
     // Todo should be gone
     await expect(page.getByText('E2E Test Todo')).not.toBeVisible({ timeout: 5000 });
+
+    await ctx.close();
   });
 
-  test.skip('edit todo name persists after reload', async ({ page }) => {
-    await login(page);
+  test('edit todo name persists after reload', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
     // Open the manager via the Edit button (there should be at least one todo, or create one)
     const todosSection = page.locator('div').filter({ has: page.getByText('Todos', { exact: true }) }).first();
@@ -72,6 +88,8 @@ test.describe('Todos', () => {
       await expect(nameInput).toBeVisible({ timeout: 5000 });
       await nameInput.fill('Todo To Edit');
       await page.getByRole('button', { name: 'Add', exact: true }).click();
+      // Close the manager so the todo appears in the regular list
+      await page.getByRole('button', { name: 'Done' }).last().click();
     } else {
       await editBtn.click();
       // Add a todo from within manager if list is empty
@@ -96,11 +114,13 @@ test.describe('Todos', () => {
     await expect(todoManagerRow).toBeVisible({ timeout: 5000 });
     await todoManagerRow.getByRole('button', { name: 'Edit' }).click();
 
-    // The edit form should appear inline — change the name
-    const editInput = todoManagerRow.locator('input[maxlength="100"]');
-    await expect(editInput).toBeVisible({ timeout: 3000 });
+    // After clicking Edit, the inline edit form appears — the li now shows an input instead of the text.
+    // Use a page-level selector to find the edit input (not scoped to the row, since hasText won't
+    // match an input's value).
+    const editInput = page.locator('input[maxlength="100"]').first();
+    await expect(editInput).toBeVisible({ timeout: 5000 });
     await editInput.fill('Renamed Todo');
-    await todoManagerRow.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Save' }).first().click();
 
     // Close manager
     await page.getByRole('button', { name: 'Done' }).last().click();
@@ -110,7 +130,7 @@ test.describe('Todos', () => {
 
     // Reload and verify persistence
     await page.reload();
-    await page.waitForURL('/dashboard');
+    await page.waitForURL(/\/dashboard/);
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByText('Renamed Todo')).toBeVisible({ timeout: 10000 });
 
@@ -119,10 +139,14 @@ test.describe('Todos', () => {
     const renamedRow = page.locator('li').filter({ hasText: 'Renamed Todo' });
     await renamedRow.getByRole('button', { name: 'Remove' }).click();
     await page.getByRole('button', { name: 'Done' }).last().click();
+
+    await ctx.close();
   });
 
-  test.skip('todo with specific weekdays shows schedule in manager', async ({ page }) => {
-    await login(page);
+  test('todo with specific weekdays shows schedule in manager', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
     // Open manager — if no todos yet, we need the Edit button to be visible
     const addTodoBtn = page.getByText('Add a todo');
@@ -144,9 +168,7 @@ test.describe('Todos', () => {
     const specificDaysRadio = page.getByLabel('Specific days');
     await specificDaysRadio.click();
 
-    // Select only Mon and Wed (days 1 and 3)
-    await page.getByRole('button', { name: 'Mon' }).click();
-    // By default Mon–Fri are selected after switching; deselect Tue, Thu, Fri
+    // Default is Mon–Fri selected; deselect Tue, Thu, Fri to leave Mon and Wed
     await page.getByRole('button', { name: 'Tue' }).click();
     await page.getByRole('button', { name: 'Thu' }).click();
     await page.getByRole('button', { name: 'Fri' }).click();
@@ -170,34 +192,33 @@ test.describe('Todos', () => {
     // Clean up
     await weekdayRow.getByRole('button', { name: 'Remove' }).click();
     await page.getByRole('button', { name: 'Done' }).last().click();
+
+    await ctx.close();
   });
 
-  test('streak counter shows after consecutive completions', async ({ page }) => {
-    // Insert a todo and completions for today, yesterday, and day-before via psql
-    const userId = psql(`SELECT id FROM users WHERE email = 'test@test.com'`);
+  test('streak counter shows after consecutive completions', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
     const dayBefore = new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0];
 
     // Create the todo
     const todoId = psql(
-      `INSERT INTO todos (user_id, name, schedule) VALUES (${userId}, 'Streak Test Todo', '{"type":"daily"}') RETURNING id`
+      `INSERT INTO todos (user_id, name, schedule) VALUES (${user.id}, 'Streak Test Todo', '{"type":"daily"}') RETURNING id`
     );
 
     // Insert completions for 3 consecutive days
     psql(`
       INSERT INTO todo_completions (todo_id, user_id, completion_date) VALUES
-        (${todoId}, ${userId}, '${dayBefore}'),
-        (${todoId}, ${userId}, '${yesterday}'),
-        (${todoId}, ${userId}, '${today}')
+        (${todoId}, ${user.id}, '${dayBefore}'),
+        (${todoId}, ${user.id}, '${yesterday}'),
+        (${todoId}, ${user.id}, '${today}')
       ON CONFLICT DO NOTHING
     `);
 
-    await login(page);
-
-    // Navigate to dashboard (viewing today)
-    await page.goto('/dashboard');
-    await page.waitForURL('/dashboard');
+    await loginAndGo(page);
 
     // Find the todo row — streak > 1 renders as "Nd" text in a span
     const todoRow = page.locator('li').filter({ hasText: 'Streak Test Todo' });
@@ -209,29 +230,31 @@ test.describe('Todos', () => {
 
     // Cleanup
     psql(`DELETE FROM todos WHERE id = ${todoId}`);
+
+    await ctx.close();
   });
 
-  test('streak resets after missed day', async ({ page }) => {
-    const userId = psql(`SELECT id FROM users WHERE email = 'test@test.com'`);
+  test('streak resets after missed day', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+
     const today = new Date().toISOString().split('T')[0];
     // Skip yesterday — gap means streak resets to 1
     const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0];
 
     const todoId = psql(
-      `INSERT INTO todos (user_id, name, schedule) VALUES (${userId}, 'Reset Streak Todo', '{"type":"daily"}') RETURNING id`
+      `INSERT INTO todos (user_id, name, schedule) VALUES (${user.id}, 'Reset Streak Todo', '{"type":"daily"}') RETURNING id`
     );
 
     // Completions for today and 3 days ago (yesterday is missing — streak breaks)
     psql(`
       INSERT INTO todo_completions (todo_id, user_id, completion_date) VALUES
-        (${todoId}, ${userId}, '${threeDaysAgo}'),
-        (${todoId}, ${userId}, '${today}')
+        (${todoId}, ${user.id}, '${threeDaysAgo}'),
+        (${todoId}, ${user.id}, '${today}')
       ON CONFLICT DO NOTHING
     `);
 
-    await login(page);
-    await page.goto('/dashboard');
-    await page.waitForURL('/dashboard');
+    await loginAndGo(page);
 
     const todoRow = page.locator('li').filter({ hasText: 'Reset Streak Todo' });
     await todoRow.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
@@ -245,10 +268,14 @@ test.describe('Todos', () => {
 
     // Cleanup
     psql(`DELETE FROM todos WHERE id = ${todoId}`);
+
+    await ctx.close();
   });
 
-  test('todo time of day displays in list', async ({ page }) => {
-    await login(page);
+  test('todo time of day displays in list', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await loginAndGo(page);
 
     // Open manager
     const addTodoBtn = page.getByText('Add a todo');
@@ -288,5 +315,7 @@ test.describe('Todos', () => {
     const timedRow = page.locator('li').filter({ hasText: 'Timed Todo' });
     await timedRow.getByRole('button', { name: 'Remove' }).click();
     await page.getByRole('button', { name: 'Done' }).last().click();
+
+    await ctx.close();
   });
 });
