@@ -129,7 +129,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	if totpEnabled {
 		sess.Set("pendingUserId", userID)
-		JSON(w, http.StatusOK, map[string]any{"ok": true, "require2fa": true})
+		resp := map[string]any{"ok": true, "requireToken": true}
+		if h.Email.IsConfigured() {
+			resp["canReset2fa"] = true
+		}
+		JSON(w, http.StatusOK, resp)
 		return
 	}
 
