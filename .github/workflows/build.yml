@@ -188,9 +188,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64
+        platform: ${{ (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && fromJSON('["linux/amd64","linux/arm64"]') || fromJSON('["linux/amd64"]') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
