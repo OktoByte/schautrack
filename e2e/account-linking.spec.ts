@@ -53,7 +53,7 @@ test.describe('Account Linking', () => {
     const emailInput = page.getByLabel('Link by email');
     await emailInput.scrollIntoViewIfNeeded();
     await emailInput.fill(LINK_USER_EMAIL);
-    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    await page.getByRole('button', { name: 'Send Request' }).click();
 
     // Should show as pending
     await expect(page.getByText('Pending')).toBeVisible({ timeout: 5000 });
@@ -176,7 +176,7 @@ test.describe('Account Linking', () => {
     const emailInput = page.getByLabel('Link by email');
     await emailInput.scrollIntoViewIfNeeded();
     await emailInput.fill(LINK_USER_EMAIL);
-    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    await page.getByRole('button', { name: 'Send Request' }).click();
     await expect(page.getByText('Pending')).toBeVisible({ timeout: 5000 });
 
     // Log in as link-test user in a fresh context and decline the request

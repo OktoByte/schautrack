@@ -3,7 +3,16 @@ import { login } from './fixtures/auth';
 import { psql } from './fixtures/helpers';
 
 test.describe('Todos', () => {
-  test.skip('create, complete, and delete a todo', async ({ page }) => {
+  test.beforeAll(() => {
+    // Clean up test todos from previous runs
+    const userId = psql(`SELECT id FROM users WHERE email = 'test@test.com'`);
+    if (userId) {
+      psql(`DELETE FROM todo_completions WHERE todo_id IN (SELECT id FROM todos WHERE user_id = ${userId})`);
+      psql(`DELETE FROM todos WHERE user_id = ${userId}`);
+    }
+  });
+
+  test('create, complete, and delete a todo', async ({ page }) => {
     await login(page);
 
     // Todos section should be on the dashboard
@@ -54,7 +63,7 @@ test.describe('Todos', () => {
 
     // If there are no todos, create one first
     const addTodoBtn = page.getByText('Add a todo');
-    const editBtn = page.getByRole('button', { name: 'Edit' });
+    const editBtn = page.getByRole('button', { name: 'Edit' }).first();
     const hasAddBtn = await addTodoBtn.isVisible({ timeout: 2000 }).catch(() => false);
 
     if (hasAddBtn) {
