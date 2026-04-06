@@ -32,7 +32,7 @@ test.describe('Entry with Macros', () => {
 
     // Check if macro inputs are visible (user needs macros enabled)
     const proteinInput = page.locator('input[inputmode="numeric"][placeholder="0"]').first();
-    const hasMacros = await proteinInput.isVisible({ timeout: 5000 }).catch(() => false);
+    const hasMacros = await proteinInput.isVisible({ timeout: 15000 }).catch(() => false);
 
     if (!hasMacros) {
       test.skip(true, 'Macros not enabled for test user');

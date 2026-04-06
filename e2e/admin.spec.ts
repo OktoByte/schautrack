@@ -164,7 +164,7 @@ test.describe('Admin Panel', () => {
     expect(body.error).toContain('Cannot delete yourself');
   });
 
-  test.skip('toggle barcode feature and verify it persists', async ({ page }) => {
+  test('toggle barcode feature and verify it persists', async ({ page }) => {
     // ENABLE_BARCODE is set via env var in compose.test.yml — can't toggle
     await page.goto('/admin');
     await page.waitForURL('/admin', { timeout: 10000 });
@@ -309,7 +309,7 @@ test.describe('Admin Panel', () => {
     expect(messages[0].To.some((t) => t.Address === inviteEmail)).toBe(true);
   });
 
-  test.skip('cannot delete already-used invite code', async ({ page }) => {
+  test('cannot delete already-used invite code', async ({ page }) => {
     // Create an invite via psql that is already used
     const adminId = psql(`SELECT id FROM users WHERE email = '${ADMIN_EMAIL}'`);
     psql(`DELETE FROM invite_codes WHERE email = 'used-invite@test.com'`);
@@ -367,7 +367,7 @@ test.describe('Admin Panel', () => {
     expect([400, 403]).toContain(saveRes.status());
   });
 
-  test.skip('invite list shows statuses for unused, used, and expired invites', async ({ page }) => {
+  test('invite list shows statuses for unused, used, and expired invites', async ({ page }) => {
     const adminId = psql(`SELECT id FROM users WHERE email = '${ADMIN_EMAIL}'`);
     const testUserId = psql(`SELECT id FROM users WHERE email = 'test@test.com'`);
 

@@ -51,7 +51,7 @@ test.describe('Email Verification', () => {
     const email = `verify-correct-${Date.now()}@test.com`;
     const { page, context } = await registerAndReachVerify(browser, email);
 
-    const code = await extractCodeFromEmail(email, 15);
+    const code = await extractCodeFromEmail(email, 30);
     await page.getByLabel('Verification Code').fill(code);
     await page.getByRole('button', { name: 'Verify' }).click();
 
@@ -85,7 +85,7 @@ test.describe('Email Verification', () => {
 
     await expect(page.getByText(/new code sent/i)).toBeVisible({ timeout: 5000 });
 
-    const newCode = await extractCodeFromEmail(email, 15);
+    const newCode = await extractCodeFromEmail(email, 30);
     expect(newCode).toMatch(/^\d{6}$/);
 
     await page.getByLabel('Verification Code').fill(newCode);

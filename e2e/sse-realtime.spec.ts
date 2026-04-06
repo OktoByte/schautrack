@@ -114,7 +114,7 @@ test.describe('SSE Real-time Updates', () => {
     // Write a note on page A
     const textareaA = pageA.locator('textarea[placeholder*="Write a note"]');
     await textareaA.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
-    const hasNotes = await textareaA.isVisible({ timeout: 5000 }).catch(() => false);
+    const hasNotes = await textareaA.isVisible({ timeout: 15000 }).catch(() => false);
     if (!hasNotes) {
       await contextA.close();
       await contextB.close();

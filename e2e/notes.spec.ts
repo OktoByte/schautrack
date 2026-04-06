@@ -86,7 +86,7 @@ test.describe.serial('Daily Notes', () => {
 
     const textarea = page.locator('textarea[placeholder*="Write a note"]');
     await textarea.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
-    const hasNotes = await textarea.isVisible({ timeout: 5000 }).catch(() => false);
+    const hasNotes = await textarea.isVisible({ timeout: 15000 }).catch(() => false);
     if (!hasNotes) {
       test.skip(true, 'Notes not enabled for test user');
       return;
@@ -156,7 +156,7 @@ test.describe.serial('Daily Notes', () => {
 
     const textarea = page.locator('textarea[placeholder*="Write a note"]');
     await textarea.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
-    const hasNotes = await textarea.isVisible({ timeout: 5000 }).catch(() => false);
+    const hasNotes = await textarea.isVisible({ timeout: 15000 }).catch(() => false);
     if (!hasNotes) {
       test.skip(true, 'Notes not enabled for test user');
       return;
@@ -184,7 +184,7 @@ test.describe.serial('Daily Notes', () => {
 
     const textarea = page.locator('textarea[placeholder*="Write a note"]');
     await textarea.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
-    const hasNotes = await textarea.isVisible({ timeout: 5000 }).catch(() => false);
+    const hasNotes = await textarea.isVisible({ timeout: 15000 }).catch(() => false);
     if (!hasNotes) {
       test.skip(true, 'Notes not enabled for test user');
       return;
@@ -218,7 +218,7 @@ test.describe.serial('Daily Notes', () => {
 
     const textarea = page.locator('textarea[placeholder*="Write a note"]');
     await textarea.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
-    const hasNotes = await textarea.isVisible({ timeout: 5000 }).catch(() => false);
+    const hasNotes = await textarea.isVisible({ timeout: 15000 }).catch(() => false);
     if (!hasNotes) {
       test.skip(true, 'Notes not enabled for test user');
       return;

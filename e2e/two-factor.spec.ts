@@ -132,6 +132,7 @@ test.describe('Two-Factor Authentication', () => {
     await expect(codeInput).toBeVisible({ timeout: 10000 });
 
     // Enter a backup code (the login page accepts it in the same field)
+    expect(capturedBackupCodes.length).toBeGreaterThan(0);
     const backupCodeToUse = capturedBackupCodes[0];
     await codeInput.fill(backupCodeToUse);
 

@@ -19,7 +19,7 @@ services:
       - SMTP_PORT=1025
       - SMTP_FROM=noreply@schautrack.local
       - CAPTCHA_BYPASS=true
-      - ENABLE_LEGAL=true
+      # ENABLE_LEGAL not set as env var — managed via admin_settings for testability
       - AI_PROVIDER=openai
       - AI_KEY=test-fake-key-for-e2e
       - IMPRINT_ADDRESS=Test Company\n123 Test Street\nTest City

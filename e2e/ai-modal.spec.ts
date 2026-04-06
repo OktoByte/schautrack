@@ -1,17 +1,26 @@
-import { test, expect } from './fixtures/auth';
-import { login } from './fixtures/auth';
+import { test, expect } from '@playwright/test';
+import { createIsolatedUser } from './fixtures/helpers';
+
+const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
+let user: { email: string; password: string; id: string };
 
 test.describe('AI Photo Modal', () => {
-  test('AI button opens modal with tabs', async ({ page }) => {
-    await login(page);
-    await page.waitForLoadState('domcontentloaded');
+  test.beforeAll(() => {
+    user = createIsolatedUser('ai-modal');
+  });
 
-    // AI button only shows if AI is configured
+  test('AI button opens modal with tabs', async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await page.goto(`${baseURL}/login`);
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByLabel('Email').fill(user.email);
+    await page.getByLabel('Password').fill(user.password);
+    await page.getByRole('button', { name: 'Log In' }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+
     const aiButton = page.locator('button[title="Estimate with AI"]');
-    if (!await aiButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      test.skip(true, 'AI not enabled — no AI_PROVIDER configured');
-      return;
-    }
+    await expect(aiButton).toBeVisible({ timeout: 15000 });
 
     await aiButton.click();
 
@@ -25,7 +34,10 @@ test.describe('AI Photo Modal', () => {
     await modal.getByRole('button', { name: 'Upload' }).click();
     await expect(modal.locator('input[type="file"]')).toBeVisible();
 
+    // Close the modal
     await modal.locator('button.text-destructive').click();
     await expect(modal).not.toBeVisible({ timeout: 3000 });
+
+    await ctx.close();
   });
 });

@@ -48,7 +48,7 @@ test.describe('Forgot Password', () => {
     await expect(page).toHaveURL(/\/reset-password/);
 
     // Step 2: extract code from email
-    const code = await extractCodeFromEmail(FORGOT_EMAIL, 15);
+    const code = await extractCodeFromEmail(FORGOT_EMAIL, 30);
     expect(code).toMatch(/^\d{6}$/);
 
     // Step 3: enter the code on the reset-password page
@@ -129,7 +129,7 @@ test.describe('Forgot Password', () => {
 
     await page.waitForURL(/\/reset-password/, { timeout: 10000 });
 
-    const code = await extractCodeFromEmail(mismatchEmail, 15);
+    const code = await extractCodeFromEmail(mismatchEmail, 30);
     await page.getByLabel('Reset Code').fill(code);
     await page.getByRole('button', { name: 'Verify Code' }).click();
 

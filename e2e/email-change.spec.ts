@@ -31,7 +31,7 @@ test.describe('Email Change', () => {
     }
   }
 
-  test.skip('change email triggers verification and email is sent', async ({ browser }) => {
+  test('change email triggers verification and email is sent', async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] }, extraHTTPHeaders });
     const page = await ctx.newPage();
 
@@ -92,7 +92,7 @@ test.describe('Email Change', () => {
     await page.waitForURL(/\/settings\/email\/verify/, { timeout: 10000 });
 
     // Extract the verification code from MailPit
-    const code = await extractCodeFromEmail(newEmail, 15);
+    const code = await extractCodeFromEmail(newEmail, 30);
     expect(code).toMatch(/^\d{6}$/);
 
     // Enter the code on the verify page
