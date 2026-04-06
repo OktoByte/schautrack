@@ -95,6 +95,66 @@ export async function clearMailpit(): Promise<void> {
   await fetch(`${MAILPIT_URL}/api/v1/messages`, { method: 'DELETE' });
 }
 
+const DEFAULT_PASSWORD = 'test1234test';
+
+/**
+ * Create or reset an isolated test user for a specific spec file.
+ * Returns { email, password, id }. Call in beforeAll() for test isolation.
+ * The user gets all features enabled (macros, todos, notes) and clean data.
+ */
+export function createIsolatedUser(specName: string, opts: { features?: boolean } = {}): { email: string; password: string; id: string } {
+  const email = `e2e-${specName}@test.local`;
+  const password = DEFAULT_PASSWORD;
+  const hash = bcryptHash(password);
+  const features = opts.features !== false;
+
+  // Create or reset
+  const exists = psql(`SELECT id FROM users WHERE email = '${email}'`);
+  if (exists) {
+    psql(`UPDATE users SET password_hash = '${hash}', email_verified = true, totp_enabled = false, totp_secret = NULL WHERE email = '${email}'`);
+    psql(`DELETE FROM totp_backup_codes WHERE user_id = ${exists}`);
+    // Clean all data
+    psql(`DELETE FROM calorie_entries WHERE user_id = ${exists}`);
+    psql(`DELETE FROM weight_entries WHERE user_id = ${exists}`);
+    psql(`DELETE FROM todo_completions WHERE todo_id IN (SELECT id FROM todos WHERE user_id = ${exists})`);
+    psql(`DELETE FROM todos WHERE user_id = ${exists}`);
+    psql(`DELETE FROM daily_notes WHERE user_id = ${exists}`);
+    psql(`DELETE FROM ai_usage WHERE user_id = ${exists}`);
+  } else {
+    psql(`INSERT INTO users (email, password_hash, email_verified) VALUES ('${email}', '${hash}', true)`);
+  }
+
+  const id = psql(`SELECT id FROM users WHERE email = '${email}'`);
+
+  if (features) {
+    psql(`UPDATE users SET
+      macros_enabled = '{"calories": true, "protein": true, "carbs": true, "fat": true, "fiber": true, "sugar": true, "auto_calc_calories": false}',
+      macro_goals = '{"calories": 2000, "protein": 150, "carbs": 250, "fat": 65, "fiber": 25, "sugar": 50, "calories_mode": "limit", "protein_mode": "target", "carbs_mode": "limit", "fat_mode": "limit"}',
+      todos_enabled = true,
+      notes_enabled = true,
+      daily_goal = 2000
+      WHERE id = ${id}`);
+  }
+
+  return { email, password, id };
+}
+
+/**
+ * Login as a specific user via the API and save storageState for the browser context.
+ * Returns the path to the storageState file.
+ */
+export async function loginUser(browser: import('@playwright/test').Browser, email: string, password: string): Promise<{ context: import('@playwright/test').BrowserContext; page: import('@playwright/test').Page }> {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto('/login');
+  await page.waitForLoadState('domcontentloaded');
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password').fill(password);
+  await page.getByRole('button', { name: 'Log In' }).click();
+  await page.waitForURL('/dashboard', { timeout: 15000 });
+  return { context, page };
+}
+
 interface MailpitMessage {
   ID: string;
   From: { Address: string };
