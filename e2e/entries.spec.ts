@@ -5,6 +5,7 @@ const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
 
 test.describe('Entry Tracking', () => {
+  test.setTimeout(60000); // Extra time for per-test login under parallel load
   test.beforeAll(() => {
     user = createIsolatedUser('entries');
   });

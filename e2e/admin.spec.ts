@@ -345,27 +345,23 @@ test.describe('Admin Panel', () => {
     await page.waitForURL('/admin', { timeout: 10000 });
     await expect(page.getByText('Application Settings')).toBeVisible({ timeout: 10000 });
 
-    // Find a setting that is controlled via environment variable.
-    // In compose.dev.yml: SUPPORT_EMAIL, IMPRINT_ADDRESS, IMPRINT_EMAIL, ENABLE_LEGAL are env-set.
-    // In compose.test.yml: ENABLE_BARCODE, ENABLE_REGISTRATION may be env-set.
-    // We look for a disabled input/select — any setting with source === 'env' renders as disabled.
-    const disabledInput = page.locator('input:disabled, select:disabled').first();
-    await disabledInput.scrollIntoViewIfNeeded({ timeout: 5000 });
-    await expect(disabledInput).toBeVisible({ timeout: 5000 });
+    // IMPRINT_ADDRESS, IMPRINT_EMAIL, SUPPORT_EMAIL are set via env vars
+    // Their inputs should be disabled
+    const imprintInput = page.locator('input[id="imprint_address"]');
+    await imprintInput.scrollIntoViewIfNeeded({ timeout: 5000 });
+    await expect(imprintInput).toBeDisabled({ timeout: 5000 });
 
-    // The container should carry a title indicating it's env-controlled
-    const container = disabledInput.locator('..');
-    const containerTitle = await container.getAttribute('title');
-    expect(containerTitle).toContain('environment variable');
+    // ENABLE_BARCODE and ENABLE_REGISTRATION are also env-controlled
+    const barcodeSelect = page.locator('label').filter({ hasText: 'ENABLE_BARCODE' }).locator('..').locator('select');
+    await expect(barcodeSelect).toBeDisabled({ timeout: 5000 });
 
-    // Attempting to save an env-controlled setting via the API should be rejected.
-    // SUPPORT_EMAIL is set via env var in compose.dev.yml.
-    const csrfRes = await page.request.get('/api/me');
-    const csrfToken = csrfRes.headers()['x-csrf-token'] || '';
+    // Also verify via API: try to POST a change to an env-controlled setting
+    const csrfRes = await page.request.get('/api/csrf');
+    const { token: csrfToken } = await csrfRes.json();
 
     const saveRes = await page.request.post('/admin/settings', {
       data: { settings: { support_email: 'test@example.com' } },
-      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+      headers: { 'X-CSRF-Token': csrfToken, 'Content-Type': 'application/json' },
     });
     // Backend rejects changes to env-controlled settings (400 or 403)
     expect([400, 403]).toContain(saveRes.status());

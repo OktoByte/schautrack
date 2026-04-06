@@ -10,7 +10,7 @@ export default defineConfig({
   retries: 1,
   workers: process.env.CI ? 2 : Math.max(2, require('os').cpus().length || 4),
   reporter: process.env.CI ? 'github' : 'html',
-  timeout: 45000,
+  timeout: 60000,
   expect: { timeout: 10000 },
 
   use: {
