@@ -311,40 +311,48 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 		return
 	}
 
-	// Re-validate and atomically claim invite code before creating user
+	// Create user and claim invite code atomically in a transaction
+	tx, txErr := h.Pool.Begin(r.Context())
+	if txErr != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not register.")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	var userID int
+	err = tx.QueryRow(r.Context(),
+		`INSERT INTO users (email, password_hash, timezone, email_verified, macros_enabled) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		emailClean, hash, timezone, !h.Email.IsConfigured(), `{"calories": true}`,
+	).Scan(&userID)
+	if err != nil {
+		slog.Error("registration failed", "error", err)
+		ErrorJSON(w, http.StatusInternalServerError, "Could not register.")
+		return
+	}
+
+	// Claim invite code atomically (now that user exists, FK is satisfied)
 	if invCode != "" {
-		tag, err := h.Pool.Exec(r.Context(),
-			`UPDATE invite_codes SET used_by = -1, used_at = NOW()
-			 WHERE code = $1 AND used_by IS NULL
-			   AND (expires_at IS NULL OR expires_at > NOW())`, invCode)
-		if err != nil || tag.RowsAffected() == 0 {
+		tag, claimErr := tx.Exec(r.Context(),
+			`UPDATE invite_codes SET used_by = $1, used_at = NOW()
+			 WHERE code = $2 AND used_by IS NULL
+			   AND (expires_at IS NULL OR expires_at > NOW())`, userID, invCode)
+		if claimErr != nil || tag.RowsAffected() == 0 {
 			sess.Delete("pendingRegistration")
 			sess.Delete("pendingInviteCode")
 			ErrorJSON(w, http.StatusBadRequest, "Invite code is no longer valid.")
 			return
 		}
+		sess.Delete("pendingInviteCode")
 	}
 
-	finalizeInvite := func(userID int) {
-		if invCode != "" {
-			h.Pool.Exec(r.Context(),
-				"UPDATE invite_codes SET used_by = $1 WHERE code = $2", userID, invCode)
-			sess.Delete("pendingInviteCode")
-		}
+	if txErr = tx.Commit(r.Context()); txErr != nil {
+		ErrorJSON(w, http.StatusInternalServerError, "Could not register.")
+		return
 	}
+
+	sess.Delete("pendingRegistration")
 
 	if h.Email.IsConfigured() {
-		var userID int
-		err := h.Pool.QueryRow(r.Context(),
-			`INSERT INTO users (email, password_hash, timezone, email_verified, macros_enabled) VALUES ($1, $2, $3, FALSE, $4) RETURNING id`,
-			emailClean, hash, timezone, `{"calories": true}`,
-		).Scan(&userID)
-		if err != nil {
-			slog.Error("registration failed", "error", err)
-			ErrorJSON(w, http.StatusInternalServerError, "Could not register.")
-			return
-		}
-		finalizeInvite(userID)
 		code := service.GenerateResetCode()
 		if _, err := h.Pool.Exec(r.Context(),
 			"INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)",
@@ -352,22 +360,9 @@ func (h *AuthHandler) registerCaptcha(w http.ResponseWriter, r *http.Request, se
 			slog.Warn("failed to insert verification token during registration", "error", err, "user_id", userID)
 		}
 		h.Email.SendVerificationEmail(emailClean, code)
-		sess.Delete("pendingRegistration")
 		sess.Set("verifyEmail", emailClean)
 		JSON(w, http.StatusOK, map[string]any{"ok": true, "requireVerification": true})
 	} else {
-		var userID int
-		err := h.Pool.QueryRow(r.Context(),
-			`INSERT INTO users (email, password_hash, timezone, email_verified, macros_enabled) VALUES ($1, $2, $3, TRUE, $4) RETURNING id`,
-			emailClean, hash, timezone, `{"calories": true}`,
-		).Scan(&userID)
-		if err != nil {
-			slog.Error("registration failed", "error", err)
-			ErrorJSON(w, http.StatusInternalServerError, "Could not register.")
-			return
-		}
-		finalizeInvite(userID)
-		sess.Delete("pendingRegistration")
 		sess.SetUserID(userID)
 		OkJSON(w)
 	}

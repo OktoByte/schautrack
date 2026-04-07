@@ -2,20 +2,35 @@ import { test, expect } from '@playwright/test';
 import { psql } from './fixtures/helpers';
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
+const ADMIN_STORAGE = 'e2e/.auth/admin.json';
+
+async function setAdminSetting(browser: import('@playwright/test').Browser, key: string, value: string) {
+  const ctx = await browser.newContext({ storageState: ADMIN_STORAGE });
+  const csrfRes = await ctx.request.get(`${baseURL}/api/csrf`);
+  const { token } = await csrfRes.json();
+  await ctx.request.post(`${baseURL}/admin/settings`, {
+    headers: { 'X-CSRF-Token': token, 'Content-Type': 'application/json' },
+    data: JSON.stringify({ settings: { [key]: value } }),
+  });
+  await ctx.close();
+}
 
 test.describe('Legal Pages', () => {
   test.describe.configure({ mode: 'serial' });
 
   test.beforeAll(() => {
+    // Ensure enable_legal is set in DB (it's not env-controlled)
     psql(`INSERT INTO admin_settings (key, value) VALUES ('enable_legal', 'true') ON CONFLICT (key) DO UPDATE SET value = 'true'`);
   });
 
   test.afterAll(() => {
-    // Restore enabled state
     psql(`INSERT INTO admin_settings (key, value) VALUES ('enable_legal', 'true') ON CONFLICT (key) DO UPDATE SET value = 'true'`);
   });
 
   test('imprint page loads with address content', async ({ browser }) => {
+    // Use admin API to ensure cache is invalidated
+    await setAdminSetting(browser, 'enable_legal', 'true');
+
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await ctx.newPage();
     await page.goto(`${baseURL}/imprint`);
@@ -40,11 +55,9 @@ test.describe('Legal Pages', () => {
   });
 
   test('legal pages hidden when disabled', async ({ browser }) => {
-    // Disable legal
-    psql(`INSERT INTO admin_settings (key, value) VALUES ('enable_legal', 'false') ON CONFLICT (key) DO UPDATE SET value = 'false'`);
+    // Disable via admin API (invalidates settings cache)
+    await setAdminSetting(browser, 'enable_legal', 'false');
 
-    // Wait for settings cache to expire (1 minute TTL)
-    // Instead of waiting, check the SVG endpoints directly — they bypass the SPA
     const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await ctx.newPage();
 
@@ -55,8 +68,8 @@ test.describe('Legal Pages', () => {
     expect(addressRes.status()).toBe(404);
     expect(emailRes.status()).toBe(404);
 
-    // Restore
-    psql(`INSERT INTO admin_settings (key, value) VALUES ('enable_legal', 'true') ON CONFLICT (key) DO UPDATE SET value = 'true'`);
+    // Restore via admin API
+    await setAdminSetting(browser, 'enable_legal', 'true');
     await ctx.close();
   });
 });

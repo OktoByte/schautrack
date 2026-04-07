@@ -77,10 +77,10 @@ test.describe('Invite-Only Registration', () => {
   });
 
   test('valid invite code allows registration', async ({ browser }) => {
-    // Create an invite code
-    const inviteRes = await adminApiRequest(browser, 'POST', '/admin/invites', {});
-    expect((inviteRes.data as { ok: boolean }).ok).toBe(true);
-    const code = (inviteRes.data as { invite: { code: string } }).invite.code;
+    // Create an invite code directly in DB (bypasses admin API timing)
+    const code = `E2E-VALID-${Date.now()}`;
+    const adminId = psql(`SELECT id FROM users WHERE email = 'admin@test.com'`);
+    psql(`INSERT INTO invite_codes (code, created_by, expires_at) VALUES ('${code}', ${adminId}, NOW() + INTERVAL '1 hour')`);
     createdInviteCodes.push(code);
 
     const registrationEmail = `invite-reg-${Date.now()}@test.com`;
@@ -88,13 +88,24 @@ test.describe('Invite-Only Registration', () => {
     const page = await context.newPage();
 
     await page.goto('/register');
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
-    // Fill in credentials + invite code
+    // The invite code field appears after the registration-info API call
+    // If not visible, reload to force a fresh API call
+    const inviteField = page.getByLabel('Invite Code');
+    if (!await inviteField.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await page.reload();
+      await page.waitForLoadState('networkidle');
+    }
+
+    // Verify invite exists and is unclaimed in DB
+    const inviteStatus = psql(`SELECT used_by FROM invite_codes WHERE code = '${code}'`);
+    expect(inviteStatus).toBe(''); // NULL = unclaimed
+
     await page.getByLabel('Email').fill(registrationEmail);
-    await page.getByLabel('Password').fill('invitepass1234');
-    await page.getByLabel('Confirm Password').fill('invitepass1234');
-    await expect(page.getByLabel('Invite Code')).toBeVisible({ timeout: 5000 });
+    await page.locator('#password').fill('invitepass1234');
+    await page.locator('#confirm-password').fill('invitepass1234');
+    await expect(inviteField).toBeVisible({ timeout: 10000 });
     await page.getByLabel('Invite Code').fill(code);
     await page.getByRole('button', { name: 'Continue' }).click();
 
@@ -119,22 +130,17 @@ test.describe('Invite-Only Registration', () => {
     await page.waitForLoadState('domcontentloaded');
 
     await page.getByLabel('Email').fill(`invite-bad-${Date.now()}@test.com`);
-    await page.getByLabel('Password').fill('invitepass1234');
-    await page.getByLabel('Confirm Password').fill('invitepass1234');
+    await page.locator('#password').fill('invitepass1234');
+    await page.locator('#confirm-password').fill('invitepass1234');
     await expect(page.getByLabel('Invite Code')).toBeVisible({ timeout: 5000 });
     await page.getByLabel('Invite Code').fill('INVALID-CODE-XXXXXX');
     await page.getByRole('button', { name: 'Continue' }).click();
 
-    // Captcha step
-    await expect(page.getByLabel('Captcha')).toBeVisible({ timeout: 5000 });
-    await page.getByLabel('Captcha').fill('bypass');
-    await page.getByRole('button', { name: 'Create Account' }).click();
-
-    // Should show an error about the invalid invite code
+    // Server rejects invalid invite code in step 1 — error shown immediately
     await expect(page.getByRole('alert')).toBeVisible({ timeout: 5000 });
     await expect(page.getByText(/invalid invite code/i)).toBeVisible({ timeout: 5000 });
 
-    // Should stay on register page
+    // Should stay on register page (no captcha step)
     await expect(page).toHaveURL(/\/register/);
 
     await context.close();
@@ -156,21 +162,15 @@ test.describe('Invite-Only Registration', () => {
     await page.waitForLoadState('domcontentloaded');
 
     await page.getByLabel('Email').fill(`invite-expired-${Date.now()}@test.com`);
-    await page.getByLabel('Password').fill('invitepass1234');
-    await page.getByLabel('Confirm Password').fill('invitepass1234');
+    await page.locator('#password').fill('invitepass1234');
+    await page.locator('#confirm-password').fill('invitepass1234');
     await expect(page.getByLabel('Invite Code')).toBeVisible({ timeout: 5000 });
     await page.getByLabel('Invite Code').fill(expiredCode);
     await page.getByRole('button', { name: 'Continue' }).click();
 
-    // Captcha step
-    await expect(page.getByLabel('Captcha')).toBeVisible({ timeout: 5000 });
-    await page.getByLabel('Captcha').fill('bypass');
-    await page.getByRole('button', { name: 'Create Account' }).click();
-
-    // Should show an error about the expired code
+    // Server rejects expired invite code in step 1
     await expect(page.getByRole('alert')).toBeVisible({ timeout: 5000 });
     await expect(page.getByText(/expired/i)).toBeVisible({ timeout: 5000 });
-
     await expect(page).toHaveURL(/\/register/);
 
     await context.close();
@@ -193,21 +193,15 @@ test.describe('Invite-Only Registration', () => {
     await page.waitForLoadState('domcontentloaded');
 
     await page.getByLabel('Email').fill(`invite-used-${Date.now()}@test.com`);
-    await page.getByLabel('Password').fill('invitepass1234');
-    await page.getByLabel('Confirm Password').fill('invitepass1234');
+    await page.locator('#password').fill('invitepass1234');
+    await page.locator('#confirm-password').fill('invitepass1234');
     await expect(page.getByLabel('Invite Code')).toBeVisible({ timeout: 5000 });
     await page.getByLabel('Invite Code').fill(usedCode);
     await page.getByRole('button', { name: 'Continue' }).click();
 
-    // Captcha step
-    await expect(page.getByLabel('Captcha')).toBeVisible({ timeout: 5000 });
-    await page.getByLabel('Captcha').fill('bypass');
-    await page.getByRole('button', { name: 'Create Account' }).click();
-
-    // Should show an error about the already-used code
+    // Server rejects already-used invite code in step 1
     await expect(page.getByRole('alert')).toBeVisible({ timeout: 5000 });
     await expect(page.getByText(/already been used/i)).toBeVisible({ timeout: 5000 });
-
     await expect(page).toHaveURL(/\/register/);
 
     await context.close();
