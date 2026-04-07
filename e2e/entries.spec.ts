@@ -75,10 +75,9 @@ test.describe('Entry Tracking', () => {
     await page.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
 
+    // Wait for the dot's aria-label to update to "over" (SSE updates it asynchronously)
     const todayDot = page.locator(`button[aria-label^="${today}"]`);
-    await expect(todayDot).toBeVisible({ timeout: 5000 });
-    const dotLabel = await todayDot.getAttribute('aria-label');
-    expect(dotLabel).toMatch(/over/);
+    await expect(todayDot).toHaveAttribute('aria-label', new RegExp(`${today}:.*over`), { timeout: 10000 });
 
     psql(`DELETE FROM calorie_entries WHERE user_id = ${user.id}`);
     await ctx.close();
