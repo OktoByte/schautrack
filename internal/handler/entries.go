@@ -29,12 +29,13 @@ type EntriesHandler struct {
 }
 
 func (h *EntriesHandler) getAIProviderName(r *http.Request, user *model.User) *string {
-	provider := user.PreferredAIProvider
-	if provider == "" {
-		globalProvider := h.Settings.GetEffectiveSetting(r.Context(), "ai_provider", os.Getenv("AI_PROVIDER"))
-		if globalProvider.Value != nil {
-			provider = *globalProvider.Value
-		}
+	// Priority: env var > admin settings > user preference
+	globalProvider := h.Settings.GetEffectiveSetting(r.Context(), "ai_provider", os.Getenv("AI_PROVIDER"))
+	var provider string
+	if globalProvider.Value != nil && *globalProvider.Value != "" {
+		provider = *globalProvider.Value
+	} else if user.PreferredAIProvider != "" {
+		provider = user.PreferredAIProvider
 	}
 	if provider == "" {
 		return nil

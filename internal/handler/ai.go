@@ -52,9 +52,12 @@ func (h *AIHandler) Estimate(w http.ResponseWriter, r *http.Request) {
 	globalEndpoint := h.Settings.GetEffectiveSetting(ctx, "ai_endpoint", os.Getenv("AI_ENDPOINT"))
 	globalModel := h.Settings.GetEffectiveSetting(ctx, "ai_model", os.Getenv("AI_MODEL"))
 
-	provider := user.PreferredAIProvider
-	if provider == "" && globalProvider.Value != nil {
+	// Priority: env/admin setting > user preference
+	var provider string
+	if globalProvider.Value != nil && *globalProvider.Value != "" {
 		provider = *globalProvider.Value
+	} else if user.PreferredAIProvider != "" {
+		provider = user.PreferredAIProvider
 	}
 	if provider == "" {
 		ErrorJSON(w, http.StatusBadRequest, "No AI provider configured.")
@@ -68,16 +71,23 @@ func (h *AIHandler) Estimate(w http.ResponseWriter, r *http.Request) {
 	var apiKey string
 	var endpoint string
 	usingGlobalKey := false
+	hasGlobalConfig := (globalKey.Value != nil && *globalKey.Value != "") ||
+		(globalProvider.Value != nil && *globalProvider.Value != "")
 
-	if user.AIKey != nil && *user.AIKey != "" {
-		apiKey = service.DecryptApiKey(*user.AIKey, h.Cfg.AIKeyEncryptSecret)
-	}
-	if apiKey == "" && globalKey.Value != nil {
-		apiKey = *globalKey.Value
-		usingGlobalKey = true
-	}
-	if globalEndpoint.Value != nil {
-		endpoint = *globalEndpoint.Value
+	// When global AI config is set, ignore user's personal key/endpoint/model.
+	// Users can only bring their own key when nothing is configured globally.
+	if hasGlobalConfig {
+		if globalKey.Value != nil {
+			apiKey = *globalKey.Value
+			usingGlobalKey = true
+		}
+		if globalEndpoint.Value != nil {
+			endpoint = *globalEndpoint.Value
+		}
+	} else {
+		if user.AIKey != nil && *user.AIKey != "" {
+			apiKey = service.DecryptApiKey(*user.AIKey, h.Cfg.AIKeyEncryptSecret)
+		}
 	}
 
 	if (provider == "openai" || provider == "claude") && apiKey == "" {
@@ -123,9 +133,11 @@ func (h *AIHandler) Estimate(w http.ResponseWriter, r *http.Request) {
 		mediaType = m[1]
 	}
 
-	// Model
+	// Model: global config > user preference
 	var customModel string
-	if user.AIModel != nil && *user.AIModel != "" {
+	if hasGlobalConfig && globalModel.Value != nil && *globalModel.Value != "" {
+		customModel = *globalModel.Value
+	} else if !hasGlobalConfig && user.AIModel != nil && *user.AIModel != "" {
 		customModel = *user.AIModel
 	} else if globalModel.Value != nil {
 		customModel = *globalModel.Value

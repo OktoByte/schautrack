@@ -51,6 +51,8 @@ func Me(adminEmail string, settingsCache *database.SettingsCache, cfg *config.Co
 
 		globalKey := settingsCache.GetEffectiveSetting(r.Context(), "ai_key", cfg.AIKey)
 		hasGlobalAiKey := globalKey.Value != nil && *globalKey.Value != ""
+		globalProviderResult := settingsCache.GetEffectiveSetting(r.Context(), "ai_provider", cfg.AIProvider)
+		hasGlobalAiConfig := hasGlobalAiKey || (globalProviderResult.Value != nil && *globalProviderResult.Value != "")
 
 		JSON(w, http.StatusOK, map[string]any{
 			"user": map[string]any{
@@ -66,6 +68,7 @@ func Me(adminEmail string, settingsCache *database.SettingsCache, cfg *config.Co
 				"preferredAiProvider": nilStr(user.PreferredAIProvider),
 				"hasAiKey":           user.AIKey != nil && *user.AIKey != "",
 				"hasGlobalAiKey":     hasGlobalAiKey,
+				"hasGlobalAiConfig":  hasGlobalAiConfig,
 				"aiModel":            user.AIModel,
 				"aiDailyLimit":       user.AIDailyLimit,
 				"todosEnabled":       user.TodosEnabled,
