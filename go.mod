@@ -1,6 +1,6 @@
 module schautrack
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/alexedwards/argon2id v1.0.0
