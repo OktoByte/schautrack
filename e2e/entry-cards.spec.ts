@@ -37,8 +37,8 @@ test.describe('Entry Cards', () => {
     await page.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
 
-    // Find the entry name button
-    const nameBtn = page.getByRole('button', { name: 'Card Test' });
+    // Find the entry name button (use .first() in case of duplicate entries from re-runs)
+    const nameBtn = page.getByRole('button', { name: 'Card Test' }).first();
     await expect(nameBtn).toBeVisible({ timeout: 8000 });
 
     // Navigate up to the card container:

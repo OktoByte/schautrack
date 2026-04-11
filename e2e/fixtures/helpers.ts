@@ -9,7 +9,10 @@ const MAILPIT_URL = process.env.MAILPIT_URL || 'http://localhost:8025';
 function detectDbContainer(): string {
   try {
     const out = execSync('docker ps --format "{{.Names}}" | grep -E "schautrack.*db"', { encoding: 'utf-8' }).trim();
-    return out.split('\n')[0];
+    const names = out.split('\n').map(n => n.trim()).filter(Boolean);
+    // Prefer the test DB container over dev when both are running
+    const testDb = names.find(n => n.includes('test'));
+    return testDb || names[0] || 'schautrack-test-db-1';
   } catch {
     return 'schautrack-test-db-1';
   }

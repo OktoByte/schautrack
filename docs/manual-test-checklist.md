@@ -30,7 +30,7 @@ Items marked [A] are covered by automated E2E tests (`npm run test:e2e`).
 - [x] [A] Add entry with only macros (no name), verify it saves
 - [x] [A] Math expressions in calorie/macro inputs (e.g. `200+150`, `3*120`)
 - [x] [A] Edit an existing entry inline (tap name to edit name, tap macro pill to edit value)
-- [ ] Verify entry rows display as cards with colored macro pills
+- [x] [A] Verify entry rows display as cards with colored macro pills
 - [x] [A] Delete an entry
 - [x] [A] Verify daily total updates correctly
 - [x] [A] Verify dot/status colors reflect goal progress (green/yellow/red/grey)
@@ -51,7 +51,7 @@ Items marked [A] are covered by automated E2E tests (`npm run test:e2e`).
 - [x] [A] Add entry with macro values, verify they display correctly
 - [x] [A] Verify macro totals for the day (TodayPanel chips with progress bars)
 - [x] [A] Macro columns visible in entry list when enabled
-- [ ] Verify macro status colors (green/yellow/red) match target vs limit modes
+- [x] [A] Verify macro status colors (green/yellow/red) match target vs limit modes
 
 ## Weight Tracking
 
@@ -88,7 +88,7 @@ Items marked [A] are covered by automated E2E tests (`npm run test:e2e`).
 - [x] [A] Set time of day on a todo (smart input: typing "930" shows "09:30"), verify it displays
 - [x] [A] Verify streak counter increments on consecutive completions
 - [x] [A] Verify streak resets after a missed day
-- [ ] Verify todos persist across days
+- [x] [A] Verify todos persist across days
 - [x] [A] Verify linked user can see your todos
 
 ## Daily Notes
@@ -109,7 +109,7 @@ Items marked [A] are covered by automated E2E tests (`npm run test:e2e`).
 - [x] [A] Set a custom label on a linked user (click name to edit)
 - [x] [A] View linked user's entries (read-only, cannot edit/delete)
 - [x] [A] View linked user's weight, todos, and notes
-- [ ] Verify entry times show in CREATOR's timezone (when they ate)
+- [x] [A] Verify entry times show in CREATOR's timezone (when they ate)
 - [x] [A] Verify linked user's share card shows their dot history
 - [x] [A] Remove a link
 - [x] [A] Verify max 3 links enforced
@@ -118,7 +118,7 @@ Items marked [A] are covered by automated E2E tests (`npm run test:e2e`).
 
 - [x] [A] Change timezone in settings
 - [x] [A] Add entries near midnight, verify they land on correct date
-- [ ] View linked user's entries across timezone boundaries
+- [x] [A] View linked user's entries across timezone boundaries
 
 ## Settings
 
@@ -144,7 +144,7 @@ Items marked [A] are covered by automated E2E tests (`npm run test:e2e`).
 ## Real-time (SSE)
 
 - [x] [A] Open two browser tabs, add entry in one, verify it appears in the other
-- [ ] Verify linked user updates propagate in real-time
+- [x] [A] Verify linked user updates propagate in real-time
 - [x] [A] Verify todo/note/weight changes propagate in real-time
 
 ## Share Card
@@ -226,7 +226,7 @@ Items marked [A] are covered by automated E2E tests (`npm run test:e2e`).
 - [x] [A] Schema migrations run on fresh DB without errors
 - [ ] Existing DB migrates cleanly (no data loss)
 - [x] [A] Expired tokens get cleaned up (runs every 15 min)
-- [ ] Graceful shutdown (SIGTERM) completes without errors
+- [x] [A] Graceful shutdown (SIGTERM) completes without errors
 - [x] [A] Static assets served with correct cache headers (`immutable` for hashed assets)
 - [ ] Helm chart deploys successfully to staging
 - [ ] Staging accessible at staging.schautrack.com

@@ -6,7 +6,7 @@ export default function Layout() {
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden">
       <Header />
-      <main className="mx-auto w-full max-w-[1100px] flex-1 px-2 pt-2 pb-8 overflow-x-hidden">
+      <main className="mx-auto w-full max-w-[1100px] flex-1 px-4 pt-2 pb-8 overflow-x-hidden">
         <Outlet />
       </main>
       <Footer />

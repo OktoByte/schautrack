@@ -62,10 +62,17 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['admin'],
     },
+    // Graceful shutdown — runs LAST after all other tests (kills the container)
+    {
+      name: 'shutdown',
+      testMatch: /graceful-shutdown\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['chromium', 'admin-settings'],
+    },
     // Everything else: parallel with shared session
     {
       name: 'chromium',
-      testIgnore: [/auth\.spec\.ts/, /two-factor\.spec\.ts/, /admin\.spec\.ts/, /barcode-extended\.spec\.ts/, /legal\.spec\.ts/, /invite-code\.spec\.ts/],
+      testIgnore: [/auth\.spec\.ts/, /two-factor\.spec\.ts/, /admin\.spec\.ts/, /barcode-extended\.spec\.ts/, /legal\.spec\.ts/, /invite-code\.spec\.ts/, /graceful-shutdown\.spec\.ts/],
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'e2e/.auth/user.json',

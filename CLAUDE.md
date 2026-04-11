@@ -306,7 +306,7 @@ displayTz := targetUser.Timezone // or "UTC" if nil
 6. **Maintain** the blue-purple color scheme
 7. **Never** auto-push to staging or main - user handles deployments
 8. **Never** commit directly to main - always commit to staging first, then merge to main
-9. **Footer quote:** "You got this. Trust me."
+9. **Footer quote:** "One day at a time"
 10. **Always** write tests for new or changed logic
 11. **Never** change the calorie input `inputmode` — it must stay `inputmode="tel"` to show the numeric keypad on mobile
 12. **Never** use `eval()` or `Function()` in client-side code — CSP blocks `unsafe-eval`. Use safe parsers instead
