@@ -7,23 +7,6 @@ import (
 	"time"
 )
 
-const KgToLb = 2.20462
-
-func ToInt(value any) (int, bool) {
-	switch v := value.(type) {
-	case int:
-		return v, true
-	case int64:
-		return int(v), true
-	case float64:
-		return int(v), true
-	case string:
-		n, err := strconv.Atoi(v)
-		return n, err == nil
-	}
-	return 0, false
-}
-
 func FormatDateInTz(t time.Time, tz string) string {
 	loc, err := time.LoadLocation(tz)
 	if err != nil {
@@ -38,17 +21,6 @@ func FormatTimeInTz(t time.Time, tz string) string {
 		return t.UTC().Format("15:04")
 	}
 	return t.In(loc).Format("15:04")
-}
-
-func KgToLbs(kg float64) float64 {
-	return math.Round(kg*KgToLb*10) / 10
-}
-
-func LbsToKg(lbs float64) float64 {
-	if lbs <= 0 {
-		return 0
-	}
-	return math.Round(lbs/KgToLb*100) / 100
 }
 
 type ParseWeightResult struct {

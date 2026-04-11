@@ -86,36 +86,3 @@ func TestParseWeightTooLong(t *testing.T) {
 	}
 }
 
-func TestKgToLbs(t *testing.T) {
-	tests := []struct {
-		kg   float64
-		want float64
-	}{
-		{0, 0},
-		{1, 2.2},
-		{100, 220.5},
-	}
-	for _, tt := range tests {
-		got := KgToLbs(tt.kg)
-		if got != tt.want {
-			t.Errorf("KgToLbs(%v) = %v, want %v", tt.kg, got, tt.want)
-		}
-	}
-}
-
-func TestLbsToKg(t *testing.T) {
-	tests := []struct {
-		lbs  float64
-		want float64
-	}{
-		{0, 0},
-		{-5, 0},
-		{220.5, 100.02},
-	}
-	for _, tt := range tests {
-		got := LbsToKg(tt.lbs)
-		if got != tt.want {
-			t.Errorf("LbsToKg(%v) = %v, want %v", tt.lbs, got, tt.want)
-		}
-	}
-}

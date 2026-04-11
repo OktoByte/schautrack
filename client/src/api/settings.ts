@@ -78,11 +78,6 @@ export function cancelEmailChange() {
   return api<{ ok: boolean }>('/settings/email/cancel', { method: 'POST' });
 }
 
-export function exportData() {
-  // This returns a file download, so use regular fetch
-  window.location.href = '/settings/export';
-}
-
 export async function importData(file: File, csrfToken: string): Promise<{ ok: boolean; message?: string; error?: string }> {
   const formData = new FormData();
   formData.append('import_file', file);

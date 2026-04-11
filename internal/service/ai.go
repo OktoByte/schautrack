@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -302,15 +301,3 @@ func unhex(c byte) byte {
 	return 0xFF
 }
 
-// ValidateAIConfig logs AI configuration status at startup.
-func ValidateAIConfig(cfg struct{ AIProvider, AIKey, AIKeyEncryptSecret string }) {
-	if cfg.AIProvider != "" {
-		log.Printf("AI provider configured: %s", cfg.AIProvider)
-	}
-	if cfg.AIKey != "" {
-		log.Println("Global AI key configured")
-	}
-	if cfg.AIKeyEncryptSecret == "" {
-		log.Println("Warning: AI_KEY_ENCRYPTION_SECRET not set — user API keys will be stored unencrypted")
-	}
-}

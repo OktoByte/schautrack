@@ -157,17 +157,6 @@ func WorstDotStatus(statuses []string) string {
 	return worst
 }
 
-func ParseMacroInput(value string) *int {
-	if value == "" {
-		return nil
-	}
-	n, err := strconv.Atoi(value)
-	if err != nil || n < 0 {
-		return nil
-	}
-	return &n
-}
-
 func IsAutoCalcCalories(u MacroUser) bool {
 	v, _ := u.MacrosEnabled["auto_calc_calories"].(bool)
 	return v

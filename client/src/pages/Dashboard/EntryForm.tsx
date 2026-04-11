@@ -229,10 +229,11 @@ export default function EntryForm({ selectedDate, caloriesEnabled, autoCalcCalor
               type="submit"
               size="default"
               loading={loading}
+              disabled={!hasInput}
               className={
                 hasInput
                   ? 'bg-primary/10 text-primary border border-primary/30 font-semibold hover:bg-primary/20 bg-gradient-to-r from-primary/15 via-secondary/15 to-primary/15 bg-[length:200%_100%] animate-[shimmer_4s_linear_infinite]'
-                  : 'bg-muted text-muted-foreground border border-border hover:bg-muted hover:text-muted-foreground cursor-default'
+                  : 'bg-muted text-muted-foreground border border-border'
               }
             >
               Track

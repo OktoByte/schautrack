@@ -20,7 +20,6 @@ export default defineConfig({
         timeout: 0,
       },
       '/entries': 'http://localhost:3000',
-      '/overview': 'http://localhost:3000',
       '/weight': 'http://localhost:3000',
       '/links': 'http://localhost:3000',
       '/settings/export': 'http://localhost:3000',

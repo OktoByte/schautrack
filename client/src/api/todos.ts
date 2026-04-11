@@ -38,13 +38,6 @@ export function toggleTodo(id: number, date: string) {
   });
 }
 
-export function reorderTodos(order: number[]) {
-  return api<{ ok: boolean }>('/api/todos/reorder', {
-    method: 'POST',
-    body: JSON.stringify({ order }),
-  });
-}
-
 export function toggleTodosEnabled(enabled: boolean) {
   return api<{ ok: boolean; enabled: boolean }>('/api/todos/toggle-enabled', {
     method: 'POST',

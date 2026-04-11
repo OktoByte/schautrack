@@ -16,16 +16,6 @@ export function getDayEntries(userId: number, date: string) {
   });
 }
 
-export function getOverview(userId: number, params: { range?: number; start?: string; end?: string }) {
-  const qs = new URLSearchParams({ user: String(userId) });
-  if (params.range) qs.set('range', String(params.range));
-  if (params.start) qs.set('start', params.start);
-  if (params.end) qs.set('end', params.end);
-  return api<Record<string, unknown>>(`/overview?${qs}`, {
-    headers: { Accept: 'application/json' },
-  });
-}
-
 export function createEntry(data: {
   amount?: number;
   entry_name?: string;

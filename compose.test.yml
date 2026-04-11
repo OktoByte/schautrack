@@ -1,3 +1,5 @@
+name: schautrack-test
+
 services:
   web:
     build: .

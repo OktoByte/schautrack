@@ -12,8 +12,8 @@ export default function Header() {
   const navClass = (path: string) => {
     const active = pathname.startsWith(path);
     return cn(
-      'rounded-[10px] px-3 py-2 text-base text-foreground transition-colors max-md:rounded-none max-md:px-4 max-md:py-4 max-md:text-base max-md:border-b max-md:border-border',
-      active ? 'bg-[#0ea5e9]/[0.14] border border-[#0ea5e9]/50 max-md:border-l-2 max-md:border-l-[#0ea5e9]' : 'hover:bg-surface-hover',
+      'rounded-[10px] px-3 py-2 text-base text-foreground transition-colors border border-transparent max-md:rounded-none max-md:px-4 max-md:py-4 max-md:text-base max-md:border-b max-md:border-border',
+      active ? 'bg-[#0ea5e9]/[0.14] border-[#0ea5e9]/50 max-md:border-l-2 max-md:border-l-[#0ea5e9]' : 'hover:bg-surface-hover',
     );
   };
 
@@ -40,13 +40,19 @@ export default function Header() {
           <>
             <button
               type="button"
-              className="z-[102] flex flex-col gap-1 p-2 md:hidden"
+              className="relative z-[102] flex items-center justify-center p-2 md:hidden text-foreground"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Toggle menu"
             >
-              <span className={cn('block h-0.5 w-5 rounded bg-foreground transition-transform', menuOpen && 'translate-x-0 translate-y-[3px] rotate-45')} />
-              <span className={cn('block h-0.5 w-5 rounded bg-foreground transition-opacity', menuOpen && 'opacity-0')} />
-              <span className={cn('block h-0.5 w-5 rounded bg-foreground transition-transform', menuOpen && '-translate-y-[3px] -rotate-45')} />
+              {menuOpen ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6 6 18" /><path d="M6 6 18 18" />
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 12h16" /><path d="M4 6h16" /><path d="M4 18h16" />
+                </svg>
+              )}
             </button>
 
             <nav className={cn(
