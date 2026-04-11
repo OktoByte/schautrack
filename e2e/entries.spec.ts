@@ -1,32 +1,22 @@
 import { test, expect } from '@playwright/test';
-import { psql, createIsolatedUser } from './fixtures/helpers';
+import { psql, createIsolatedUser, loginUser } from './fixtures/helpers';
 
-const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
 let user: { email: string; password: string; id: string };
 
 test.describe('Entry Tracking', () => {
-  test.setTimeout(60000); // Extra time for per-test login under parallel load
   test.beforeAll(() => {
     user = createIsolatedUser('entries');
   });
 
-  async function loginAndGo(page: import('@playwright/test').Page) {
-    await page.goto(`${baseURL}/login`);
-    await page.waitForLoadState('domcontentloaded');
-    await page.getByLabel('Email').fill(user.email);
-    await page.getByLabel('Password').fill(user.password);
-    await page.getByRole('button', { name: 'Log In' }).click();
-    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
-  }
-
   test('create and delete a calorie entry', async ({ browser }) => {
-    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-    const page = await ctx.newPage();
-    await loginAndGo(page);
+    const { context: ctx, page } = await loginUser(browser, user.email, user.password);
+    await page.goto('/dashboard');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('Test meal');
     await page.locator('input[inputmode="tel"]').first().fill('500');
     await page.getByRole('button', { name: 'Track' }).click();
+
     await expect(page.getByRole('button', { name: 'Test meal' })).toBeVisible({ timeout: 5000 });
 
     await page.locator('button[title="Delete"]').first().click();
@@ -35,13 +25,14 @@ test.describe('Entry Tracking', () => {
   });
 
   test('math expressions evaluate correctly', async ({ browser }) => {
-    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-    const page = await ctx.newPage();
-    await loginAndGo(page);
+    const { context: ctx, page } = await loginUser(browser, user.email, user.password);
+    await page.goto('/dashboard');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('Math test meal');
     await page.locator('input[inputmode="tel"]').first().fill('200+150');
     await page.getByRole('button', { name: 'Track' }).click();
+
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole('button', { name: 'Math test meal' })).toBeVisible({ timeout: 5000 });
 
@@ -50,9 +41,9 @@ test.describe('Entry Tracking', () => {
   });
 
   test('daily total updates after adding entry', async ({ browser }) => {
-    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-    const page = await ctx.newPage();
-    await loginAndGo(page);
+    const { context: ctx, page } = await loginUser(browser, user.email, user.password);
+    await page.goto('/dashboard');
+    await page.waitForLoadState('domcontentloaded');
 
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('Total test');
     await page.locator('input[inputmode="tel"]').first().fill('500');
@@ -65,9 +56,8 @@ test.describe('Entry Tracking', () => {
   });
 
   test('dot colors reflect goal progress', async ({ browser }) => {
-    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-    const page = await ctx.newPage();
-    await loginAndGo(page);
+    const { context: ctx, page } = await loginUser(browser, user.email, user.password);
+    await page.goto('/dashboard');
     const today = new Date().toISOString().split('T')[0];
 
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('Over Goal');
@@ -75,7 +65,6 @@ test.describe('Entry Tracking', () => {
     await page.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
 
-    // Wait for the dot's aria-label to update to "over" (SSE updates it asynchronously)
     const todayDot = page.locator(`button[aria-label^="${today}"]`);
     await expect(todayDot).toHaveAttribute('aria-label', new RegExp(`${today}:.*over`), { timeout: 10000 });
 
@@ -84,9 +73,8 @@ test.describe('Entry Tracking', () => {
   });
 
   test('entry date can be changed via date picker', async ({ browser }) => {
-    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-    const page = await ctx.newPage();
-    await loginAndGo(page);
+    const { context: ctx, page } = await loginUser(browser, user.email, user.password);
+    await page.goto('/dashboard');
 
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 

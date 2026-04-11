@@ -147,19 +147,58 @@ export function createIsolatedUser(specName: string, opts: { features?: boolean 
 }
 
 /**
- * Login as a specific user via the API and save storageState for the browser context.
- * Returns the path to the storageState file.
+ * Login as a specific user via the API (fast, no UI interaction).
+ * Uses direct HTTP requests to get a session cookie, then creates a browser context with it.
  */
 export async function loginUser(browser: import('@playwright/test').Browser, email: string, password: string): Promise<{ context: import('@playwright/test').BrowserContext; page: import('@playwright/test').Page }> {
   const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
-  const context = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
+
+  // Get CSRF token and session cookie via API
+  const csrfRes = await fetch(`${baseURL}/api/csrf`);
+  const setCookie = csrfRes.headers.get('set-cookie') || '';
+  const sidMatch = setCookie.match(/schautrack\.sid=([^;]+)/);
+  const sid = sidMatch ? sidMatch[1] : '';
+  const { token } = await csrfRes.json() as { token: string };
+
+  // Login via API
+  const loginRes = await fetch(`${baseURL}/api/auth/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': token,
+      'Cookie': `schautrack.sid=${sid}`,
+    },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!loginRes.ok) {
+    const body = await loginRes.text();
+    throw new Error(`API login failed (${loginRes.status}): ${body}`);
+  }
+
+  // Extract the session cookie from the login response
+  const loginSetCookie = loginRes.headers.get('set-cookie') || '';
+  const loginSidMatch = loginSetCookie.match(/schautrack\.sid=([^;]+)/);
+  const loginSid = loginSidMatch ? loginSidMatch[1] : sid;
+
+  // Create browser context with the session cookie
+  const context = await browser.newContext({
+    baseURL,
+    storageState: {
+      cookies: [{
+        name: 'schautrack.sid',
+        value: loginSid,
+        domain: new URL(baseURL).hostname,
+        path: '/',
+        httpOnly: true,
+        secure: false,
+        sameSite: 'Lax',
+        expires: -1,
+      }],
+      origins: [],
+    },
+  });
   const page = await context.newPage();
-  await page.goto('/login');
-  await page.waitForLoadState('domcontentloaded');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Log In' }).click();
-  await page.waitForURL('/dashboard', { timeout: 15000 });
   return { context, page };
 }
 
