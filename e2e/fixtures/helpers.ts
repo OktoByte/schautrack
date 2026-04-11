@@ -34,8 +34,17 @@ export function bcryptHash(password: string): string {
   ).trim();
 }
 
-/** Generate a valid TOTP code from a base32 secret. */
+/** Generate a valid TOTP code from a base32 secret.
+ *  Waits if we're near the end of a 30s window to avoid edge-case expiry. */
 export function generateTOTP(secret: string): string {
+  // If less than 5 seconds remain in the current TOTP window, wait for the next one
+  const secondsIntoWindow = Math.floor(Date.now() / 1000) % 30;
+  if (secondsIntoWindow >= 25) {
+    const waitMs = (30 - secondsIntoWindow + 1) * 1000;
+    const { execSync } = require('child_process');
+    execSync(`sleep ${waitMs / 1000}`);
+  }
+
   // Decode base32 secret
   const base32chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   let bits = '';
