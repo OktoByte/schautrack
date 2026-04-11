@@ -55,12 +55,12 @@ export default defineConfig({
       },
       dependencies: ['admin-setup'],
     },
-    // Tests that modify admin_settings — run after admin+chromium to avoid interference
+    // Tests that modify admin_settings — run last to avoid interference
     {
       name: 'admin-settings',
       testMatch: [/barcode-extended\.spec\.ts/, /legal\.spec\.ts/, /invite-code\.spec\.ts/],
       use: { ...devices['Desktop Chrome'] },
-      dependencies: ['admin', 'chromium'],
+      dependencies: ['admin'],
     },
     // Everything else: parallel with shared session
     {
