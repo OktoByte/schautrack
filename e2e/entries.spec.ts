@@ -13,7 +13,9 @@ test.describe('Entry Tracking', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
 
-    await page.locator('input[placeholder="Breakfast, snack..."]').fill('Test meal');
+    const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
+    await expect(nameInput).toBeVisible({ timeout: 10000 });
+    await nameInput.fill('Test meal');
     await page.locator('input[inputmode="tel"]').first().fill('500');
     await page.getByRole('button', { name: 'Track' }).click();
 
@@ -29,7 +31,10 @@ test.describe('Entry Tracking', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
 
-    await page.locator('input[placeholder="Breakfast, snack..."]').fill('Math test meal');
+    // Wait for the entry form to render
+    const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
+    await expect(nameInput).toBeVisible({ timeout: 10000 });
+    await nameInput.fill('Math test meal');
     await page.locator('input[inputmode="tel"]').first().fill('200+150');
     await page.getByRole('button', { name: 'Track' }).click();
 
@@ -45,7 +50,9 @@ test.describe('Entry Tracking', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
 
-    await page.locator('input[placeholder="Breakfast, snack..."]').fill('Total test');
+    const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
+    await expect(nameInput).toBeVisible({ timeout: 10000 });
+    await nameInput.fill('Total test');
     await page.locator('input[inputmode="tel"]').first().fill('500');
     await page.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
@@ -58,15 +65,20 @@ test.describe('Entry Tracking', () => {
   test('dot colors reflect goal progress', async ({ browser }) => {
     const { context: ctx, page } = await loginUser(browser, user.email, user.password);
     await page.goto('/dashboard');
+    await page.waitForLoadState('domcontentloaded');
     const today = new Date().toISOString().split('T')[0];
+
+    // Wait for the timeline dots to render (ensures SSE is connected)
+    const todayDot = page.locator(`button[aria-label^="${today}"]`);
+    await expect(todayDot).toBeVisible({ timeout: 10000 });
 
     await page.locator('input[placeholder="Breakfast, snack..."]').fill('Over Goal');
     await page.locator('input[inputmode="tel"]').first().fill('2500');
     await page.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });
 
-    const todayDot = page.locator(`button[aria-label^="${today}"]`);
-    await expect(todayDot).toHaveAttribute('aria-label', new RegExp(`${today}:.*over`), { timeout: 10000 });
+    // Wait for the dot's status to update via SSE (may take a moment after the toast)
+    await expect(todayDot).toHaveAttribute('aria-label', new RegExp(`${today}:.*over`), { timeout: 15000 });
 
     psql(`DELETE FROM calorie_entries WHERE user_id = ${user.id}`);
     await ctx.close();
@@ -78,8 +90,10 @@ test.describe('Entry Tracking', () => {
 
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
+    const nameInput = page.locator('input[placeholder="Breakfast, snack..."]');
+    await expect(nameInput).toBeVisible({ timeout: 10000 });
     await page.locator('form input[type="date"]').first().fill(yesterday);
-    await page.locator('input[placeholder="Breakfast, snack..."]').fill('Yesterday entry');
+    await nameInput.fill('Yesterday entry');
     await page.locator('input[inputmode="tel"]').first().fill('111');
     await page.getByRole('button', { name: 'Track' }).click();
     await expect(page.getByText('Entry tracked')).toBeVisible({ timeout: 5000 });

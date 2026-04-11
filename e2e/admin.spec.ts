@@ -115,24 +115,22 @@ test.describe('Admin Panel', () => {
     await page.waitForURL('/admin', { timeout: 10000 });
     await expect(page.getByText('Invite Codes')).toBeVisible({ timeout: 10000 });
 
-    // Ensure at least one invite exists
-    const hasInvites = await page.locator('code').count();
-    if (hasInvites === 0) {
-      await page.getByRole('button', { name: 'Create Invite' }).click();
-      await expect(page.locator('code').first()).toBeVisible({ timeout: 5000 });
-    }
+    // Create a fresh invite to ensure we have one to delete
+    await page.getByRole('button', { name: 'Create Invite' }).click();
+    await page.waitForTimeout(1000);
 
-    const codesBefore = await page.locator('code').count();
+    // Count invites by their <code> elements in the invite list section
+    const inviteSection = page.getByText('Invite Codes').locator('..').locator('..');
+    const codesBefore = await inviteSection.locator('code').count();
+    expect(codesBefore).toBeGreaterThan(0);
 
-    // Click the Delete button for the first unused invite
-    const deleteBtn = page.getByRole('button', { name: 'Delete' }).first();
-    await deleteBtn.scrollIntoViewIfNeeded();
-    // Note: the invite delete uses a plain <button> with text "Delete", not a Button component
-    const inviteDeleteBtn = page.locator('button').filter({ hasText: /^Delete$/ }).first();
+    // Find and click the first Delete button in the invite section
+    const inviteDeleteBtn = inviteSection.locator('button').filter({ hasText: /^Delete$/ }).first();
+    await inviteDeleteBtn.scrollIntoViewIfNeeded();
     await inviteDeleteBtn.click();
 
     // Code count should decrease by 1
-    await expect(page.locator('code')).toHaveCount(codesBefore - 1, { timeout: 5000 });
+    await expect(inviteSection.locator('code')).toHaveCount(codesBefore - 1, { timeout: 5000 });
   });
 
   test('view user list with test users', async ({ page }) => {
