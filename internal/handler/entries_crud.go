@@ -182,21 +182,28 @@ func (h *EntriesHandler) UpdateEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if v, ok := body["amount"]; ok && !autoCalc {
-		result := service.ParseAmount(fmt.Sprintf("%v", v), MaxEntryCalories)
-		if !result.Ok || result.Value == 0 {
-			ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Calories must be between -%d and %d", MaxEntryCalories, MaxEntryCalories))
-			return
+		vStr := strings.TrimSpace(fmt.Sprintf("%v", v))
+		if vStr == "" || vStr == "<nil>" || vStr == "0" {
+			updates = append(updates, fmt.Sprintf("amount = $%d", idx))
+			values = append(values, 0)
+			idx++
+		} else {
+			result := service.ParseAmount(vStr, MaxEntryCalories)
+			if !result.Ok {
+				ErrorJSON(w, http.StatusBadRequest, fmt.Sprintf("Calories must be between -%d and %d", MaxEntryCalories, MaxEntryCalories))
+				return
+			}
+			updates = append(updates, fmt.Sprintf("amount = $%d", idx))
+			values = append(values, result.Value)
+			idx++
 		}
-		updates = append(updates, fmt.Sprintf("amount = $%d", idx))
-		values = append(values, result.Value)
-		idx++
 	}
 
 	for _, key := range service.MacroKeys {
 		fieldName := key + "_g"
 		if v, ok := body[fieldName]; ok {
 			vStr := strings.TrimSpace(fmt.Sprintf("%v", v))
-			if vStr == "" || vStr == "<nil>" {
+			if vStr == "" || vStr == "<nil>" || vStr == "0" {
 				updates = append(updates, fmt.Sprintf("%s = $%d", fieldName, idx))
 				values = append(values, nil)
 				idx++

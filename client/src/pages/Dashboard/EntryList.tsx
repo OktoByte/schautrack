@@ -75,9 +75,9 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
     if (editing === 'name') {
       data.name = editValue;
     } else if (editing === 'amount') {
-      data.amount = editValue;
+      data.amount = !editValue || editValue === '0' ? null : editValue;
     } else {
-      data[`${editing}_g`] = editValue || null;
+      data[`${editing}_g`] = !editValue || editValue === '0' ? null : editValue;
     }
 
     try {
@@ -144,7 +144,7 @@ function EntryRow({ entry, canEdit, enabledMacros, caloriesEnabled, autoCalcCalo
             <MacroPill
               macroKey="kcal"
               label="Calories"
-              value={entry.amount}
+              value={entry.amount || null}
               unit="kcal"
               editing={editing === 'amount'}
               editValue={editValue}
