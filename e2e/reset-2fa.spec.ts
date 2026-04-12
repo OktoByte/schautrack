@@ -48,7 +48,7 @@ test('login shows 2FA prompt', async ({ browser }) => {
   await page.getByRole('button', { name: 'Log In' }).click();
 
   // Should see TOTP input — not redirect to dashboard
-  const totpInput = page.getByPlaceholder(/enter 6-digit code/i);
+  const totpInput = page.getByLabel('2FA Code');
   await expect(totpInput).toBeVisible({ timeout: 10000 });
 
   await context.close();
@@ -65,7 +65,7 @@ test('"Lost your authenticator?" link is clickable', async ({ browser }) => {
   await page.getByRole('button', { name: 'Log In' }).click();
 
   // Wait for TOTP prompt
-  await expect(page.getByPlaceholder(/enter 6-digit code/i)).toBeVisible({ timeout: 10000 });
+  await expect(page.getByLabel('2FA Code')).toBeVisible({ timeout: 10000 });
 
   // "Lost your authenticator?" should be an interactive button (not a greyed-out span)
   const lostLink = page.getByRole('button', { name: /lost your authenticator/i });
@@ -89,7 +89,7 @@ test('reset 2FA via email code', async ({ browser }) => {
   await page.getByRole('button', { name: 'Log In' }).click();
 
   // Wait for TOTP prompt then click "Lost your authenticator?"
-  await expect(page.getByPlaceholder(/enter 6-digit code/i)).toBeVisible({ timeout: 10000 });
+  await expect(page.getByLabel('2FA Code')).toBeVisible({ timeout: 10000 });
   await page.getByRole('button', { name: /lost your authenticator/i }).click();
 
   // Reset request form: email and password fields should appear
@@ -114,11 +114,8 @@ test('reset 2FA via email code', async ({ browser }) => {
   await codeInput.fill(code);
   await page.getByRole('button', { name: /verify|submit|confirm/i }).click();
 
-  // 2FA should now be disabled — user is either redirected to dashboard or shown a success message
-  const isOnDashboard = page.waitForURL(/\/dashboard/, { timeout: 8000 }).then(() => true).catch(() => false);
-  const hasSuccess = page.getByText(/2fa removed|2fa disabled|log in/i).isVisible({ timeout: 8000 }).catch(() => false);
-  const [onDash, hasMsg] = await Promise.all([isOnDashboard, hasSuccess]);
-  expect(onDash || hasMsg).toBe(true);
+  // 2FA should now be disabled — success message shown on login page
+  await expect(page.getByText(/2fa removed/i)).toBeVisible({ timeout: 10000 });
 
   await context.close();
 });
@@ -138,7 +135,7 @@ test('login works without 2FA after reset', async ({ browser }) => {
   await expect(page).toHaveURL(/\/dashboard/);
 
   // TOTP input must NOT be visible
-  const totpInput = page.getByPlaceholder(/enter 6-digit code/i);
+  const totpInput = page.getByLabel('2FA Code');
   await expect(totpInput).not.toBeVisible();
 
   await context.close();
