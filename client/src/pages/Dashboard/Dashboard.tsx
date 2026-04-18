@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useRequireAuth } from '@/hooks/useAuth';
 import { getDashboard, getDayEntries } from '@/api/entries';
 import { getWeightDay } from '@/api/weight';
 import { useDashboardStore } from '@/stores/dashboardStore';
+import { computeMacroStatus } from '@/lib/macros';
 import TodayPanel from './TodayPanel';
 import EntryForm from './EntryForm';
 import Timeline from './Timeline';
@@ -55,6 +56,41 @@ export default function Dashboard() {
     placeholderData: keepPreviousData,
   });
 
+  // Compute selected day's totals from entries
+  const selectedTotal = useMemo(() => {
+    if (!dayData?.entries) return dashboard?.todayTotal ?? 0;
+    return dayData.entries.reduce((sum, e) => sum + (e.amount || 0), 0);
+  }, [dayData?.entries, dashboard?.todayTotal]);
+
+  const selectedMacroTotals = useMemo(() => {
+    if (!dayData?.entries) return dashboard?.todayMacroTotals ?? {};
+    const totals: Record<string, number> = {};
+    for (const e of dayData.entries) {
+      if (e.macros) {
+        for (const [key, val] of Object.entries(e.macros)) {
+          if (val != null) totals[key] = (totals[key] || 0) + val;
+        }
+      }
+    }
+    return totals;
+  }, [dayData?.entries, dashboard?.todayMacroTotals]);
+
+  const selectedCalorieStatus = useMemo(() => {
+    if (!dashboard) return { statusClass: '', statusText: '' };
+    return computeMacroStatus(selectedTotal, dashboard.dailyGoal, dashboard.macroModes?.calories || 'limit', dashboard.user.goalThreshold);
+  }, [selectedTotal, dashboard]);
+
+  const selectedMacroStatuses = useMemo(() => {
+    if (!dashboard) return {};
+    const statuses: Record<string, { statusClass: string; statusText: string }> = {};
+    for (const key of dashboard.enabledMacros) {
+      const total = selectedMacroTotals[key] || 0;
+      const goal = dashboard.macroGoals[key] ?? null;
+      statuses[key] = computeMacroStatus(total, goal, dashboard.macroModes?.[key] || 'limit', dashboard.user.goalThreshold);
+    }
+    return statuses;
+  }, [selectedMacroTotals, dashboard]);
+
   if (authLoading || isLoading || !dashboard) {
     return <div className="flex items-center justify-center py-12"><div className="size-6 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>;
   }
@@ -63,14 +99,16 @@ export default function Dashboard() {
     <div className="flex flex-col gap-2">
       <TodayPanel
         dailyGoal={dashboard.dailyGoal}
-        todayTotal={dashboard.todayTotal}
+        todayTotal={selectedTotal}
         caloriesEnabled={dashboard.caloriesEnabled}
-        calorieStatus={dashboard.calorieStatus}
+        calorieStatus={selectedCalorieStatus}
         enabledMacros={dashboard.enabledMacros}
         macroGoals={dashboard.macroGoals}
-        todayMacroTotals={dashboard.todayMacroTotals}
-        macroStatuses={dashboard.macroStatuses}
+        todayMacroTotals={selectedMacroTotals}
+        macroStatuses={selectedMacroStatuses}
         macroModes={dashboard.macroModes}
+        selectedDate={selectedDate}
+        todayStr={dashboard.todayStr}
       />
 
       {canEdit && (
