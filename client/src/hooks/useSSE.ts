@@ -1,8 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useToastStore } from '@/stores/toastStore';
+import { useAuthStore } from '@/stores/authStore';
 
 export function useSSE() {
   const queryClient = useQueryClient();
+  const addToast = useToastStore((s) => s.addToast);
+  const fetchUser = useAuthStore((s) => s.fetchUser);
   const sourceRef = useRef<EventSource | null>(null);
   const retryDelayRef = useRef(2000);
 
@@ -25,9 +29,16 @@ export function useSSE() {
         queryClient.invalidateQueries({ queryKey: ['me'] });
       });
 
-      source.addEventListener('link-change', () => {
+      source.addEventListener('link-change', (e) => {
         queryClient.invalidateQueries({ queryKey: ['dashboard'] });
         queryClient.invalidateQueries({ queryKey: ['settings'] });
+        fetchUser();
+        try {
+          const data = JSON.parse((e as MessageEvent).data);
+          if (data.type === 'request' && data.email) {
+            addToast('info', `${data.email} wants to link with you`);
+          }
+        } catch { /* ignore parse errors */ }
       });
 
       source.addEventListener('link-label-change', () => {

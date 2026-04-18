@@ -14,6 +14,7 @@ export default function Toaster() {
             'flex items-center gap-3 rounded-md border px-4 py-3 text-sm shadow-lg animate-in slide-in-from-right-5 fade-in',
             toast.type === 'success' && 'bg-card border-success/30 text-green-400',
             toast.type === 'error' && 'bg-card border-destructive/30 text-red-400',
+            toast.type === 'info' && 'bg-card border-[#0ea5e9]/30 text-[#0ea5e9]',
           )}
           onClick={() => removeToast(toast.id)}
         >

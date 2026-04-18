@@ -5,7 +5,7 @@ import { logout } from '@/api/auth';
 import { cn } from '@/lib/utils';
 
 export default function Header() {
-  const { user, isAdmin, clearUser } = useAuthStore();
+  const { user, isAdmin, pendingLinkRequests, clearUser } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -68,8 +68,11 @@ export default function Header() {
               <Link to="/dashboard" onClick={() => setMenuOpen(false)} className={navClass('/dashboard')}>
                 Dashboard
               </Link>
-              <Link to="/settings" onClick={() => setMenuOpen(false)} className={navClass('/settings')}>
+              <Link to="/settings" onClick={() => setMenuOpen(false)} className={cn(navClass('/settings'), 'relative')}>
                 Settings
+                {pendingLinkRequests > 0 && (
+                  <span className="absolute top-1 right-1 size-2 rounded-full bg-[#0ea5e9] max-md:top-4 max-md:right-3" />
+                )}
               </Link>
               <button type="button" onClick={handleLogout}
                 className="cursor-pointer rounded-md border-none bg-transparent px-3 py-2 text-left text-base font-inherit text-foreground transition-colors hover:bg-surface-hover max-md:border-b max-md:border-border max-md:rounded-none max-md:px-4 max-md:py-4 max-md:text-base">

@@ -25,7 +25,7 @@ func CsrfToken(w http.ResponseWriter, r *http.Request) {
 }
 
 // Me handles GET /api/me
-func Me(adminEmail string, settingsCache *database.SettingsCache, cfg *config.Config) http.HandlerFunc {
+func Me(pool *pgxpool.Pool, adminEmail string, settingsCache *database.SettingsCache, cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := middleware.GetCurrentUser(r)
 		if user == nil {
@@ -54,6 +54,11 @@ func Me(adminEmail string, settingsCache *database.SettingsCache, cfg *config.Co
 		globalProviderResult := settingsCache.GetEffectiveSetting(r.Context(), "ai_provider", cfg.AIProvider)
 		hasGlobalAiConfig := hasGlobalAiKey || (globalProviderResult.Value != nil && *globalProviderResult.Value != "")
 
+		var pendingLinkRequests int
+		pool.QueryRow(r.Context(),
+			"SELECT count(*) FROM account_links WHERE target_id = $1 AND status = 'pending'",
+			user.ID).Scan(&pendingLinkRequests)
+
 		JSON(w, http.StatusOK, map[string]any{
 			"user": map[string]any{
 				"id":                  user.ID,
@@ -74,7 +79,8 @@ func Me(adminEmail string, settingsCache *database.SettingsCache, cfg *config.Co
 				"todosEnabled":       user.TodosEnabled,
 				"notesEnabled":       user.NotesEnabled,
 			},
-			"isAdmin": middleware.IsAdmin(user, adminEmail),
+			"isAdmin":             middleware.IsAdmin(user, adminEmail),
+			"pendingLinkRequests": pendingLinkRequests,
 		})
 	}
 }

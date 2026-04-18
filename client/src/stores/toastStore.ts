@@ -2,13 +2,13 @@ import { create } from 'zustand';
 
 interface Toast {
   id: number;
-  type: 'success' | 'error';
+  type: 'success' | 'error' | 'info';
   message: string;
 }
 
 interface ToastState {
   toasts: Toast[];
-  addToast: (type: 'success' | 'error', message: string) => void;
+  addToast: (type: 'success' | 'error' | 'info', message: string) => void;
   removeToast: (id: number) => void;
 }
 

@@ -94,7 +94,7 @@ func main() {
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/health", handler.Health(pool, cfg.BuildVersion))
 		r.Get("/csrf", handler.CsrfToken)
-		r.Get("/me", handler.Me(cfg.AdminEmail, settingsCache, cfg))
+		r.Get("/me", handler.Me(pool, cfg.AdminEmail, settingsCache, cfg))
 
 		// Registration info (public)
 		r.Get("/auth/registration-info", handler.RegistrationInfo(settingsCache, cfg))
