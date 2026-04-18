@@ -12,6 +12,8 @@ interface Props {
   todayMacroTotals: Record<string, number>;
   macroStatuses: Record<string, MacroStatus>;
   macroModes: Record<string, string>;
+  selectedDate: string;
+  todayStr: string;
 }
 
 const LABEL_COLORS: Record<string, string> = {
@@ -42,6 +44,7 @@ function statusClasses(statusClass: string) {
 export default function TodayPanel({
   dailyGoal, todayTotal, caloriesEnabled, calorieStatus,
   enabledMacros, macroGoals, todayMacroTotals, macroStatuses,
+  selectedDate, todayStr,
 }: Props) {
   if (!caloriesEnabled && enabledMacros.length === 0) {
     return (
@@ -57,7 +60,7 @@ export default function TodayPanel({
   return (
     <section className="rounded-xl border-2 border-border bg-card overflow-hidden">
       <div className="px-4 py-3 border-b-2 border-border">
-        <h3 className="text-sm font-medium text-muted-foreground">Today</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">{selectedDate === todayStr ? 'Today' : selectedDate}</h3>
       </div>
       <div className="p-4 grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
         {caloriesEnabled && (
