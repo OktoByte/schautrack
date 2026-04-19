@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { login, reset2fa } from '@/api/auth';
+import { getAuthInfo, passkeyLoginBegin, passkeyLoginFinish, type AuthInfo } from '@/api/passkeys';
 import { useAuthStore } from '@/stores/authStore';
 import { ApiError } from '@/api/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Alert';
+import { startAuthentication } from '@simplewebauthn/browser';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -16,6 +18,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [requireToken, setRequireToken] = useState(false);
   const [canReset2fa, setCanReset2fa] = useState(false);
   const [captchaSvg, setCaptchaSvg] = useState('');
@@ -23,8 +26,28 @@ export default function Login() {
   const [resetEmail, setResetEmail] = useState('');
   const [resetPassword, setResetPassword] = useState('');
   const [resetCode, setResetCode] = useState('');
+  const [authInfo, setAuthInfo] = useState<AuthInfo | null>(null);
   const navigate = useNavigate();
   const { fetchUser } = useAuthStore();
+
+  useEffect(() => {
+    getAuthInfo().then(setAuthInfo).catch(() => {});
+  }, []);
+
+  const handlePasskeyLogin = async () => {
+    setPasskeyLoading(true);
+    setError('');
+    try {
+      const options = await passkeyLoginBegin();
+      const credential = await startAuthentication({ optionsJSON: options as any });
+      await passkeyLoginFinish(credential as any);
+      await fetchUser();
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Passkey login failed');
+    }
+    setPasskeyLoading(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,6 +157,27 @@ export default function Login() {
         <h2 className="mb-6 text-xl font-semibold">Log In</h2>
         {error && <Alert type="error" message={error} className="mb-4" />}
         {success && <Alert type="success" message={success} className="mb-4" />}
+
+        {!requireToken && !resetMode && authInfo && (authInfo.passkeysEnabled || authInfo.oidcProviders.length > 0) && (
+          <div className="flex flex-col gap-2 mb-2">
+            {authInfo.passkeysEnabled && (
+              <Button type="button" variant="outline" className="w-full" loading={passkeyLoading} onClick={handlePasskeyLogin}>
+                Sign in with passkey
+              </Button>
+            )}
+            {authInfo.oidcProviders.map((p) => (
+              <Button key={p.name} type="button" variant="outline" className="w-full"
+                onClick={() => { window.location.href = `/auth/oidc/${p.name}/login`; }}>
+                Sign in with {p.label}
+              </Button>
+            ))}
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+              <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {!requireToken ? (
             <>

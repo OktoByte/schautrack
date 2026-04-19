@@ -16,6 +16,8 @@ export interface User {
   todosEnabled: boolean;
   notesEnabled: boolean;
   hasGlobalAiKey?: boolean;
+  passkeyCount: number;
+  oidcProviders: string[];
 }
 
 export interface Entry {

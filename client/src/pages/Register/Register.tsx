@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { register, getRegistrationInfo } from '@/api/auth';
+import { getAuthInfo, type AuthInfo } from '@/api/passkeys';
 import { useAuthStore } from '@/stores/authStore';
 import { ApiError } from '@/api/client';
 import { Button } from '@/components/ui/Button';
@@ -21,6 +22,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'credentials' | 'captcha'>('credentials');
   const [requireInvite, setRequireInvite] = useState(false);
+  const [authInfo, setAuthInfo] = useState<AuthInfo | null>(null);
   const navigate = useNavigate();
   const { fetchUser } = useAuthStore();
 
@@ -28,6 +30,7 @@ export default function Register() {
     getRegistrationInfo().then((info) => {
       if (!info.registrationEnabled) setRequireInvite(true);
     }).catch(() => {});
+    getAuthInfo().then(setAuthInfo).catch(() => {});
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,6 +71,22 @@ export default function Register() {
       <Card className="w-full max-w-sm">
         <h2 className="mb-6 text-xl font-semibold">Create Account</h2>
         {error && <Alert type="error" message={error} className="mb-4" />}
+
+        {step === 'credentials' && authInfo && authInfo.oidcProviders.length > 0 && (
+          <div className="flex flex-col gap-2 mb-2">
+            {authInfo.oidcProviders.map((p) => (
+              <Button key={p.name} type="button" variant="outline" className="w-full"
+                onClick={() => { window.location.href = `/auth/oidc/${p.name}/login`; }}>
+                Sign up with {p.label}
+              </Button>
+            ))}
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+              <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">or</span></div>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {step === 'credentials' ? (
             <>

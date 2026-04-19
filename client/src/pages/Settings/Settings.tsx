@@ -15,6 +15,8 @@ import AISettings from './AISettings';
 import LinkSettings from './LinkSettings';
 import TodoSettings from './TodoSettings';
 import NoteSettings from './NoteSettings';
+import PasskeySettings from './PasskeySettings';
+import OIDCSettings from './OIDCSettings';
 
 export default function Settings() {
   const { isLoading: authLoading } = useRequireAuth();
@@ -100,6 +102,12 @@ export default function Settings() {
         </div>
         <div className="break-inside-avoid">
           <TwoFactorSettings totpEnabled={data.user.totpEnabled} onUpdate={refresh} />
+        </div>
+        <div className="break-inside-avoid">
+          <PasskeySettings onUpdate={refresh} />
+        </div>
+        <div className="break-inside-avoid">
+          <OIDCSettings linkedProviders={data.user.oidcProviders || []} onUpdate={refresh} />
         </div>
         <div className="break-inside-avoid">
           <LinkSettings
