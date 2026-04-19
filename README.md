@@ -133,6 +133,37 @@ Photo-based nutrition estimation with support for OpenAI, Claude, and Ollama.
 | `ENABLE_BARCODE` | `true` | Enable barcode scanning via OpenFoodFacts. Set `false` to disable. |
 | `ENABLE_REGISTRATION` | `open` | `open` (anyone can register) or `false` / `invite` (requires invite code). Also configurable via `/admin`. |
 
+### OIDC (Single Sign-On)
+
+Generic OpenID Connect support — works with Google, Keycloak, Authentik, and any OIDC-compliant provider. Users are auto-created on first login and auto-linked by email to existing accounts.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OIDC_PROVIDERS` | *(empty)* | Comma-separated list of provider names (e.g., `google,corporate`) |
+| `OIDC_<NAME>_CLIENT_ID` | *(empty)* | OAuth2 client ID for the provider |
+| `OIDC_<NAME>_CLIENT_SECRET` | *(empty)* | OAuth2 client secret for the provider |
+| `OIDC_<NAME>_ISSUER` | *(auto)* | OIDC issuer URL. Auto-detected for `google`. |
+| `OIDC_<NAME>_LABEL` | *(name)* | Button label (default: capitalized provider name) |
+| `OIDC_REQUIRE_INVITE` | `false` | Require invite code for OIDC registration (default: OIDC bypasses invite-only) |
+| `OIDC_REDIRECT_URL` | *(auto)* | Callback URL (auto-detected from `BASE_URL`) |
+
+**Example (Google):**
+```env
+OIDC_PROVIDERS=google
+OIDC_GOOGLE_CLIENT_ID=123456.apps.googleusercontent.com
+OIDC_GOOGLE_CLIENT_SECRET=GOCSPX-...
+```
+
+### Passkeys
+
+WebAuthn-based passwordless login with biometric verification. Users can register up to 10 passkeys and use them as their primary login method. Passkeys skip 2FA since they are inherently multi-factor.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PASSKEYS_RP_ID` | *(empty)* | Relying Party ID — your domain (e.g., `schautrack.com`). **Enables passkeys when set.** |
+| `PASSKEYS_RP_NAME` | `Schautrack` | Display name shown in passkey dialogs |
+| `PASSKEYS_RP_ORIGINS` | `https://<RP_ID>` | Allowed origins (comma-separated, for multi-domain setups) |
+
 ### Security
 
 | Variable | Default | Description |
